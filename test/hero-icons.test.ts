@@ -139,6 +139,16 @@ describe('icons', () => {
     expect(seen.sort()).toEqual(Object.keys(expected).sort());
   });
 
+  it('keeps an alpha channel for an opaque source too', async () => {
+    const dir = tempDir();
+    const opaque = join(dir, 'opaque.png');
+    await sharp({ create: { width: 1024, height: 1024, channels: 3, background: '#1e1b4b' } })
+      .png()
+      .toFile(opaque);
+    await generateIcons(opaque, 'electron', join(dir, 'out'));
+    expect(await pngSize(readFileSync(join(dir, 'out', 'icon.png')))).toEqual([1024, 1024, 'png', 'rgba']);
+  });
+
   it('refuses an unknown preset and a missing source', async () => {
     await expect(generateIcons(source, 'android' as never, tempDir())).rejects.toThrow(/Unknown icon preset "android"/);
     await expect(generateIcons('nope.png', 'web', tempDir())).rejects.toThrow(/Icon source not found/);
