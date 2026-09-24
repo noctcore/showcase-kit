@@ -18,8 +18,15 @@ export const DEFAULT_CDP_URL = 'http://127.0.0.1:9222';
 const DEFAULT_BACKGROUND: ResolvedBackground = { type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 };
 
 const ID = /^[A-Za-z0-9_-]+$/;
-// Colors end up inside a CSS declaration. Allow color syntax, refuse anything that could close it.
+// Colors end up inside a CSS declaration. Allow color syntax only: characters that cannot close the
+// declaration, and no functions but color functions (so no url() fetches or image-set()).
 const CSS_COLOR = /^[#\w\s(),.%/+-]+$/;
+const CSS_COLOR_FUNCTIONS = new Set(['rgb', 'rgba', 'hsl', 'hsla', 'hwb', 'lab', 'lch', 'oklab', 'oklch', 'color', 'color-mix']);
+
+function isCssColor(text: string): boolean {
+  if (!CSS_COLOR.test(text)) return false;
+  return [...text.matchAll(/([\w-]+)\s*\(/g)].every(match => CSS_COLOR_FUNCTIONS.has((match[1] ?? '').toLowerCase()));
+}
 
 type Obj = Record<string, unknown>;
 
@@ -107,7 +114,7 @@ function oneOf<T extends string>(issues: Issues, path: string, value: unknown, o
 
 function color(issues: Issues, path: string, value: unknown): string {
   const text = str(issues, path, value, true);
-  if (text && !CSS_COLOR.test(text)) {
+  if (text && !isCssColor(text)) {
     issues.add(path, `is not a CSS color: "${text}"`);
   }
   return text;

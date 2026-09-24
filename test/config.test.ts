@@ -107,6 +107,19 @@ describe('resolveConfig', () => {
     expect(config.shots[0]?.nav).toBe(nav);
   });
 
+  it('accepts color syntax but not url() or other non-color functions', () => {
+    for (const ok of ['#0f766e', 'rebeccapurple', 'rgb(0 0 0 / 50%)', 'oklch(70% 0.1 200)', 'color-mix(in srgb, red 40%, blue)']) {
+      expect(() => resolveConfig({ ...minimal, frame: { background: ok } }, '/'), ok).not.toThrow();
+    }
+    expect(issuesOf({ ...minimal, frame: { background: 'url(logo.png)' } })).toEqual(['frame.background: is not a CSS color: "url(logo.png)"']);
+    expect(issuesOf({ ...minimal, frame: { background: 'url(https://example.com/x.png)' } })).toEqual([
+      'frame.background: is not a CSS color: "url(https://example.com/x.png)"',
+    ]);
+    expect(issuesOf({ ...minimal, frame: { background: { type: 'solid', color: 'image-set(a 1x)' } } })).toEqual([
+      'frame.background.color: is not a CSS color: "image-set(a 1x)"',
+    ]);
+  });
+
   it('names the file in the error message', () => {
     expect(() => resolveConfig({}, '/', 'showcase.config.mjs')).toThrow(
       /^Invalid showcase config \(showcase\.config\.mjs\):\n {2}- name: is required/,
