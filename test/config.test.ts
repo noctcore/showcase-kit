@@ -25,7 +25,7 @@ describe('resolveConfig', () => {
     const config = resolveConfig(minimal, '/work/app');
     expect(config.slug).toBe('demo-app');
     expect(config.root).toBe(resolve('/work/app'));
-    expect(config.viewport).toEqual({ width: 1440, height: 900 });
+    expect(config).toMatchObject({ viewport: { width: 1440, height: 900 } });
     expect(config.deviceScaleFactor).toBe(2);
     expect(config.langs).toEqual(['en']);
     expect(config.shots[0]).toMatchObject({ id: 'home', title: 'home', alt: 'Demo App: home', delayMs: 0 });
@@ -67,7 +67,7 @@ describe('resolveConfig', () => {
     expect(issues).toEqual(
       expect.arrayContaining([
         'name: must be a non-empty string, got ""',
-        'target.mode: must be "url" or "cdp", got "ftp"',
+        'target.mode: must be "url", "cdp" or "tty", got "ftp"',
         expect.stringMatching(/^config\.viewPort: unknown key/),
         'deviceScaleFactor: must be a number between 0.25 and 4, got number 9',
         'shots[0].id: may only contain letters, digits, "-" and "_", got "a b"',
@@ -158,7 +158,7 @@ export default { name: 'Typed', viewport, target: { mode: 'url', url: 'http://lo
     expect(findConfigFile(nested)).toBe(join(dir, 'showcase.config.ts'));
     const config = await loadConfig(undefined, nested);
     expect(config.name).toBe('Typed');
-    expect(config.viewport).toEqual({ width: 800, height: 600 });
+    expect(config).toMatchObject({ viewport: { width: 800, height: 600 } });
     expect(config.root).toBe(dir);
   });
 

@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from 'playwright';
+import type { Keys, ResolvedTerminalOptions, TerminalOptions, TtySession } from '../tty/types.js';
 
 /** Navigate to a shot: click a selector, visit a path or URL, or run your own steps. */
 export type NavFn = (page: Page) => Promise<void> | void;
@@ -31,6 +32,31 @@ export interface Shot {
   delayMs?: number;
 }
 
+/** Your own steps in tty mode: press keys, type, wait for text. */
+export type TtyNavFn = (tty: TtySession) => Promise<void> | void;
+
+/** A shot in tty mode. Shots run in order in one app process per language, so each starts where the last ended. */
+export interface TtyShot {
+  /** File name stem and `{id}` token. Letters, digits, `-` and `_`. */
+  id: string;
+  /** Human name, used in frame titles and gallery alt text. Defaults to `id`. */
+  title?: string;
+  /** Caption under the image in the README table and the portfolio gallery. */
+  caption?: string;
+  /** Alt text. Defaults to `<name>: <title>`. */
+  alt?: string;
+  /** Keys to press: plain text is typed, names in braces are keys (`{Tab}`, `{Down}`, `{Enter}`, `{C-c}`). */
+  keys?: Keys;
+  /** Or your own steps with the session. Use `keys` or `nav`, not both. */
+  nav?: TtyNavFn;
+  /** Text on screen to wait for after the keys: a substring or a RegExp. */
+  waitFor?: string | RegExp;
+  /** Extra settle time after `waitFor`, in milliseconds. */
+  delayMs?: number;
+  /** Start a fresh app process (and run `setup` again) before this shot. Default false. */
+  restart?: boolean;
+}
+
 export interface UrlTarget {
   mode: 'url';
   /** The app's URL. Path `nav` values resolve under its path: it is the app's base directory. */
@@ -60,14 +86,45 @@ export interface CdpTarget {
   readyTimeoutMs?: number;
 }
 
-export type Target = UrlTarget | CdpTarget;
+/** Runs a terminal app in a pseudo terminal and captures its screen. Needs `@lydell/node-pty` (or `node-pty`). */
+export interface TtyTarget {
+  mode: 'tty';
+  /** Command to run: a string goes through the shell like `start`; an array `[file, ...args]` is spawned directly. */
+  command: string | [file: string, ...args: string[]];
+  /** Working directory. Defaults to the config root. */
+  cwd?: string;
+  /** Extra environment. A function gets the language, for apps that take their locale from an env var. */
+  env?: Record<string, string> | ((ctx: { lang: string }) => Record<string, string>);
+  /** Terminal width in columns. Default 120. */
+  cols?: number;
+  /** Terminal height in rows. Default 32. */
+  rows?: number;
+  /** Key sent to quit before the process tree is killed. Default `'q'`; `false` just kills. */
+  quitKey?: string | false;
+  /** Grace after `ready` and `setup` before the first key, for apps that enter raw mode after drawing. Default 300. */
+  inputDelayMs?: number;
+  /** How long to wait for the `ready` text. Default 30000. */
+  readyTimeoutMs?: number;
+}
+
+export type Target = UrlTarget | CdpTarget | TtyTarget;
+/** The targets captured in a browser page. */
+export type WebTarget = UrlTarget | CdpTarget;
+export type Mode = Target['mode'];
 
 export interface SetupContext {
   page: Page;
   context: BrowserContext;
   lang: string;
-  mode: Target['mode'];
-  config: ResolvedConfig;
+  mode: WebTarget['mode'];
+  config: ResolvedWebConfig;
+}
+
+export interface TtySetupContext {
+  tty: TtySession;
+  lang: string;
+  mode: 'tty';
+  config: ResolvedTtyConfig;
 }
 
 export type Background =
@@ -159,46 +216,80 @@ export interface BrowserOptions {
 }
 
 export interface Timeouts {
-  /** Wait for the `ready` selector. Default 30000. */
+  /** Wait for the `ready` selector. Default 30000. Not used in tty mode (see `target.readyTimeoutMs`). */
   readyMs?: number;
   /** Navigation and `waitFor` per shot. Default 15000. */
   shotMs?: number;
-  /** Best-effort network idle wait; a busy dev server only costs this much. Default 3000. */
+  /** Best-effort network idle wait; a busy dev server only costs this much. Default 3000. Not used in tty mode. */
   networkIdleMs?: number;
 }
 
-export interface ShowcaseConfig {
+/** Settings shared by every mode. */
+export interface CommonConfig {
   /** App name, used in frame titles and alt text. */
   name: string;
   /** Used for the `{slug}` token. Default: `name` lowercased with dashes. */
   slug?: string;
   /** Base directory for relative paths. Default: the config file's directory. */
   root?: string;
-  target: Target;
+  deviceScaleFactor?: number;
+  langs?: string[];
+  frame?: FrameOptions;
+  outputs?: Outputs;
+  /** Banner image for the top of a README: logo, name, tagline and a stack of framed shots. */
+  hero?: HeroOptions;
+  /** The Chromium that captures web apps, renders terminal screens and draws frames. */
+  browser?: BrowserOptions;
+  timeouts?: Timeouts;
+}
+
+/** A web app captured in a browser page: `mode: 'url'` or `mode: 'cdp'`. */
+export interface WebConfig extends CommonConfig {
+  target: WebTarget;
   /** Selector that exists once the app has booted. */
   ready?: string;
   viewport?: { width: number; height: number };
-  deviceScaleFactor?: number;
   colorScheme?: 'light' | 'dark' | 'no-preference';
-  langs?: string[];
   /** Extra CSS injected before each shot, for example to hide dev overlays. */
   css?: string;
   /** Runs once per language after the app is ready: seed fixtures, switch locale, dismiss dialogs. */
   setup?: (ctx: SetupContext) => Promise<void> | void;
   shots: Shot[];
-  frame?: FrameOptions;
-  outputs?: Outputs;
-  /** Banner image for the top of a README: logo, name, tagline and a stack of framed shots. */
-  hero?: HeroOptions;
-  browser?: BrowserOptions;
-  timeouts?: Timeouts;
 }
 
-export interface ResolvedShot extends Shot {
+/** A terminal app captured from a pseudo terminal: `mode: 'tty'`. */
+export interface TtyConfig extends CommonConfig {
+  target: TtyTarget;
+  /** Text on screen once the app has drawn: a substring or a RegExp. */
+  ready?: string | RegExp;
+  /** How the terminal looks: theme, font, line height, padding, cursor. */
+  terminal?: TerminalOptions;
+  /** Runs in each new app process once it is ready, before its first shot. */
+  setup?: (ctx: TtySetupContext) => Promise<void> | void;
+  shots: TtyShot[];
+}
+
+/**
+ * The config a `showcase.config.*` file exports. Without a type argument it is the web config, as before tty mode;
+ * `defineConfig` picks the right one from `target.mode`.
+ */
+export type ShowcaseConfig<M extends Mode = WebTarget['mode']> = M extends 'tty' ? TtyConfig : WebConfig;
+
+export interface ResolvedWebShot extends Shot {
   title: string;
   alt: string;
   delayMs: number;
 }
+
+export interface ResolvedTtyShot extends TtyShot {
+  title: string;
+  alt: string;
+  delayMs: number;
+  restart: boolean;
+}
+
+/** A shot of either kind. Frames, the portfolio, the hero and the README only read `id`, `title`, `alt`, `caption`. */
+export type ResolvedShot = ResolvedWebShot | ResolvedTtyShot;
 
 export type ResolvedBackground =
   | { type: 'solid'; color: string }
@@ -242,22 +333,49 @@ export interface ResolvedHero {
   quality: number;
 }
 
-export interface ResolvedConfig {
+export interface ResolvedTtyTarget {
+  mode: 'tty';
+  command: string | [file: string, ...args: string[]];
+  /** Absolute. */
+  cwd: string;
+  env: TtyTarget['env'];
+  cols: number;
+  rows: number;
+  quitKey: string | false;
+  inputDelayMs: number;
+  readyTimeoutMs: number;
+}
+
+interface ResolvedCommon {
   name: string;
   slug: string;
   root: string;
-  target: Target & { readyTimeoutMs: number };
-  ready: string | undefined;
-  viewport: { width: number; height: number };
   deviceScaleFactor: number;
-  colorScheme: 'light' | 'dark' | 'no-preference';
   langs: string[];
-  css: string | undefined;
-  setup: ShowcaseConfig['setup'];
-  shots: ResolvedShot[];
   frame: ResolvedFrame;
   outputs: { raw: string; readme: string | false; portfolio: ResolvedPortfolio | undefined };
   hero: ResolvedHero;
   browser: BrowserOptions;
   timeouts: Required<Timeouts>;
 }
+
+export interface ResolvedWebConfig extends ResolvedCommon {
+  target: WebTarget & { readyTimeoutMs: number };
+  ready: string | undefined;
+  viewport: { width: number; height: number };
+  colorScheme: 'light' | 'dark' | 'no-preference';
+  css: string | undefined;
+  setup: WebConfig['setup'];
+  shots: ResolvedWebShot[];
+}
+
+export interface ResolvedTtyConfig extends ResolvedCommon {
+  target: ResolvedTtyTarget;
+  ready: string | RegExp | undefined;
+  terminal: ResolvedTerminalOptions;
+  setup: TtyConfig['setup'];
+  shots: ResolvedTtyShot[];
+}
+
+/** A validated config with every default filled in: the web or the tty kind, told apart by `target.mode`. */
+export type ResolvedConfig = ResolvedWebConfig | ResolvedTtyConfig;

@@ -1,5 +1,12 @@
 import { resolve } from 'node:path';
-import type { ResolvedConfig, ResolvedShot } from './config/types.js';
+import type {
+  ResolvedConfig,
+  ResolvedShot,
+  ResolvedTtyConfig,
+  ResolvedTtyShot,
+  ResolvedWebConfig,
+  ResolvedWebShot,
+} from './config/types.js';
 import { ShowcaseError } from './errors.js';
 import { fillTemplate } from './template.js';
 
@@ -8,17 +15,21 @@ export function outputPath(config: ResolvedConfig, template: string, lang: strin
   return resolve(config.root, fillTemplate(template, { lang, id, slug: config.slug }));
 }
 
-export interface Selection {
-  shots: ResolvedShot[];
+export interface Selection<S extends ResolvedShot = ResolvedShot> {
+  shots: S[];
   langs: string[];
 }
 
 /** Apply `--only` and `--langs`, refusing names the config does not know so typos do not silently do nothing. */
+export function select(config: ResolvedWebConfig, only?: string[], langs?: string[]): Selection<ResolvedWebShot>;
+export function select(config: ResolvedTtyConfig, only?: string[], langs?: string[]): Selection<ResolvedTtyShot>;
+export function select(config: ResolvedConfig, only?: string[], langs?: string[]): Selection;
 export function select(config: ResolvedConfig, only?: string[], langs?: string[]): Selection {
-  const unknownShots = (only ?? []).filter(id => !config.shots.some(shot => shot.id === id));
+  const shots: ResolvedShot[] = config.shots;
+  const unknownShots = (only ?? []).filter(id => !shots.some(shot => shot.id === id));
   if (unknownShots.length > 0) {
     throw new ShowcaseError(
-      `Unknown shot id(s): ${unknownShots.join(', ')}. Known: ${config.shots.map(shot => shot.id).join(', ')}`,
+      `Unknown shot id(s): ${unknownShots.join(', ')}. Known: ${shots.map(shot => shot.id).join(', ')}`,
     );
   }
   const unknownLangs = (langs ?? []).filter(lang => !config.langs.includes(lang));
@@ -26,7 +37,7 @@ export function select(config: ResolvedConfig, only?: string[], langs?: string[]
     throw new ShowcaseError(`Unknown lang(s): ${unknownLangs.join(', ')}. Known: ${config.langs.join(', ')}`);
   }
   return {
-    shots: only?.length ? config.shots.filter(shot => only.includes(shot.id)) : config.shots,
+    shots: only?.length ? shots.filter(shot => only.includes(shot.id)) : shots,
     langs: langs?.length ? config.langs.filter(lang => langs.includes(lang)) : config.langs,
   };
 }
