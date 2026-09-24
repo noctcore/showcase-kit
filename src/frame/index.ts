@@ -6,7 +6,7 @@ import { outputPath, select } from '../paths.js';
 import { formatOf, frameTitle, logWritten, readRaw, renderFrame, writeImage } from './render.js';
 import { readmeLayout } from './template.js';
 
-export interface FrameOptionsCli {
+export interface FrameRunOptions {
   only?: string[];
   langs?: string[];
 }
@@ -20,7 +20,7 @@ export interface FramedFile {
 }
 
 /** Turn raw captures into framed README images at `outputs.readme`. */
-export async function frame(config: ResolvedConfig, options: FrameOptionsCli = {}): Promise<FramedFile[]> {
+export async function frame(config: ResolvedConfig, options: FrameRunOptions = {}): Promise<FramedFile[]> {
   const { shots, langs } = select(config, options.only, options.langs);
   const format = formatOf(config.outputs.readme);
   // Read everything first: a missing capture should fail before a browser starts.
