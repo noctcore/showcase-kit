@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { accessSync, constants, statSync } from 'node:fs';
+import { accessSync, constants, rmSync, statSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { delimiter, isAbsolute, join, resolve } from 'node:path';
@@ -30,6 +30,9 @@ const FORMATS: readonly AnimationFormat[] = ['webp', 'gif', 'mp4'];
 const MAX_DELAY_MS = 65_535;
 /** The same for GIF, whose delays are whole hundredths of a second. */
 const MAX_GIF_DELAY_MS = 65_530;
+/** How long ffmpeg may take for one clip before it is stopped. A 300 frame clip takes well under a minute. */
+export const FFMPEG_TIMEOUT_MS = 5 * 60_000;
+
 const FFMPEG_MISSING =
   'MP4 needs ffmpeg on PATH, and none was found. Install it (https://ffmpeg.org/download.html, or ' +
   '`winget install ffmpeg`, `brew install ffmpeg`, `apt install ffmpeg`), or drop "mp4" from the formats: ' +
@@ -188,7 +191,7 @@ async function encodeMp4(frames: AnimationFrame[], size: { width: number; height
     await writeFile(join(dir, 'frames.txt'), `${list.join('\n')}\n`);
     // H.264 in yuv420p needs even sides; pad by one pixel rather than scale, so text stays sharp.
     const pad = size.width % 2 === 0 && size.height % 2 === 0 ? '' : ',pad=ceil(iw/2)*2:ceil(ih/2)*2';
-    await run(ffmpeg, [
+    await runFfmpeg(ffmpeg, [
       '-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', 'frames.txt',
       '-t', (total / 1000).toFixed(3), '-vf', `fps=${String(fps)}${pad}`, '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '23',
       '-preset', 'slow', '-movflags', '+faststart', 'clip.mp4',
@@ -199,17 +202,87 @@ async function encodeMp4(frames: AnimationFrame[], size: { width: number; height
   }
 }
 
-function run(file: string, args: string[], cwd: string): Promise<void> {
+const SIGNALS = ['SIGINT', 'SIGTERM'] as const;
+/** How long a signal waits for a killed ffmpeg to let go of its folder. */
+const REMOVE_WAIT_MS = 3_000;
+
+/**
+ * Remove `dir` without yielding, for signal and exit handlers. On Windows a process that was just killed keeps its
+ * working directory and open files busy for a moment (and `rmSync` does not retry that), so this retries until it
+ * is gone or `REMOVE_WAIT_MS` passes.
+ */
+function removeSync(dir: string): void {
+  const deadline = Date.now() + REMOVE_WAIT_MS;
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (;;) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if ((code !== 'EBUSY' && code !== 'EPERM' && code !== 'ENOTEMPTY') || Date.now() >= deadline) return;
+      Atomics.wait(pause, 0, 0, 25);
+    }
+  }
+}
+
+/**
+ * Run ffmpeg (`file`) in `dir`, the temporary directory that holds its input. The caller removes `dir` afterwards,
+ * but its cleanup never runs when the kit is stopped, so while ffmpeg runs Ctrl+C or SIGTERM kills it, removes
+ * `dir` and exits (130 or 143), and any other exit of the kit does the same without the exit. After `timeoutMs`
+ * ffmpeg is killed and the run fails.
+ */
+export function runFfmpeg(file: string, args: string[], dir: string, timeoutMs = FFMPEG_TIMEOUT_MS): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(file, args, { cwd, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    const child = spawn(file, args, { cwd: dir, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
     let stderr = '';
+    let timedOut = false;
+    let settled = false;
+    // Node's own handle: after the exit it no longer signals anything, so a reused PID is never hit.
+    const stop = (): void => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    };
+    const cleanUpSync = (): void => {
+      stop();
+      removeSync(dir);
+    };
+    const handlers = SIGNALS.map(signal => {
+      const handler = (): void => {
+        cleanUpSync();
+        process.exit(signal === 'SIGINT' ? 130 : 143);
+      };
+      process.on(signal, handler);
+      return [signal, handler] as const;
+    });
+    process.on('exit', cleanUpSync);
+    const timer = setTimeout(() => {
+      timedOut = true;
+      stop();
+    }, timeoutMs);
+    const finish = (error?: ShowcaseError): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      for (const [signal, handler] of handlers) process.off(signal, handler);
+      process.off('exit', cleanUpSync);
+      if (error) reject(error);
+      else resolve();
+    };
+
     child.stderr.on('data', (chunk: Buffer) => {
       stderr = (stderr + chunk.toString()).slice(-4000);
     });
-    child.on('error', error => reject(new ShowcaseError(`Could not run ${file}: ${error.message}`)));
+    child.on('error', error => finish(new ShowcaseError(`Could not run ${file}: ${error.message}`)));
     child.on('close', code => {
-      if (code === 0) resolve();
-      else reject(new ShowcaseError(`ffmpeg failed (exit code ${String(code)}):\n${stderr.trim()}`));
+      if (timedOut) {
+        finish(
+          new ShowcaseError(
+            `ffmpeg did not finish within ${String(Math.round(timeoutMs / 1000))} s and was stopped. ` +
+              `Try fewer or smaller frames (clip maxFrames or durationMs, frame.maxWidth), or drop "mp4" from the formats.`,
+          ),
+        );
+      } else if (code === 0) finish();
+      else finish(new ShowcaseError(`ffmpeg failed (exit code ${String(code)}):\n${stderr.trim()}`));
     });
   });
 }
