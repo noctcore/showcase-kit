@@ -61,6 +61,10 @@ async function waitGone(pid: number, timeoutMs: number): Promise<boolean> {
   return !isAlive(pid);
 }
 
+function hasExited(child: ChildProcess): boolean {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
 const running = new Set<StartedProcess>();
 let handlersInstalled = false;
 
@@ -127,7 +131,10 @@ export function startCommand(
   child.stderr?.on('data', collect);
 
   const exited = new Promise<number | null>(resolve => {
-    child.on('exit', code => resolve(code));
+    child.on('exit', code => {
+      running.delete(handle);
+      resolve(code);
+    });
     child.on('error', () => resolve(null));
   });
 
@@ -139,9 +146,14 @@ export function startCommand(
     stop() {
       stopping ??= (async () => {
         running.delete(handle);
-        killTreeSync(pid);
-        if (!(await waitGone(pid, 10_000))) {
-          log.warn(`${label}: process ${String(pid)} is still running after kill.`);
+        // Once the child has exited its PID can be reused (Windows does so quickly), and a tree kill
+        // would hit whatever owns it now. Until the exit is observed, Node holds the process handle open,
+        // so the PID still refers to our child.
+        if (!hasExited(child)) {
+          killTreeSync(pid);
+          if (!(await waitGone(pid, 10_000))) {
+            log.warn(`${label}: process ${String(pid)} is still running after kill.`);
+          }
         }
         child.stdout?.destroy();
         child.stderr?.destroy();

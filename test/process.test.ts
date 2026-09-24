@@ -1,8 +1,34 @@
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ShowcaseError } from '../src/errors.js';
 import { startCommand } from '../src/process.js';
-import { tempDir } from './helpers.js';
+import { isAlive, tempDir } from './helpers.js';
+
+// Record every tree kill the module attempts, while still letting it happen.
+const kills = vi.hoisted(() => ({ list: [] as string[] }));
+vi.mock('node:child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return {
+    ...actual,
+    spawnSync: ((command: string, args: readonly string[], options: object) => {
+      if (command === 'taskkill') kills.list.push(`taskkill ${args.join(' ')}`);
+      return actual.spawnSync(command, args, options);
+    }) as typeof actual.spawnSync,
+  };
+});
+
+function watchGroupKills(): void {
+  const original = process.kill.bind(process);
+  vi.spyOn(process, 'kill').mockImplementation((pid: number, signal?: string | number) => {
+    if (pid < 0 && signal !== 0) kills.list.push(`kill ${String(pid)} ${String(signal)}`);
+    return original(pid, signal);
+  });
+}
+
+afterEach(() => {
+  kills.list.length = 0;
+  vi.restoreAllMocks();
+});
 
 describe('startCommand', () => {
   it('turns a failed spawn into a ShowcaseError, not an uncaught exception', async () => {
@@ -10,5 +36,23 @@ describe('startCommand', () => {
     expect(() => startCommand('node -v', { cwd: missing })).toThrow(ShowcaseError);
     // The spawn error event fires on a later tick; without a listener it would crash the run here.
     await new Promise(resolve => setTimeout(resolve, 200));
+  });
+
+  it('does not kill by PID once the process has exited: the PID may already belong to someone else', async () => {
+    watchGroupKills();
+    const started = startCommand('node -e "process.exit(0)"', { cwd: process.cwd() });
+    expect(await started.exited).toBe(0);
+    await started.stop();
+    expect(kills.list).toEqual([]);
+  });
+
+  it('still kills a live process tree', async () => {
+    watchGroupKills();
+    const started = startCommand('node -e "setInterval(() => {}, 1000)"', { cwd: process.cwd() });
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await started.stop();
+    expect(kills.list).toHaveLength(1);
+    expect(kills.list[0]).toMatch(process.platform === 'win32' ? /^taskkill \/PID \d+ \/T \/F$/ : /^kill -\d+ SIGTERM$/);
+    expect(isAlive(started.pid)).toBe(false);
   });
 });
