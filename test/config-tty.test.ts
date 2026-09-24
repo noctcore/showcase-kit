@@ -1,12 +1,16 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   ConfigError,
   defineConfig,
+  init,
   isTtyConfig,
+  loadConfig,
   resolveConfig,
+  starterConfig,
   type ResolvedConfig,
   type ResolvedTtyConfig,
   type TtySession,
@@ -277,3 +281,38 @@ describe('defineConfig types', () => {
   });
 });
 
+describe('init --tty', () => {
+  it('writes a starter tty config that runs the package bin and validates', async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@acme/rumi', bin: { rumi: 'dist/cli.js' } }));
+    const path = init(dir, { tty: true });
+    const text = readFileSync(path, 'utf8');
+    expect(text).toContain("mode: 'tty'");
+    expect(text).toContain(`command: ['node', "dist/cli.js"],`);
+    expect(text).toContain('pnpm add -D @lydell/node-pty');
+    // Validate it as the kit would load it, minus the package import.
+    writeFileSync(path, text.replace("import { defineConfig } from '@noctcore/showcase-kit';", 'const defineConfig = c => c;'));
+    const config = await loadConfig(undefined, dir);
+    if (!isTtyConfig(config)) throw new Error('expected a tty config');
+    expect(config.name).toBe('Rumi');
+    expect(config.target).toMatchObject({ command: ['node', 'dist/cli.js'], cwd: dir, cols: 120, rows: 32 });
+    expect(config.shots.map(shot => shot.id)).toEqual(['home']);
+  });
+
+  it('falls back to a start script, then to node index.js', () => {
+    const dir = tempDir();
+    expect(starterConfig(dir, true, { tty: true })).toContain("command: 'node index.js',");
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'tui', scripts: { start: 'bun src/index.tsx' } }));
+    writeFileSync(join(dir, 'bun.lock'), '');
+    const text = starterConfig(dir, true, { tty: true });
+    expect(text).toContain("command: 'bun run start',");
+    expect(text).not.toContain('@ts-check');
+  });
+
+  it('is what `showcase init --tty` writes', () => {
+    const dir = tempDir();
+    const result = spawnSync(process.execPath, [resolve('dist', 'cli.js'), 'init', '--tty'], { cwd: dir, encoding: 'utf8' });
+    expect(result.status).toBe(0);
+    expect(readFileSync(join(dir, 'showcase.config.mjs'), 'utf8')).toBe(starterConfig(dir, false, { tty: true }));
+  });
+});
