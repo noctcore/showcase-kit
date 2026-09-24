@@ -336,7 +336,8 @@ function clipTitle(config: ResolvedTtyConfig, clip: ResolvedClip, lang: string):
 
 /**
  * Render each unique screen once and frame it at once, through one hole render per clip, so only the framed PNG is
- * kept per screen. Each sample then becomes a frame with its delay.
+ * kept per screen. Each sample then becomes a frame with its delay. It empties `samples` as it goes, so each
+ * screen's grid can be freed once its frame exists.
  */
 async function renderFrames(
   samples: ClipSample[],
@@ -352,7 +353,9 @@ async function renderFrames(
   const framed = new Map<string, Buffer>();
   let hole: FrameHole | undefined;
   const frames: AnimationFrame[] = [];
-  for (const [index, { screen }] of samples.entries()) {
+  for (let index = 0; samples.length > 0; index++) {
+    const screen = samples.shift()?.screen;
+    if (!screen) break;
     let image = framed.get(screen.key);
     if (!image) {
       const png = await engine.renderTtyScreen(page, screen, config.terminal, config.deviceScaleFactor);
@@ -364,9 +367,11 @@ async function renderFrames(
           title: clipTitle(config, clip, lang),
         });
       }
-      image = await composeInHole(hole, png);
       if (maxWidth) {
-        image = await sharp(image).resize({ width: maxWidth, withoutEnlargement: true }).png({ compressionLevel: 1 }).toBuffer();
+        const full = await composeInHole(hole, png, 1);
+        image = await sharp(full).resize({ width: maxWidth, withoutEnlargement: true }).png().toBuffer();
+      } else {
+        image = await composeInHole(hole, png);
       }
       framed.set(screen.key, image);
     }

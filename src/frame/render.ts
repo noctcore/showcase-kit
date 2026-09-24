@@ -181,8 +181,12 @@ export async function renderFrameHole(
   }
 }
 
-/** Put one screenshot into a frame's hole: the screenshot underneath, the frame (corners, outline) on top. */
-export async function composeInHole(hole: FrameHole, screenshot: Buffer): Promise<Buffer> {
+/**
+ * Put one screenshot into a frame's hole: the screenshot underneath, the frame (corners, outline) on top. A clip
+ * holds every distinct frame until it is encoded, so the default zlib level 6 is worth its few ms: a framed 80x24
+ * screen at DPR 2 is about 350 KB instead of 900 KB at level 1. Pass 1 for a PNG that is only an intermediate.
+ */
+export async function composeInHole(hole: FrameHole, screenshot: Buffer, compressionLevel = 6): Promise<Buffer> {
   const { width = 0, height = 0 } = await sharp(hole.png).metadata();
   let inner = screenshot;
   const size = await sharp(screenshot).metadata();
@@ -196,6 +200,6 @@ export async function composeInHole(hole: FrameHole, screenshot: Buffer): Promis
       { input: inner, left: hole.left, top: hole.top },
       { input: hole.png, left: 0, top: 0 },
     ])
-    .png({ compressionLevel: 1 })
+    .png({ compressionLevel })
     .toBuffer();
 }
