@@ -151,7 +151,8 @@ export const openTtySession: OpenTtySession = async opts => {
   let lastError: Error | undefined;
   // Without a listener the Windows terminal rethrows socket errors, which would crash the host.
   child.on?.('error', error => {
-    lastError = error;
+    // EIO is how a POSIX pty reports that the app closed it: a normal exit, not a failure.
+    if ((error as NodeJS.ErrnoException).code !== 'EIO' && !/\bEIO\b/.test(error.message)) lastError = error;
   });
   const exited = new Promise<number | null>(resolve => {
     child.onExit(({ exitCode: code, signal }) => {
