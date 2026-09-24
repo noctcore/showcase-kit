@@ -1,0 +1,66 @@
+name: release
+
+# Changesets two-phase release:
+#   - PRs land with a changeset (`bun run changeset`) describing the version bump.
+#   - On push to main, if changesets are pending, the Changesets bot opens/updates a
+#     "Version Packages" PR (bumps versions + writes CHANGELOGs).
+#   - Merging that PR (no pending changesets) publishes the new version to npm.
+# 0.1.0 was published by hand, because npm needs the package to exist before a
+# trusted publisher can be added; `changeset publish` skips versions already on npm.
+# Later versions publish through `npm publish` (via `changeset publish`) with npm
+# trusted publishing (OIDC: `id-token: write`, npm 11.5.1+, and a trusted publisher
+# for @noctcore/showcase-kit on npmjs.com), with provenance from NPM_CONFIG_PROVENANCE.
+# changesets/action v2 creates the version commit (signed by GitHub), the release tag
+# (`@noctcore/showcase-kit@x.y.z`) and its GitHub release through the GitHub API with
+# the `github-token` input, so the checkout keeps no git credentials.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+# Nothing at the top level: each job asks for exactly what it uses.
+permissions: {}
+
+jobs:
+  release:
+    name: version or publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # version commit, release tags and GitHub releases (via the API)
+      pull-requests: write # open and update the "Version Packages" PR
+      id-token: write # npm provenance and trusted publishing (OIDC)
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          # changesets/action v2 pushes through the GitHub API with `github-token`,
+          # never with the git credentials a checkout would leave behind.
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      # Node 24 ships npm 11. Publishing uses npm trusted publishing (OIDC) only,
+      # which needs npm 11.5.1 or later; there is no npm token to fall back to.
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+      - name: Require npm with trusted publishing support
+        run: |
+          npm --version
+          node -e "const [a,b,c]=process.argv[1].split('.').map(Number); if (a<11 || (a===11 && (b<5 || (b===5 && c<1)))) { console.error('npm ' + process.argv[1] + ' is older than 11.5.1, which trusted publishing needs'); process.exit(1) }" "$(npm --version)"
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test
+      - name: Create Version PR or publish to npm
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          version-script: bun run version-packages
+          publish-script: bunx changeset publish
+          # v2 no longer reads a GITHUB_TOKEN env var. The action passes this token to
+          # both scripts as GITHUB_TOKEN, which @changesets/changelog-github needs.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          NPM_CONFIG_PROVENANCE: 'true'
