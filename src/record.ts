@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import sharp from 'sharp';
 import { launchBrowser } from './browser.js';
-import { DEFAULT_CLIP_DURATION_MS, WEB_CLIPS_MESSAGE } from './config/clips.js';
+import { DEFAULT_CLIP_DURATION_MS, DEFAULT_MAX_FRAMES, WEB_CLIPS_MESSAGE } from './config/clips.js';
 import { isTtyConfig } from './config/resolve.js';
 import type { ClipFormat, ResolvedClip, ResolvedConfig, ResolvedTtyConfig } from './config/types.js';
 import { encodeAnimation, requireFfmpeg, type AnimationFrame } from './encode.js';
@@ -205,6 +205,7 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
   const tailTicks = Math.round(clip.tailMs / interval);
   const durationMs = clip.durationMs ?? DEFAULT_CLIP_DURATION_MS;
   const maxTicks = Math.max(1, Math.round(durationMs / interval));
+  const maxFrames = clip.maxFrames ?? DEFAULT_MAX_FRAMES;
   let exitCode: number | null | undefined;
   void session.exited.then(code => {
     exitCode = code;
@@ -288,7 +289,7 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
     const screen = session.screen();
     const last = samples[samples.length - 1];
     if (last?.screen.key === screen.key) last.ticks++;
-    else if (samples.length >= clip.maxFrames) {
+    else if (samples.length >= maxFrames) {
       capped = true;
       break;
     } else samples.push({ screen, ticks: 1 });
@@ -307,7 +308,7 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
   const notRun = left > 0 ? ` with ${String(left)} step(s) not run` : '';
   if (capped) {
     log.warn(
-      `  clip ${clip.id}: reached maxFrames (${String(clip.maxFrames)} frames) ${at}, so the recording stopped there${notRun}. ` +
+      `  clip ${clip.id}: reached maxFrames (${String(maxFrames)} frames) ${at}, so the recording stopped there${notRun}. ` +
         `The frames so far are written. Raise clips[].maxFrames to record more; every distinct frame is held in ` +
         `memory until the clip is encoded.`,
     );

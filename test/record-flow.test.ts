@@ -194,6 +194,22 @@ describe('recordTimeline', () => {
     );
   });
 
+  it('caps a clip without maxFrames (one not built by resolveConfig) at the default 300 frames', async () => {
+    vi.useFakeTimers();
+    try {
+      const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+      const { maxFrames: _, ...unresolved } = clip({ steps: [{ type: 'x'.repeat(400), delayMs: 100 }] });
+      const recording = recordTimeline(session(), unresolved, 1000);
+      await vi.runAllTimersAsync();
+      const samples = await recording;
+      expect(samples).toHaveLength(300);
+      expect(samples.every(sample => sample.ticks === 1)).toBe(true);
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^ {2}clip c: reached maxFrames \(300 frames\) after 30000ms/));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('counts only changed frames against maxFrames, so a long idle clip fits in a few', async () => {
     const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
     const samples = await recordTimeline(session(), clip({ steps: [{ keys: 'j' }, { sleep: 400 }, { keys: 'j' }], maxFrames: 3, tailMs: 300 }), 1000);

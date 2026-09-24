@@ -348,7 +348,8 @@ export interface ResolvedClip {
   fps: number;
   /** `undefined` means the default, `DEFAULT_CLIP_DURATION_MS`. */
   durationMs: number | undefined;
-  maxFrames: number;
+  /** `undefined` means the default, `DEFAULT_MAX_FRAMES` (300). */
+  maxFrames?: number;
   tailMs: number;
   formats: ClipFormat[];
 }
