@@ -118,9 +118,20 @@ function whichWindows(file: string, env: Record<string, string>): string | undef
   return undefined;
 }
 
-/** Quote one argument for a cmd.exe command line. */
+/**
+ * Quote one argument of a `.cmd` or `.bat` shim for its cmd.exe command line. Inside quotes cmd.exe still expands
+ * `%VAR%` (a command line has no escape for it, `%%` included) and a `"` flips its quoting for the rest of the line,
+ * so arguments with either are refused. The shim's `%*` hands the text on as is, and the program's own parser reads
+ * a backslash before the closing quote as an escape, so trailing backslashes are doubled.
+ */
 function cmdQuote(arg: string): string {
-  return /^[\w\-./\\:=@+,]+$/.test(arg) ? arg : `"${arg.replace(/"/g, '""')}"`;
+  if (/["%\r\n]/.test(arg)) {
+    throw new ShowcaseError(
+      `Cannot pass ${JSON.stringify(arg)} through a .cmd or .bat shim: cmd.exe cannot take a " or % in an argument, ` +
+        'nor a line break. Run the program the shim starts directly, or use a command string and quote it yourself.',
+    );
+  }
+  return /^[\w\-./\\:@+]+$/.test(arg) ? arg : `"${arg.replace(/(\\+)$/, '$1$1')}"`;
 }
 
 /**
@@ -142,7 +153,8 @@ export function ptyCommand(
   if (platform !== 'win32') return { file, args };
   const found = whichWindows(file, env);
   if (found && /\.(cmd|bat)$/i.test(found)) {
-    return { file: comspec(), args: `/d /s /c "${[found, ...args].map(cmdQuote).join(' ')}"` };
+    // `/v:off`: a `!` stays literal even where delayed expansion is turned on by default.
+    return { file: comspec(), args: `/d /v:off /s /c "${[found, ...args].map(cmdQuote).join(' ')}"` };
   }
   return { file: found ?? file, args };
 }

@@ -311,9 +311,35 @@ describe('ptyCommand', () => {
     const env = { PATH: bin, PATHEXT: '.exe;.cmd' };
     expect(ptyCommand(['fake-pnpm', 'run', 'my tui'], env, 'win32')).toEqual({
       file: 'cmd.exe',
-      args: `/d /s /c "${join(bin, 'fake-pnpm.cmd')} run "my tui""`,
+      args: `/d /v:off /s /c "${join(bin, 'fake-pnpm.cmd')} run "my tui""`,
     });
     expect(ptyCommand(['fake-app', '--x'], env, 'win32')).toEqual({ file: join(bin, 'fake-app.exe'), args: ['--x'] });
     expect(() => ptyCommand([] as unknown as [string], env, 'win32')).toThrow(/command is empty/);
+  });
+
+  it('quotes shim arguments for cmd.exe and refuses what it cannot pass', () => {
+    const bin = tempDir();
+    writeFileSync(join(bin, 'fake-pnpm.cmd'), '@echo off\r\n');
+    const env = { PATH: bin, PATHEXT: '.cmd' };
+    const shim = join(bin, 'fake-pnpm.cmd');
+    expect(ptyCommand(['fake-pnpm', 'a&b', 'k=v,w;z', 'C:\\my dir\\', ''], env, 'win32').args).toBe(
+      `/d /v:off /s /c "${shim} "a&b" "k=v,w;z" "C:\\my dir\\\\" """`,
+    );
+    for (const bad of ['100%', '%PATH%', 'say "hi"', 'two\nlines']) {
+      expect(() => ptyCommand(['fake-pnpm', bad], env, 'win32')).toThrow(/cannot take a " or % in an argument/);
+    }
+    // Only shims go through cmd.exe: an .exe, or any command on POSIX, takes these as they are.
+    expect(ptyCommand(['fake-pnpm', '100%', 'say "hi"'], env, 'linux').args).toEqual(['100%', 'say "hi"']);
+  });
+
+  it.runIf(process.platform === 'win32')('passes arguments through a real .cmd shim unchanged', async () => {
+    const bin = tempDir();
+    const script = join(FIXTURES, 'print-exit.mjs');
+    writeFileSync(join(bin, 'echo-args.cmd'), `@"${process.execPath}" "${script}" %*\r\n`);
+    const args = ['a b', 'x&y|z', 'c^d', '<e>', 'f(g)', 'hi!PATH!', 'k=v,w;z', 'C:\\my dir\\', ''];
+    const tty = await open({ command: ['echo-args', ...args], env: { PATH: `${bin};${process.env.PATH ?? ''}` }, cols: 200 });
+    await tty.waitForText('print-exit done');
+    expect(await tty.exited).toBe(0);
+    expect(tty.screenText()).toContain(`args ${JSON.stringify(args)}`);
   });
 });
