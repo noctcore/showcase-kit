@@ -12,6 +12,12 @@ async function dims(path: string): Promise<[number | undefined, number | undefin
   return [meta.width, meta.height, meta.format];
 }
 
+async function pixelAt(path: string, x: number, y: number): Promise<number[]> {
+  const { data, info } = await sharp(path).raw().toBuffer({ resolveWithObject: true });
+  const offset = (y * info.width + x) * info.channels;
+  return [...data.subarray(offset, offset + 3)];
+}
+
 function readPids(file: string): { server: number; grandchild: number } {
   return JSON.parse(readFileSync(file, 'utf8')) as { server: number; grandchild: number };
 }
@@ -188,6 +194,35 @@ describe('capture, cdp mode', () => {
       .find(candidate => candidate.url().startsWith(server.url));
     expect(page).toBeDefined();
     expect(await page!.evaluate(() => window.innerWidth)).toBe(900);
+  });
+
+  it('grows a window smaller than the viewport, and keeps the size across a reload in setup', async () => {
+    // An app window of 400x300, as a small Electron window would be.
+    const small = await browser.newPage({ viewport: { width: 400, height: 300 } });
+    await small.goto(`${server.url}?small`);
+    const shots = [{ id: 'settings', nav: '[data-view="settings"]' }];
+    const cdp = await capture(
+      fixtureConfig(tempDir(), {
+        target: { mode: 'cdp', cdpUrl, pageMatch: '?small' },
+        shots,
+        setup: async ({ page }) => {
+          await page.reload();
+        },
+      }),
+    );
+    const url = await capture(fixtureConfig(tempDir(), { target: { mode: 'url', url: server.url }, shots }));
+    const [cdpFile, urlFile] = [cdp.files[0]!.path, url.files[0]!.path];
+    expect(await dims(cdpFile)).toEqual([1280, 800, 'png']);
+    // Far corner and a settings tile: the page really laid out at 640x400, not a clipped 400x300.
+    for (const [x, y] of [
+      [1270, 790],
+      [1100, 200],
+      [700, 250],
+    ] as const) {
+      const [a, b] = [await pixelAt(cdpFile, x, y), await pixelAt(urlFile, x, y)];
+      expect(a, `pixel ${String(x)},${String(y)}`).toEqual(b);
+    }
+    await small.close();
   });
 
   it('freezes animations over CDP too', async () => {
