@@ -35,8 +35,9 @@ const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
 let closingOnSignal = false;
 
 function killOpenSync(): void {
-  // Only apps that have not exited are in the set, so these PIDs are still ours.
-  for (const session of open.keys()) killTreeSync(session.pid);
+  // Only apps that have not exited are in the set, so these PIDs are still ours. A PID of 0 (a Windows child that
+  // died before ConPTY connected) must never reach a kill: on POSIX it would signal the kit's own process group.
+  for (const session of open.keys()) if (session.pid > 0) killTreeSync(session.pid);
   open.clear();
 }
 
@@ -103,7 +104,10 @@ function lastScreen(session: TtySession): string {
   return text ? `Last screen:\n${text.replace(/^/gm, '  | ')}` : 'The screen was empty.';
 }
 
-/** Wait for text on screen; fail with what the screen showed instead, or with the exit code if the app quit. */
+/**
+ * Wait for text on screen; fail with what the screen showed instead, or with the exit code if the app quit.
+ * `what` names the wait in errors, for example `the ready text "x"`.
+ */
 async function waitForText(
   session: TtySession,
   pattern: string | RegExp,
@@ -121,13 +125,13 @@ async function waitForText(
     await Promise.race([found, exited]);
   } catch (error) {
     throw new ShowcaseError(
-      `${what} ${describePattern(pattern)} did not appear within ${String(timeoutMs)}ms ` +
+      `${what.charAt(0).toUpperCase()}${what.slice(1)} did not appear within ${String(timeoutMs)}ms ` +
         `(${(error as Error).message.split('\n')[0] ?? ''}).\n${lastScreen(session)}`,
     );
   }
   if (exitCode !== undefined) {
     throw new ShowcaseError(
-      `The app exited (code ${String(exitCode)}) before ${what.toLowerCase()} ${describePattern(pattern)} appeared.\n` +
+      `The app exited (code ${String(exitCode)}) before ${what} appeared.\n` +
         lastScreen(session),
     );
   }
@@ -157,7 +161,10 @@ async function startSession(
   track(session, target.quitKey);
   try {
     if (config.ready !== undefined) {
-      await waitForText(session, config.ready, target.readyTimeoutMs, 'The ready text');
+      await waitForText(session, config.ready, target.readyTimeoutMs, `the ready text ${describePattern(config.ready)}`);
+    } else {
+      // Without `ready`, at least wait for the first drawing: a capture of a blank screen would fail silently.
+      await waitForText(session, /\S/, target.readyTimeoutMs, 'any text (no ready is set)');
     }
     // Keys sent before the app switches to raw mode are lost (the terminal is still in line mode).
     await session.sleep(target.inputDelayMs);
@@ -189,7 +196,12 @@ async function shoot(
   if (shot.keys !== undefined) await session.press(shot.keys);
   else if (shot.nav) await shot.nav(session);
   if (shot.waitFor !== undefined) {
-    await waitForText(session, shot.waitFor, config.timeouts.shotMs, 'The waitFor text');
+    await waitForText(
+      session,
+      shot.waitFor,
+      config.timeouts.shotMs,
+      `the waitFor text ${describePattern(shot.waitFor)}`,
+    );
   } else if (shot.keys !== undefined || shot.nav) {
     await waitForChange(session, before, CHANGE_WAIT_MS);
   }
