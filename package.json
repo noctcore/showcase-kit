@@ -1,0 +1,21 @@
+{
+  "name": "@noctcore/showcase-kit",
+  "version": "0.0.0",
+  "description": "Capture, frame and export showcase images of desktop and web apps for READMEs and portfolios.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/noctcore/showcase-kit.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ]
+}
