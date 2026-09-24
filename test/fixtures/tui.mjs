@@ -20,7 +20,13 @@ if (process.stdin.isTTY) process.stdin.setRawMode(true);
 
 let grandchild;
 if (process.env.TUI_GRANDCHILD === '1') {
-  grandchild = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e9)'], { stdio: 'ignore' });
+  // It must outlive a plain teardown of the terminal, so only a real tree kill reaches it: on POSIX it ignores the
+  // SIGHUP the session leader's exit sends (and stays in the process group), on Windows it has no console of its own.
+  grandchild = spawn(process.execPath, ['-e', "process.on('SIGHUP', () => {}); setInterval(() => {}, 1e9)"], {
+    stdio: 'ignore',
+    detached: process.platform === 'win32',
+    windowsHide: true,
+  });
 }
 
 const esc = s => `\x1b[${s}`;
