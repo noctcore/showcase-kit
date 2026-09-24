@@ -7,6 +7,8 @@ import { loadConfig } from './config/load.js';
 import type { ResolvedConfig } from './config/types.js';
 import { ShowcaseError } from './errors.js';
 import { frame } from './frame/index.js';
+import { hero } from './hero.js';
+import { generateIcons, ICON_PRESETS, type IconPreset } from './icons.js';
 import { init } from './init.js';
 import { log } from './log.js';
 import { exportPortfolio } from './portfolio.js';
@@ -22,6 +24,8 @@ Commands:
   portfolio   Export fixed-size portfolio images, thumbnail and gallery JSON
   readme      Print an HTML table of the framed images for a README
   all         capture, then frame, then portfolio (if configured)
+  hero        Render a README banner: logo, name, tagline and stacked shots
+  icons       Generate an app icon set from one square image (no config needed)
   init        Write a starter showcase.config.mjs
 
 Options:
@@ -32,6 +36,9 @@ Options:
       --lang <code>     Language for readme (default: the first in langs)
       --cols <n>        Images per row for readme (default 2)
       --base <dir>      Directory the README is in, for relative image paths (readme)
+      --source <png>    Square source image, 1024px or larger (icons)
+      --preset <name>   web, electron or tauri (icons)
+      --out <dir>       Output directory (icons, default: icons)
       --ts              Write showcase.config.ts instead (init)
       --force           Overwrite an existing config (init)
       --verbose         Show the start command's output and debug detail
@@ -65,6 +72,9 @@ async function main(argv: string[]): Promise<void> {
       lang: { type: 'string' },
       cols: { type: 'string' },
       base: { type: 'string' },
+      source: { type: 'string' },
+      preset: { type: 'string' },
+      out: { type: 'string' },
       ts: { type: 'boolean' },
       force: { type: 'boolean' },
       verbose: { type: 'boolean' },
@@ -93,6 +103,16 @@ async function main(argv: string[]): Promise<void> {
     return;
   }
 
+  if (command === 'icons') {
+    if (!values.source || !values.preset) {
+      throw new ShowcaseError(
+        `icons needs --source <png> and --preset <${Object.keys(ICON_PRESETS).join('|')}>`,
+      );
+    }
+    await generateIcons(values.source, values.preset as IconPreset, values.out ?? 'icons');
+    return;
+  }
+
   const commands: Record<string, (config: ResolvedConfig) => Promise<void>> = {
     capture: async config => {
       await capture(config, { only: list(values.only), langs: list(values.langs) });
@@ -102,6 +122,9 @@ async function main(argv: string[]): Promise<void> {
     },
     portfolio: async config => {
       await exportPortfolio(config, { only: list(values.only) });
+    },
+    hero: async config => {
+      await hero(config);
     },
     readme: async config => {
       const cols = values.cols === undefined ? undefined : Number(values.cols);
