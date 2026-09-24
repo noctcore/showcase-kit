@@ -16,9 +16,10 @@ async function pixel(path: string, x: number, y: number): Promise<number[]> {
   return [...data.subarray(offset, offset + 4)];
 }
 
-async function pngSize(data: Buffer): Promise<[number | undefined, number | undefined, string | undefined]> {
+/** Size, format, and whether it is full-color RGBA (4 channels, not a 256-color palette). */
+async function pngSize(data: Buffer): Promise<[number | undefined, number | undefined, string | undefined, string]> {
   const meta = await sharp(data).metadata();
-  return [meta.width, meta.height, meta.format];
+  return [meta.width, meta.height, meta.format, meta.channels === 4 && !meta.isPalette ? 'rgba' : 'not rgba'];
 }
 
 describe('hero', () => {
@@ -93,7 +94,7 @@ describe('icons', () => {
     expect(written).toHaveLength(ICON_PRESETS[preset].length);
     for (const entry of ICON_PRESETS[preset]) {
       if ('size' in entry) {
-        expect(await pngSize(readFileSync(join(out, entry.file)))).toEqual([entry.size, entry.size, 'png']);
+        expect(await pngSize(readFileSync(join(out, entry.file)))).toEqual([entry.size, entry.size, 'png', 'rgba']);
       }
     }
   });
@@ -112,7 +113,7 @@ describe('icons', () => {
       const declared = ico.readUInt8(at) || 256;
       const length = ico.readUInt32LE(at + 8);
       const offset = ico.readUInt32LE(at + 12);
-      expect(await pngSize(ico.subarray(offset, offset + length))).toEqual([declared, declared, 'png']);
+      expect(await pngSize(ico.subarray(offset, offset + length))).toEqual([declared, declared, 'png', 'rgba']);
       sizes.push(declared);
     }
     expect(sizes).toEqual([16, 32, 48, 256]);
@@ -131,7 +132,7 @@ describe('icons', () => {
       const length = icns.readUInt32BE(at + 4);
       const size = expected[type];
       expect(size, `unexpected chunk ${type}`).toBeDefined();
-      expect(await pngSize(icns.subarray(at + 8, at + length))).toEqual([size, size, 'png']);
+      expect(await pngSize(icns.subarray(at + 8, at + length))).toEqual([size, size, 'png', 'rgba']);
       seen.push(type);
       at += length;
     }

@@ -46,10 +46,12 @@ const ICNS_TYPES: [string, number][] = [
 
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 
+/** Lossless full-color RGBA: a 256-color palette bands gradients, and the ICO entries declare 32 bpp. */
 async function png(source: string, size: number): Promise<Buffer> {
   return sharp(source)
     .resize(size, size, { fit: 'contain', background: TRANSPARENT })
-    .png({ compressionLevel: 9, palette: true, effort: 10, quality: 82 })
+    .ensureAlpha()
+    .png({ compressionLevel: 9, palette: false })
     .toBuffer();
 }
 
