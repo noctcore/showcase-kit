@@ -229,6 +229,19 @@ describe('resolveConfig, tty-only keys in url and cdp mode', () => {
       'ready: must be a selector string in url and cdp mode (a RegExp is screen text, for tty mode)',
     ]);
   });
+
+  it('reports keys named like Object.prototype members as unknown, not as another mode', () => {
+    const issues = issuesOf({
+      name: 'Web',
+      target: { mode: 'url', url: 'http://localhost:5173', constructor: 1, toString: 'x' },
+      shots: [{ id: 'home', hasOwnProperty: true }],
+    });
+    expect(issues).toEqual([
+      expect.stringMatching(/^shots\[0\]\.hasOwnProperty: unknown key \(expected one of: /),
+      expect.stringMatching(/^target\.constructor: unknown key \(expected one of: /),
+      expect.stringMatching(/^target\.toString: unknown key \(expected one of: /),
+    ]);
+  });
 });
 
 describe('defineConfig types', () => {

@@ -49,7 +49,7 @@ export function checkKeys(
 ): void {
   for (const key of Object.keys(value)) {
     if (allowed.includes(key)) continue;
-    issues.add(`${path}.${key}`, elsewhere[key] ?? `unknown key (expected one of: ${allowed.join(', ')})`);
+    issues.add(`${path}.${key}`, (Object.hasOwn(elsewhere, key) ? elsewhere[key] : undefined) ?? `unknown key (expected one of: ${allowed.join(', ')})`);
   }
 }
 
