@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { spawn } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isTtyConfig, resolveConfig } from '../src/config/resolve.js';
@@ -8,7 +10,9 @@ import { ShowcaseError } from '../src/errors.js';
 import { log } from '../src/log.js';
 import { captureTty, type TtyEngine } from '../src/tty/capture.js';
 import type { Keys, TtyScreen, TtySession, TtySessionOptions } from '../src/tty/types.js';
-import { tempDir } from './helpers.js';
+import { capture } from '../src/capture.js';
+import { frame } from '../src/frame/index.js';
+import { FIXTURES, isAlive, tempDir } from './helpers.js';
 
 /**
  * A scripted stand-in for the PTY engine: the "app" shows `screens[state]`, and keys move between states. It records
@@ -326,5 +330,129 @@ describe('captureTty, scripted engine', () => {
     // Closing made the app exit, which ends the ready wait.
     expect(String(await run)).toMatch(/The app exited \(code 0\)/);
     expect(process.listenerCount('SIGINT')).toBe(baseline);
+  });
+});
+
+const TUI = join(FIXTURES, 'tui.mjs');
+
+/** The fixture TUI from the engine tests, run directly by this Node. */
+function fixtureTty(root: string, overrides: Partial<TtyConfig> = {}): ResolvedTtyConfig {
+  const input: TtyConfig = {
+    name: 'Fixture TUI',
+    target: { mode: 'tty', command: [process.execPath, TUI], cols: 80, rows: 24 },
+    ready: 'fixture-tui · services',
+    deviceScaleFactor: 1,
+    shots: [
+      { id: 'services', title: 'Services' },
+      { id: 'moved', keys: 'jj', waitFor: 'selected postgres-main' },
+      { id: 'details', keys: '{Tab}', waitFor: 'name: postgres-main' },
+    ],
+    ...overrides,
+  };
+  const config = resolveConfig(input, root);
+  if (!isTtyConfig(config)) throw new Error('expected a tty config');
+  return config;
+}
+
+describe('capture, tty mode, real terminal', () => {
+  it('captures the fixture TUI: one PNG per shot at the terminal size, deterministic across runs', async () => {
+    const root = tempDir();
+    const config = fixtureTty(root);
+    const first = await capture(config);
+    expect(first.files.map(file => file.id)).toEqual(['services', 'moved', 'details']);
+    for (const file of first.files) {
+      // 80 x 24 cells of 9 x 20 CSS pixels (JetBrains Mono at 15px) plus 12px padding on each side, at DPR 1.
+      expect([file.width, file.height]).toEqual([80 * 9 + 24, 24 * 20 + 24]);
+    }
+    const bytes = first.files.map(file => readFileSync(file.path).toString('base64'));
+    // Every key changed the screen, so every capture differs.
+    expect(new Set(bytes).size).toBe(3);
+
+    const again = await capture(config);
+    expect(again.files.map(file => readFileSync(file.path).toString('base64'))).toEqual(bytes);
+  });
+
+  it('scales with deviceScaleFactor, restarts on request, and leaves no process behind', async () => {
+    const root = tempDir();
+    const pids: number[] = [];
+    const grab = async (tty: TtySession): Promise<void> => {
+      await tty.waitForText(/grandchild \d+/);
+      pids.push(Number(/grandchild (\d+)/.exec(tty.screenText())?.[1]));
+    };
+    const config = fixtureTty(root, {
+      target: { mode: 'tty', command: [process.execPath, TUI], cols: 60, rows: 16, env: { TUI_GRANDCHILD: '1' } },
+      deviceScaleFactor: 2,
+      shots: [
+        { id: 'first', nav: grab },
+        { id: 'second', nav: grab, restart: true },
+      ],
+    });
+    const { files } = await capture(config);
+    expect(files.map(file => [file.width, file.height])).toEqual([
+      [(60 * 9 + 24) * 2, (16 * 20 + 24) * 2],
+      [(60 * 9 + 24) * 2, (16 * 20 + 24) * 2],
+    ]);
+    // A restart is a new process with its own grandchild; after the run both trees are gone.
+    expect(pids).toHaveLength(2);
+    expect(pids[0]).not.toBe(pids[1]);
+    for (const pid of pids) {
+      await vi.waitFor(() => expect(isAlive(pid)).toBe(false), { timeout: 10_000 });
+    }
+  });
+
+  it('fails a shot whose waitFor never shows, with the screen in the error, and keeps the others', async () => {
+    const root = tempDir();
+    const config = fixtureTty(root, {
+      timeouts: { shotMs: 1500 },
+      shots: [
+        { id: 'missing', keys: 'j', waitFor: 'no such text' },
+        { id: 'details', keys: '{Tab}', waitFor: 'name: billing-worker' },
+      ],
+    });
+    const error = await capture(config).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ShowcaseError);
+    expect((error as Error).message).toMatch(/^1 shot\(s\) failed \(1 captured\):/);
+    expect((error as Error).message).toContain('en/missing: The waitFor text "no such text" did not appear within 1500ms');
+    expect((error as Error).message).toContain('fixture-tui · services');
+    expect(existsSync(join(root, 'showcase-out', 'raw', 'en', 'details.png'))).toBe(true);
+  });
+
+  it('frames a terminal capture like any other raw capture', async () => {
+    const root = tempDir();
+    const config = fixtureTty(root, { shots: [{ id: 'services' }] });
+    await capture(config);
+    const [framed] = await frame(config);
+    const meta = await sharp(framed!.path).metadata();
+    // The raw terminal area plus the window bar (40) and the frame padding (72) on each side, at DPR 1.
+    expect([meta.width, meta.height, meta.format]).toEqual([80 * 9 + 24 + 144, 24 * 20 + 24 + 40 + 144, 'webp']);
+  });
+
+  it('runs `showcase all` from the built CLI with a tty config', async () => {
+    const dir = tempDir();
+    const index = pathToFileURL(resolve('dist', 'index.js')).href;
+    writeFileSync(
+      join(dir, 'showcase.config.mjs'),
+      `import { defineConfig } from '${index}';
+export default defineConfig({
+  name: 'Fixture TUI',
+  target: { mode: 'tty', command: [${JSON.stringify(process.execPath)}, ${JSON.stringify(TUI)}], cols: 70, rows: 20 },
+  ready: 'fixture-tui',
+  shots: [{ id: 'services' }, { id: 'details', keys: '{Tab}', waitFor: 'Details' }],
+});
+`,
+    );
+    const result = await new Promise<{ code: number | null; stderr: string }>((done, fail) => {
+      const child = spawn(process.execPath, [resolve('dist', 'cli.js'), 'all'], { cwd: dir });
+      let stderr = '';
+      child.stderr.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
+      child.on('error', fail);
+      child.on('close', code => done({ code, stderr }));
+    });
+    expect(result.stderr).toBe('');
+    expect(result.code).toBe(0);
+    expect(readdirSync(join(dir, 'showcase-out', 'raw', 'en')).sort()).toEqual(['details.png', 'services.png']);
+    expect(readdirSync(join(dir, 'assets', 'showcase', 'en')).sort()).toEqual(['details.webp', 'services.webp']);
+    const meta = await sharp(join(dir, 'showcase-out', 'raw', 'en', 'services.png')).metadata();
+    expect([meta.width, meta.height]).toEqual([(70 * 9 + 24) * 2, (20 * 20 + 24) * 2]);
   });
 });
