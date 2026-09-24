@@ -24,6 +24,12 @@ export interface EncodeOptions {
   fps?: number;
 }
 
+const FORMATS: readonly AnimationFormat[] = ['webp', 'gif', 'mp4'];
+
+/** The longest delay sharp takes for one frame of an animated WebP or GIF. */
+const MAX_DELAY_MS = 65_535;
+/** The same for GIF, whose delays are whole hundredths of a second. */
+const MAX_GIF_DELAY_MS = 65_530;
 const FFMPEG_MISSING =
   'MP4 needs ffmpeg on PATH, and none was found. Install it (https://ffmpeg.org/download.html, or ' +
   '`winget install ffmpeg`, `brew install ffmpeg`, `apt install ffmpeg`), or drop "mp4" from the formats: ' +
@@ -32,45 +38,61 @@ const FFMPEG_MISSING =
 /**
  * Encode frames as an animated WebP or GIF (with sharp) or an MP4 (with `ffmpeg` from PATH).
  *
- * Every frame must have the same size. Frames are kept as given: merge identical neighbours before calling (the
- * encoders merge them too). GIF stores delays in hundredths of a second, so they are rounded on a running total:
- * the clip keeps its length and no frame is shorter than 20 ms, which browsers would stretch to 100 ms.
+ * Every frame must be a readable image of the same size, with a finite delay above 0. Frames are kept as given:
+ * merge identical neighbours before calling (the encoders merge them too). A delay longer than one frame of the
+ * format can hold (65535 ms in sharp) is split into repeats of the same image that add up to it. GIF stores delays
+ * in hundredths of a second, so they are rounded on a running total: the clip keeps its length and no frame is
+ * shorter than 20 ms, which browsers would stretch to 100 ms.
  */
 export async function encodeAnimation(frames: AnimationFrame[], opts: EncodeOptions): Promise<Buffer> {
-  const { format, loop = 0 } = opts;
-  if (frames.length === 0) throw new ShowcaseError('encodeAnimation: no frames to encode.');
+  const { format, loop = 0, quality } = opts;
+  if (!FORMATS.includes(format)) {
+    throw new ShowcaseError(`encodeAnimation: unknown format ${JSON.stringify(format)} (use webp, gif or mp4).`);
+  }
+  if (!Array.isArray(frames) || frames.length === 0) throw new ShowcaseError('encodeAnimation: no frames to encode.');
   if (!Number.isInteger(loop) || loop < 0) {
     throw new ShowcaseError(`encodeAnimation: loop must be a whole number >= 0, got ${String(loop)}`);
   }
+  if (quality !== undefined && !(Number.isInteger(quality) && quality >= 1 && quality <= 100)) {
+    throw new ShowcaseError(`encodeAnimation: quality must be a whole number from 1 to 100, got ${String(quality)}`);
+  }
   for (const [index, frame] of frames.entries()) {
+    const png: unknown = (frame as Partial<AnimationFrame> | null)?.png;
+    if (!(png instanceof Uint8Array) || png.length === 0) {
+      throw new ShowcaseError(`encodeAnimation: frame ${String(index)} has no image data (png must be a non-empty Buffer).`);
+    }
     if (!(Number.isFinite(frame.delayMs) && frame.delayMs > 0)) {
       throw new ShowcaseError(`encodeAnimation: frame ${String(index)} has a delay of ${String(frame.delayMs)}ms (must be > 0).`);
     }
   }
   const size = await frameSize(frames);
-  const delays = frames.map(frame => Math.max(1, Math.round(frame.delayMs)));
   if (format === 'mp4') return encodeMp4(frames, size, opts.fps ?? 30);
 
+  const delays = frames.map(frame => Math.max(1, Math.round(frame.delayMs)));
+  const pieces =
+    format === 'gif' ? splitDelays(gifDelays(delays), MAX_GIF_DELAY_MS, 10) : splitDelays(delays, MAX_DELAY_MS, 1);
+  const images = pieces.map(piece => frames[piece.frame]?.png ?? Buffer.alloc(0));
   // A screen that never changed is one frame, and sharp cannot join fewer than two images.
-  const joined =
-    frames.length === 1 ? sharp(frames[0]?.png) : sharp(frames.map(frame => frame.png), { join: { animated: true } });
+  const joined = images.length === 1 ? sharp(images[0]) : sharp(images, { join: { animated: true } });
+  const delay = pieces.map(piece => piece.delayMs);
   if (format === 'webp') {
-    const { quality } = opts;
-    if (quality !== undefined && !(Number.isInteger(quality) && quality >= 1 && quality <= 100)) {
-      throw new ShowcaseError(`encodeAnimation: quality must be a whole number from 1 to 100, got ${String(quality)}`);
-    }
     const look = quality === undefined ? { lossless: true } : { quality };
-    return joined.webp({ ...look, effort: 4, delay: delays, loop }).toBuffer();
+    return joined.webp({ ...look, effort: 4, delay, loop }).toBuffer();
   }
-  if (format === 'gif') {
-    return joined.gif({ delay: gifDelays(delays), loop, effort: 7 }).toBuffer();
-  }
-  throw new ShowcaseError(`encodeAnimation: unknown format ${JSON.stringify(format)} (use webp, gif or mp4).`);
+  return joined.gif({ delay, loop, effort: 7 }).toBuffer();
 }
 
-/** The shared frame size; every frame must match the first. */
+/** The shared frame size; every frame must be readable and match the first. */
 async function frameSize(frames: AnimationFrame[]): Promise<{ width: number; height: number }> {
-  const sizes = await Promise.all(frames.map(async frame => sharp(frame.png).metadata()));
+  const sizes = await Promise.all(
+    frames.map(async (frame, index) => {
+      try {
+        return await sharp(frame.png).metadata();
+      } catch (error) {
+        throw new ShowcaseError(`encodeAnimation: frame ${String(index)} is not a readable image (${(error as Error).message}).`);
+      }
+    }),
+  );
   const [first] = sizes;
   const width = first?.width ?? 0;
   const height = first?.height ?? 0;
@@ -98,6 +120,22 @@ export function gifDelays(delays: number[]): number[] {
     shown = end;
     return result;
   });
+}
+
+/**
+ * Split every delay longer than `max` into as few equal pieces as fit, each a whole multiple of `unit`, that add up
+ * to it exactly. Delays must be whole multiples of `unit`, and `max` one too. Each piece names the frame it repeats.
+ */
+export function splitDelays(delays: number[], max: number, unit: number): Array<{ frame: number; delayMs: number }> {
+  const pieces: Array<{ frame: number; delayMs: number }> = [];
+  delays.forEach((delay, frame) => {
+    const units = Math.round(delay / unit);
+    const count = Math.ceil(delay / max);
+    const base = Math.floor(units / count);
+    const longer = units - base * count;
+    for (let piece = 0; piece < count; piece++) pieces.push({ frame, delayMs: (base + (piece < longer ? 1 : 0)) * unit });
+  });
+  return pieces;
 }
 
 /** An executable on PATH, found without a shell. On Windows only `<name>.exe` counts: a `.cmd` needs a shell. */
