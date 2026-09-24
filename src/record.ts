@@ -72,6 +72,24 @@ export function selectClips(
 }
 
 /**
+ * Split `--only` into shot ids and clip ids, for commands that handle both (`all`, `readme`). Without clips the ids
+ * all go to the shots unchanged, so unknown ids fail there as before. An empty list means that kind was not chosen.
+ */
+export function splitIds(config: ResolvedConfig, only: string[] | undefined): { shots?: string[]; clips?: string[] } {
+  if (!only?.length || !isTtyConfig(config) || config.clips.length === 0) return { shots: only };
+  const shots = only.filter(id => config.shots.some(shot => shot.id === id));
+  const clips = only.filter(id => config.clips.some(clip => clip.id === id));
+  const unknown = only.filter(id => !shots.includes(id) && !clips.includes(id));
+  if (unknown.length > 0) {
+    throw new ShowcaseError(
+      `Unknown shot or clip id(s): ${unknown.join(', ')}. Shots: ${config.shots.map(shot => shot.id).join(', ')}; ` +
+        `clips: ${config.clips.map(clip => clip.id).join(', ')}`,
+    );
+  }
+  return { shots, clips };
+}
+
+/**
  * Record every selected clip in every selected language: a fresh app per clip, the steps on the clip's frame clock,
  * each unique screen rendered once, framed like the README images, and written as each of the clip's formats.
  */
