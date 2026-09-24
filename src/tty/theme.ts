@@ -28,17 +28,24 @@ export const LIGHT_THEME: TerminalTheme = {
 
 export const TERMINAL_DEFAULTS = { size: 15, lineHeight: 1.32, padding: 12, cursor: 'hide' } as const;
 
-/**
- * The bundled JetBrains Mono (OFL 1.1, see `fonts/OFL.txt`). The build copies `src/tty/fonts` to `dist/fonts`,
- * next to the bundled chunks, so the same relative URL works from source and from `dist`.
- */
-export const BUNDLED_FONT_DIR = fileURLToPath(new URL('./fonts/', import.meta.url));
 export const BUNDLED_FONTS = {
   file: 'JetBrainsMono-Regular.woff2',
   boldFile: 'JetBrainsMono-Bold.woff2',
   italicFile: 'JetBrainsMono-Italic.woff2',
   boldItalicFile: 'JetBrainsMono-BoldItalic.woff2',
 } as const;
+/**
+ * The folder of the bundled JetBrains Mono (OFL 1.1, see `fonts/OFL.txt`). The build copies `src/tty/fonts` to
+ * `dist/fonts`. This module sits next to it in source and in a root chunk of `dist`, or one level down when a
+ * build puts the engine in a subfolder, so both places are tried.
+ */
+export function bundledFontDir(): string {
+  const candidates = ['./fonts/', '../fonts/'].map(path => fileURLToPath(new URL(path, import.meta.url)));
+  const found = candidates.find(dir => existsSync(resolve(dir, BUNDLED_FONTS.file)));
+  if (!found) throw new ShowcaseError(`The bundled terminal font is missing; looked in ${candidates.join(' and ')}.`);
+  return found;
+}
+
 /** JetBrains Mono's advance width as a fraction of the font size (600 of 1000 units). */
 export const BUNDLED_ADVANCE = 0.6;
 
@@ -99,9 +106,9 @@ export function fontFaces(look: ResolvedTerminalOptions): {
 } {
   const { font } = look;
   const bundled = (name: keyof typeof BUNDLED_FONTS): string | undefined =>
-    font.file ? undefined : resolve(BUNDLED_FONT_DIR, BUNDLED_FONTS[name]);
+    font.file ? undefined : resolve(bundledFontDir(), BUNDLED_FONTS[name]);
   return {
-    regular: font.file ?? resolve(BUNDLED_FONT_DIR, BUNDLED_FONTS.file),
+    regular: font.file ?? resolve(bundledFontDir(), BUNDLED_FONTS.file),
     bold: font.boldFile ?? bundled('boldFile'),
     italic: font.italicFile ?? bundled('italicFile'),
     boldItalic: font.boldItalicFile ?? bundled('boldItalicFile'),

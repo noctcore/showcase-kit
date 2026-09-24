@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ShowcaseError } from '../src/errors.js';
 import { cellColors, cellMetrics, gridHtml, renderTtyScreen, shellHtml } from '../src/tty/render.js';
 import { openTtySession, snapshot, TRUECOLOR, type Grid, type GridCell } from '../src/tty/session.js';
-import { BUNDLED_FONT_DIR, BUNDLED_FONTS, DARK_THEME, LIGHT_THEME, resolveTerminalOptions } from '../src/tty/theme.js';
+import { BUNDLED_FONTS, bundledFontDir, DARK_THEME, LIGHT_THEME, resolveTerminalOptions } from '../src/tty/theme.js';
 import type { ResolvedTerminalOptions, TtyScreen } from '../src/tty/types.js';
 import { FIXTURES, tempDir } from './helpers.js';
 
@@ -139,7 +139,7 @@ describe('resolveTerminalOptions', () => {
 
 describe('fonts', () => {
   it('bundles JetBrains Mono with its license', () => {
-    for (const file of [...Object.values(BUNDLED_FONTS), 'OFL.txt']) expect(existsSync(join(BUNDLED_FONT_DIR, file))).toBe(true);
+    for (const file of [...Object.values(BUNDLED_FONTS), 'OFL.txt']) expect(existsSync(join(bundledFontDir(), file))).toBe(true);
   });
 
   it('ships them in dist next to the chunks', () => {
