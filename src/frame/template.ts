@@ -68,7 +68,8 @@ const px = (value: number): string => `${String(Math.round(value * 1000) / 1000)
 
 /**
  * One framed window as self-contained markup (inline styles only), so a page can hold several at different
- * scales. `extraStyle` goes on the outer element, for positioning and transforms.
+ * scales. `extraStyle` goes on the outer element, for positioning and transforms. Without `imageSrc` the screenshot
+ * is an empty `#hole` with nothing painted behind it, for clips that composite their frames in later.
  */
 export function windowMarkup({
   frame,
@@ -81,7 +82,7 @@ export function windowMarkup({
   frame: ResolvedFrame;
   image: { width: number; height: number };
   scale: number;
-  imageSrc: string;
+  imageSrc: string | undefined;
   title: string | undefined;
   extraStyle?: string;
 }): string {
@@ -111,10 +112,12 @@ export function windowMarkup({
   const outline =
     `<div style="position:absolute;inset:0;border-radius:inherit;pointer-events:none;` +
     `box-shadow:inset 0 0 0 ${hairline} ${theme.outline}"></div>`;
+  const size = `display:block;width:${px(image.width)};height:${px(image.height)}`;
+  const media = imageSrc === undefined ? `<div id="hole" style="${size}"></div>` : `<img src="${imageSrc}" alt="" style="${size}">`;
   return (
     `<div class="window" style="position:relative;overflow:hidden;flex:none;width:${px(image.width)};` +
-    `border-radius:${px(frame.radius * s)};background:${theme.bar};box-shadow:${shadow};${extraStyle}">` +
-    `${bar}<img src="${imageSrc}" alt="" style="display:block;width:${px(image.width)};height:${px(image.height)}">` +
+    `border-radius:${px(frame.radius * s)};background:${imageSrc === undefined ? 'transparent' : theme.bar};box-shadow:${shadow};${extraStyle}">` +
+    `${bar}${media}` +
     `${outline}</div>`
   );
 }
@@ -139,7 +142,12 @@ ${css}
 </html>`;
 }
 
-/** A self-contained HTML page that shows the screenshot in its frame. No network, system fonts only. */
+/**
+ * A self-contained HTML page that shows the screenshot in its frame. No network, system fonts only.
+ *
+ * Without `imageSrc` the page is the frame around a hole: the background moves from `body` to `#backdrop`, which
+ * the caller clips around `#hole`, so a screenshot with a transparent background leaves the hole see-through.
+ */
 export function frameHtml({
   frame,
   layout,
@@ -148,12 +156,11 @@ export function frameHtml({
 }: {
   frame: ResolvedFrame;
   layout: FrameLayout;
-  imageSrc: string;
+  imageSrc: string | undefined;
   title: string | undefined;
 }): string {
-  return page(
-    layout.canvas,
-    backgroundCss(frame.background),
-    windowMarkup({ frame, image: layout.image, scale: layout.scale, imageSrc, title }),
-  );
+  const window = windowMarkup({ frame, image: layout.image, scale: layout.scale, imageSrc, title });
+  if (imageSrc !== undefined) return page(layout.canvas, backgroundCss(frame.background), window);
+  const backdrop = `<div id="backdrop" style="position:absolute;inset:0;background:${backgroundCss(frame.background)}"></div>`;
+  return page(layout.canvas, 'transparent', backdrop + window);
 }

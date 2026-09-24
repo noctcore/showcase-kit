@@ -8,7 +8,7 @@ import { ShowcaseError } from '../errors.js';
 import { log } from '../log.js';
 import { outputPath } from '../paths.js';
 import { fillTemplate } from '../template.js';
-import { frameHtml, type FrameLayout } from './template.js';
+import { frameHtml, readmeLayout, type FrameLayout } from './template.js';
 
 export type ImageFormat = 'webp' | 'png';
 
@@ -100,4 +100,102 @@ export async function writeImage(
 
 export function logWritten(label: string, path: string, size: { width: number; height: number }): void {
   log.info(`  ok    ${label}  ${String(size.width)}x${String(size.height)}  ${relative(process.cwd(), path)}`);
+}
+
+/** A frame rendered around a transparent hole, and where the hole is, in device pixels. */
+export interface FrameHole {
+  png: Buffer;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  /**
+   * With a transparent frame background nothing covers the screenshot's corners, so it is cut to the hole's shape
+   * (a hole-sized PNG whose alpha is the coverage). An opaque background covers them exactly, so it has none.
+   */
+  shape: Buffer | undefined;
+}
+
+/**
+ * Render the README frame for a screenshot of `cssWidth` x `cssHeight` once, with a transparent hole where the
+ * screenshot goes. `composeInHole` then puts any number of frames into it without a browser, which is how clips
+ * are framed. The hole follows the window's rounded corners, and the window outline is drawn over it.
+ */
+export async function renderFrameHole(
+  browser: Browser,
+  config: ResolvedConfig,
+  { cssWidth, cssHeight, title }: { cssWidth: number; cssHeight: number; title: string | undefined },
+): Promise<FrameHole> {
+  const deviceScaleFactor = config.deviceScaleFactor;
+  const layout = readmeLayout(config.frame, { width: cssWidth, height: cssHeight });
+  const context = await browser.newContext({
+    viewport: { width: Math.round(layout.canvas.width), height: Math.round(layout.canvas.height) },
+    deviceScaleFactor,
+  });
+  try {
+    const page = await context.newPage();
+    await page.setContent(frameHtml({ frame: config.frame, layout, imageSrc: undefined, title }), { waitUntil: 'load' });
+    // Measured in the page, so the hole always matches the layout the template really produced.
+    const hole = await page.evaluate(async () => {
+      await document.fonts.ready;
+      const slot = document.getElementById('hole');
+      const win = slot?.closest('.window');
+      const backdrop = document.getElementById('backdrop');
+      if (!slot || !win || !backdrop) throw new Error('frame page is missing its hole');
+      const { x, y, width: w, height: h } = slot.getBoundingClientRect();
+      const box = win.getBoundingClientRect();
+      const r = Math.min(parseFloat(getComputedStyle(win).borderBottomLeftRadius) || 0, w / 2, h / 2);
+      // Top corners are only rounded when there is no title bar above the screenshot.
+      const rt = Math.abs(y - box.y) < 0.5 ? r : 0;
+      const arc = (radius: number, toX: number, toY: number): string =>
+        radius > 0 ? `A${String(radius)} ${String(radius)} 0 0 1 ${String(toX)} ${String(toY)}` : `L${String(toX)} ${String(toY)}`;
+      const { innerWidth: W, innerHeight: H } = window;
+      const hole = (ox: number, oy: number): string =>
+        `M${String(x - ox + rt)} ${String(y - oy)}H${String(x - ox + w - rt)}${arc(rt, x - ox + w, y - oy + rt)}` +
+        `V${String(y - oy + h - r)}${arc(r, x - ox + w - r, y - oy + h)}H${String(x - ox + r)}${arc(r, x - ox, y - oy + h - r)}` +
+        `V${String(y - oy + rt)}${arc(rt, x - ox + rt, y - oy)}Z`;
+      backdrop.style.clipPath = `path(evenodd, "M0 0H${String(W)}V${String(H)}H0Z${hole(0, 0)}")`;
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return { x, y, w, h, shape: hole(x, y) };
+    });
+    const png = await page.screenshot({ type: 'png', scale: 'device', omitBackground: true });
+    const width = Math.round(hole.w * deviceScaleFactor);
+    const height = Math.round(hole.h * deviceScaleFactor);
+    let shape: Buffer | undefined;
+    if (config.frame.background.type === 'transparent') {
+      const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${String(width)}" height="${String(height)}" viewBox="0 0 ${String(hole.w)} ${String(hole.h)}">` +
+        `<path d="${hole.shape}" fill="#fff"/></svg>`;
+      shape = await sharp(Buffer.from(svg)).png().toBuffer();
+    }
+    return {
+      png,
+      left: Math.round(hole.x * deviceScaleFactor),
+      top: Math.round(hole.y * deviceScaleFactor),
+      width,
+      height,
+      shape,
+    };
+  } finally {
+    await context.close();
+  }
+}
+
+/** Put one screenshot into a frame's hole: the screenshot underneath, the frame (corners, outline) on top. */
+export async function composeInHole(hole: FrameHole, screenshot: Buffer): Promise<Buffer> {
+  const { width = 0, height = 0 } = await sharp(hole.png).metadata();
+  let inner = screenshot;
+  const size = await sharp(screenshot).metadata();
+  // Only a fractional device scale factor can make these differ by a pixel.
+  if (size.width !== hole.width || size.height !== hole.height) {
+    inner = await sharp(screenshot).resize(hole.width, hole.height, { fit: 'fill' }).png().toBuffer();
+  }
+  if (hole.shape) inner = await sharp(inner).composite([{ input: hole.shape, blend: 'dest-in' }]).png().toBuffer();
+  return sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([
+      { input: inner, left: hole.left, top: hole.top },
+      { input: hole.png, left: 0, top: 0 },
+    ])
+    .png({ compressionLevel: 1 })
+    .toBuffer();
 }
