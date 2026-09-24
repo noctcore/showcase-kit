@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture App</title>
+    <style>
+      :root { color-scheme: light dark; --bg: #f8fafc; --fg: #0f172a; --panel: #e2e8f0; --accent: #0f766e; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #0b1020; --fg: #e2e8f0; --panel: #1e293b; --accent: #2dd4bf; } }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body { font: 16px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--fg); display: flex; }
+      nav { width: 200px; background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+      nav button { font: inherit; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: left; }
+      nav button[aria-current="true"] { background: var(--accent); color: var(--bg); }
+      main { flex: 1; padding: 32px; }
+      .spinner { width: 48px; height: 48px; border-radius: 50%; background: conic-gradient(var(--accent), transparent); animation: spin 0.7s linear infinite; }
+      .pulse { width: 120px; height: 24px; background: var(--accent); animation: pulse 1.3s ease-in-out infinite alternate; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes pulse { from { opacity: 0.1; width: 40px; } to { opacity: 1; width: 320px; } }
+      .settings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .settings-grid div { height: 80px; border-radius: 12px; background: var(--panel); }
+      input { font: inherit; padding: 8px; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      const strings = {
+        en: { home: 'Home', settings: 'Settings', about: 'About', hello: 'Hello from the fixture app' },
+        pl: { home: 'Start', settings: 'Ustawienia', about: 'O aplikacji', hello: 'Cześć z aplikacji testowej' },
+      };
+      const lang = localStorage.getItem('fixture.lang') || (navigator.language || 'en').slice(0, 2);
+      const t = strings[lang] || strings.en;
+      document.documentElement.lang = lang;
+
+      function render(view) {
+        const root = document.getElementById('root');
+        root.style.display = 'contents';
+        root.innerHTML = `
+          <nav>
+            <button data-view="home" aria-current="${view === 'home'}">${t.home}</button>
+            <button data-view="settings" aria-current="${view === 'settings'}">${t.settings}</button>
+            <a href="/about">${t.about}</a>
+          </nav>
+          <main data-current-view="${view}">
+            <h1>${view === 'about' ? t.about : view === 'settings' ? t.settings : t.hello}</h1>
+            ${view === 'home' ? '<div class="spinner"></div><div class="pulse"></div><input autofocus value="caret here" />' : ''}
+            ${view === 'settings' ? '<div class="settings-grid"><div></div><div></div><div></div><div></div><div></div><div></div></div>' : ''}
+            ${view === 'about' ? '<p data-testid="about-page">Fixture app for showcase-kit tests.</p>' : ''}
+          </main>
+          <span data-testid="app-ready" hidden></span>`;
+        for (const button of document.querySelectorAll('[data-view]')) {
+          button.addEventListener('click', () => render(button.dataset.view));
+        }
+        document.querySelector('input')?.focus();
+      }
+
+      // Boot late on purpose, so a capture that ignores `ready` shoots an empty page.
+      setTimeout(() => render(location.pathname === '/about' ? 'about' : 'home'), 400);
+    </script>
+  </body>
+</html>

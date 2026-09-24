@@ -1,0 +1,4 @@
+[install]
+# Never resolve a dependency version published less than 7 days ago, matching the
+# global npm gate. Bun does not read `min-release-age` from ~/.npmrc, so it lives here.
+minimumReleaseAge = 604800 # seconds
