@@ -195,6 +195,10 @@ function screenNote(text: string): string {
  * `type` step takes at least one frame, sleeps are rounded to whole frames, and `waitFor` looks at the sampled
  * frames. The recording ends `tailMs` after the last step, at `durationMs` (default 60 s) or at `maxFrames`,
  * whichever comes first; the last two warn.
+ *
+ * The app may exit once the steps are done: the clip then holds its last screen for the rest of the tail. A
+ * `waitFor` still pending when it exits is checked against that last screen, so a CLI that prints and exits can be
+ * recorded. Any other step left when it exits fails the recording.
  */
 export async function recordTimeline(session: TtySession, clip: ResolvedClip, waitTimeoutMs: number): Promise<ClipSample[]> {
   const interval = 1000 / clip.fps;
@@ -205,6 +209,7 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
   void session.exited.then(code => {
     exitCode = code;
   });
+  let exited = false;
 
   const samples: ClipSample[] = [];
   let stepIndex = 0;
@@ -220,12 +225,19 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
     typed = 0;
     waitSince = undefined;
   };
+  const exitError = (tick: number, text: string): ShowcaseError =>
+    new ShowcaseError(
+      `The app exited (code ${String(exitCode)}) after ${String(Math.round(tick * interval))}ms of the recording, ` +
+        `before its steps were done (it may only exit in the tail, after the last step).\n${screenNote(text)}`,
+    );
 
   /** Run the steps due at `tick`, after its sample. */
   const runDue = async (tick: number, screen: TtyScreen): Promise<void> => {
     while (stepIndex < clip.steps.length && tick >= resumeAt) {
       const step = clip.steps[stepIndex];
       if (!step) break;
+      // Once the app is gone only a `waitFor` its last screen already shows can still pass.
+      if (exited && !('waitFor' in step && matches(screen.text, step.waitFor))) throw exitError(tick, screen.text);
       if ('sleep' in step) {
         resumeAt = tick + Math.round(step.sleep / interval);
         next(tick);
@@ -260,6 +272,7 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
     }
     // A trailing sleep still has to run out: the tail starts once the next step could have run.
     if (stepIndex >= clip.steps.length && tick >= resumeAt - 1) doneAt ??= tick;
+    if (exited && doneAt === undefined) throw exitError(tick, screen.text);
   };
 
   const start = performance.now();
@@ -267,11 +280,10 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
   let capped = false;
   for (; tick < maxTicks; tick++) {
     await sleep(start + tick * interval - performance.now());
-    if (exitCode !== undefined) {
-      throw new ShowcaseError(
-        `The app exited (code ${String(exitCode)}) after ${String(Math.round(tick * interval))}ms of the recording.\n` +
-          screenNote(session.screenText()),
-      );
+    if (exitCode !== undefined && !exited) {
+      exited = true;
+      // Parse what the app printed before it exited into the grid: a wait with no time left flushes, then checks.
+      await session.waitForText('', { timeoutMs: 0 }).catch(() => {});
     }
     const screen = session.screen();
     const last = samples[samples.length - 1];
@@ -281,6 +293,13 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
       break;
     } else samples.push({ screen, ticks: 1 });
     if (doneAt === undefined) await runDue(tick, screen);
+    if (exited && doneAt !== undefined) {
+      // The screen cannot change any more: hold it for the rest of the tail without waiting it out.
+      const end = Math.min(doneAt + tailTicks, maxTicks - 1);
+      const held = samples[samples.length - 1];
+      if (held && end > tick) held.ticks += end - tick;
+      break;
+    }
     if (doneAt !== undefined && tick >= doneAt + tailTicks) break;
   }
   const at = `after ${String(Math.round(tick * interval))}ms`;

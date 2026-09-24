@@ -218,6 +218,40 @@ describe('recordTimeline', () => {
     }
   });
 
+  it('ends on the last screen, with the full tail, when the app quits after the last step', async () => {
+    const started = performance.now();
+    const samples = await recordTimeline(session(undefined, 'q'), clip({ steps: [{ keys: 'j' }, { keys: 'q' }], tailMs: 3000 }), 1000);
+    // q quits on tick 1; the tail is 30 ticks of that screen, held at once instead of waited out.
+    expect(samples.map(sample => [sample.screen.text, sample.ticks])).toEqual([
+      ['screen start', 1],
+      ['screen second', 31],
+    ]);
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+
+  it('records a CLI that printed and exited before the clock started, when its waitFor is on the last screen', async () => {
+    const app = session(0);
+    await app.exited;
+    const samples = await recordTimeline(app, clip({ steps: [{ waitFor: 'screen start' }], tailMs: 200 }), 1000);
+    expect(samples.map(sample => [sample.screen.text, sample.ticks])).toEqual([['screen start', 3]]);
+  });
+
+  it('still fails when the app exits before the steps are done', async () => {
+    const cases: Array<[ResolvedClip['steps'], number]> = [
+      // Keys it can no longer read, a waitFor its last screen does not show, and a sleep it did not wait out.
+      [[{ keys: 'j' }], 0],
+      [[{ waitFor: 'never' }], 0],
+      [[{ keys: 'j' }, { sleep: 1000 }], 250],
+    ];
+    for (const [steps, exitAfterMs] of cases) {
+      const app = session(exitAfterMs);
+      if (exitAfterMs === 0) await app.exited;
+      await expect(recordTimeline(app, clip({ steps, tailMs: 100 }), 1000), JSON.stringify(steps)).rejects.toThrow(
+        /^The app exited \(code 3\) after \d+ms of the recording, before its steps were done \(it may only exit in the tail/,
+      );
+    }
+  });
+
   it('keeps delays exact at a frame rate that does not divide a second', () => {
     const samples = [1, 2, 1, 3].map(ticks => ({ ticks, screen: session().screen() }));
     const delays = sampleDelays(samples, 3);
@@ -314,7 +348,7 @@ describe('recordClips, scripted engine', () => {
     vi.spyOn(log, 'error').mockImplementation(() => {});
     const { engine, sessions } = fakeEngine(300);
     await expect(recordClips(config, config.clips, config.langs, engine)).rejects.toThrow(
-      /en\/quits: The app exited \(code 3\) after \d+ms of the recording\./,
+      /en\/quits: The app exited \(code 3\) after \d+ms of the recording, before its steps were done/,
     );
     expect(sessions[0]?.closed).toBe(true);
   });

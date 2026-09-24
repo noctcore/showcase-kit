@@ -82,6 +82,17 @@ describe('record, real terminal', () => {
     for (const pid of pids) await vi.waitFor(() => expect(isAlive(pid)).toBe(false), { timeout: 10_000 });
   });
 
+  it('records a CLI that prints and exits, ending the clip on its last screen', async () => {
+    const config = fixtureTty(tempDir(), {
+      target: { mode: 'tty', command: [process.execPath, join(FIXTURES, 'print-exit.mjs')], cols: 40, rows: 6 },
+      ready: 'print-exit done',
+      clips: [{ id: 'once', steps: [{ waitFor: 'args []' }], tailMs: 500, formats: ['webp'] }],
+    });
+    const [result] = await record(config);
+    // One screen for the whole clip: the waitFor tick plus the 5 tick tail.
+    expect(result).toMatchObject({ id: 'once', frames: 1, durationMs: 600 });
+  });
+
   it('stops a busy app at maxFrames and writes those frames', async () => {
     const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
     const config = fixtureTty(tempDir(), {
