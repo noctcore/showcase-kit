@@ -97,8 +97,9 @@ describe('openTtySession', () => {
   it('sends a lone Esc apart from the next key, so it does not read as Alt', async () => {
     const tty = await open();
     await tty.waitForText('fixture-tui');
-    await tty.press('{Esc}j');
-    await tty.waitForText('selected billing-worker');
+    // Esc then a key, three times over: written back to back they would arrive as one read.
+    await tty.press('{Esc}j{Esc}j{Esc}j');
+    await tty.waitForText('selected redis-cache');
     expect(tty.screenText()).toContain('last key: j');
   });
 
@@ -152,7 +153,7 @@ describe('openTtySession', () => {
     await tty.waitForText('fixture-tui');
     await tty.press('q');
     expect(await tty.exited).toBe(0);
-    await expect(tty.waitForText('fixture-tui', { timeoutMs: 5_000 })).rejects.toThrow(/exited \(code 0\) before/);
+    await expect(tty.waitForText('never shown', { timeoutMs: 5_000 })).rejects.toThrow(/exited \(code 0\) before "never shown"/);
     await expect(tty.press('j')).rejects.toThrow(ShowcaseError);
   });
 
