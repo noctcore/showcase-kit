@@ -34,6 +34,8 @@ export const ICON_PRESETS: Record<IconPreset, IconFile[]> = {
 
 // Apple's PNG-payload icon types, as iconutil writes them.
 const ICNS_TYPES: [string, number][] = [
+  ['icp4', 16],
+  ['icp5', 32],
   ['ic11', 32],
   ['ic12', 64],
   ['ic07', 128],

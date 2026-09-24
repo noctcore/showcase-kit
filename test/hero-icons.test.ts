@@ -125,7 +125,7 @@ describe('icons', () => {
     const icns = readFileSync(join(out, 'icon.icns'));
     expect(icns.toString('ascii', 0, 4)).toBe('icns');
     expect(icns.readUInt32BE(4)).toBe(icns.length);
-    const expected: Record<string, number> = { ic11: 32, ic12: 64, ic07: 128, ic13: 256, ic08: 256, ic14: 512, ic09: 512, ic10: 1024 };
+    const expected: Record<string, number> = { icp4: 16, icp5: 32, ic11: 32, ic12: 64, ic07: 128, ic13: 256, ic08: 256, ic14: 512, ic09: 512, ic10: 1024 };
     const seen: string[] = [];
     for (let at = 8; at < icns.length; ) {
       const type = icns.toString('ascii', at, at + 4);
