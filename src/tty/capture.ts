@@ -35,9 +35,13 @@ const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
 let closingOnSignal = false;
 
 function killOpenSync(): void {
-  // Only apps that have not exited are in the set, so these PIDs are still ours. A PID of 0 (a Windows child that
-  // died before ConPTY connected) must never reach a kill: on POSIX it would signal the kit's own process group.
-  for (const session of open.keys()) if (session.pid > 0) killTreeSync(session.pid);
+  // Only apps that have not exited are in the set, so these PIDs are still ours. A PID of 0 (a Windows app ConPTY
+  // has not connected yet) must never reach a kill: on POSIX it would signal the kit's own process group. Closing
+  // such a session kills its terminal synchronously instead.
+  for (const session of open.keys()) {
+    if (session.pid > 0) killTreeSync(session.pid);
+    else session.close({ quitKey: false }).catch(() => {});
+  }
   open.clear();
 }
 

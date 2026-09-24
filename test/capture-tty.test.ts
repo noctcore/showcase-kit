@@ -29,6 +29,8 @@ interface FakeApp {
   drawAfterMs?: number;
   /** Exit on its own this many milliseconds after start. */
   exitAfterMs?: number;
+  /** The PID the session reports. 0 is a Windows app ConPTY has not connected yet. Default a random fake one. */
+  pid?: number;
 }
 
 interface Recorder {
@@ -50,7 +52,7 @@ class FakeSession implements TtySession {
     private readonly app: FakeApp,
     private readonly log: string[],
   ) {
-    this.pid = 100_000 + Math.floor(Math.random() * 1000);
+    this.pid = app.pid ?? 100_000 + Math.floor(Math.random() * 1000);
     this.exited = new Promise(resolve => (this.exit = resolve));
     setTimeout(() => (this.drawn = true), app.drawAfterMs ?? 0);
     if (app.exitAfterMs !== undefined) setTimeout(() => this.exit(3), app.exitAfterMs);
@@ -305,6 +307,32 @@ describe('captureTty, scripted engine', () => {
       const { engine, recorder } = fakeEngine(APP);
       await captureTty(config, config.shots, config.langs, engine);
       expect(recorder.sessions[0]?.options.inheritEnv).toEqual(expected);
+    }
+  });
+
+  it('closes an app without a PID from the exit handler instead of skipping it', async () => {
+    const config = ttyConfig({ ready: 'never ready', target: { mode: 'tty', command: 'fake-tui', readyTimeoutMs: 60_000 } });
+    const { engine, recorder } = fakeEngine({ ...APP, pid: 0 });
+    const events = ['exit', 'SIGINT', 'SIGTERM', 'SIGHUP'];
+    const listeners = (event: string): Function[] => process.listeners(event as NodeJS.Signals);
+    let before = new Map<string, Function[]>();
+    const open = engine.openTtySession;
+    engine.openTtySession = async options => {
+      before = new Map(events.map(event => [event, listeners(event)]));
+      return open(options);
+    };
+    const added = (event: string): Function[] => listeners(event).filter(listener => !before.get(event)?.includes(listener));
+    const run = captureTty(config, config.shots, config.langs, engine).catch((caught: unknown) => caught);
+    try {
+      await vi.waitFor(() => expect(recorder.sessions).toHaveLength(1), { timeout: 30_000 });
+      await vi.waitFor(() => expect(added('exit')).toHaveLength(1));
+      // Tracked although it has no PID: the handler that runs as the host exits closes its terminal.
+      (added('exit')[0] as () => void)();
+      expect(recorder.sessions[0]?.closed).toBe(true);
+      expect(String(await run)).toMatch(/The app exited \(code 0\)/);
+    } finally {
+      // The handler cleared the kit's list as a real exit would, so its listeners are left to remove here.
+      for (const event of events) for (const listener of added(event)) process.off(event as NodeJS.Signals, listener as () => void);
     }
   });
 

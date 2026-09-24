@@ -5,7 +5,8 @@ import { pathToFileURL } from 'node:url';
 import { Terminal } from '@xterm/headless';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ShowcaseError } from '../src/errors.js';
-import { assertNodeRuntime, loadPty, ptyCommand, ttyEnv } from '../src/tty/pty.js';
+import { log } from '../src/log.js';
+import { assertNodeRuntime, loadPty, ptyCommand, ttyEnv, type PtyModule, type PtyProcess } from '../src/tty/pty.js';
 import { openTtySession, snapshot } from '../src/tty/session.js';
 import type { TtySession, TtySessionOptions } from '../src/tty/types.js';
 import { FIXTURES, isAlive, tempDir } from './helpers.js';
@@ -22,6 +23,52 @@ vi.mock('node:child_process', async importOriginal => {
     }) as typeof actual.spawnSync,
   };
 });
+
+// A stand-in PTY package, used only while `fakePty.module` is set; every other test loads the real one.
+const fakePty = vi.hoisted(() => ({ module: undefined as PtyModule | undefined }));
+vi.mock('../src/tty/pty.js', async importOriginal => {
+  const actual = await importOriginal<typeof import('../src/tty/pty.js')>();
+  return {
+    ...actual,
+    loadPty: (candidates?: readonly string[]) => (fakePty.module ? Promise.resolve(fakePty.module) : actual.loadPty(candidates)),
+  };
+});
+
+/** A child whose PID, output and exit the test controls. It starts like a Windows app ConPTY has not connected. */
+class FakeChild implements PtyProcess {
+  pid = 0;
+  kills = 0;
+  written: string[] = [];
+  private data: Array<(data: string) => void> = [];
+  private exits: Array<(event: { exitCode: number }) => void> = [];
+  onData(listener: (data: string) => void): void {
+    this.data.push(listener);
+  }
+  onExit(listener: (event: { exitCode: number }) => void): void {
+    this.exits.push(listener);
+  }
+  emit(data: string): void {
+    for (const listener of this.data) listener(data);
+  }
+  exit(exitCode: number): void {
+    for (const listener of this.exits.splice(0)) listener({ exitCode });
+  }
+  write(data: string): void {
+    this.written.push(data);
+  }
+  resize(): void {}
+  kill(): void {
+    this.kills += 1;
+    // Like node-pty on Windows: the teardown finishes a little later.
+    setTimeout(() => this.exit(1), 20);
+  }
+}
+
+function useFakePty(): FakeChild {
+  const child = new FakeChild();
+  fakePty.module = { spawn: () => child };
+  return child;
+}
 
 function watchKills(pid: number): void {
   const original = process.kill.bind(process);
@@ -48,6 +95,7 @@ async function open(overrides: Partial<TtySessionOptions> = {}): Promise<TtySess
 }
 
 afterEach(async () => {
+  fakePty.module = undefined;
   vi.restoreAllMocks();
   await Promise.all(sessions.splice(0).map(session => session.close({ quitKey: false })));
   kills.list.length = 0;
@@ -214,6 +262,61 @@ describe('TtySession.close', () => {
     await tty.close({ quitKey: false });
     expect(kills.list).toHaveLength(1);
     expect(await waitUntil(() => !isAlive(tty.pid))).toBe(true);
+  });
+});
+
+describe('TtySession before the PID is known', () => {
+  it('returns at once and reads the PID live, so the caller can track the app from the start', async () => {
+    const child = useFakePty();
+    const started = Date.now();
+    const tty = await open();
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(tty.pid).toBe(0);
+    child.pid = 424_242;
+    expect(tty.pid).toBe(424_242);
+    child.exit(0);
+    expect(await tty.exited).toBe(0);
+  });
+
+  it('closes an app that never got a PID by killing its terminal, without a PID kill, and warns', async () => {
+    const child = useFakePty();
+    const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const tty = await open();
+    const closing = tty.close();
+    // Synchronously, so the exit handler (which cannot wait) still tears it down.
+    expect(child.kills).toBe(1);
+    await closing;
+    expect(await tty.exited).toBe(1);
+    expect(child.kills).toBe(1);
+    // The quit key would only queue up in a terminal that is not connected.
+    expect(child.written).toEqual([]);
+    expect(kills.list).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/never reported a process ID/));
+  });
+
+  it('drops output that arrives after close instead of drawing into the disposed terminal', async () => {
+    const child = useFakePty();
+    const warnings = vi.spyOn(console, 'warn');
+    const tty = await open({ cols: 20, rows: 3 });
+    child.emit('before');
+    await tty.waitForText('before');
+    child.exit(0);
+    await tty.close();
+    expect(() => child.emit('\x1b[2J\x1b[HLATE')).not.toThrow();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(tty.screenText()).toBe('before\n\n');
+    expect(tty.screen().text).toBe('before\n\n');
+    expect(warnings).not.toHaveBeenCalled();
+  });
+
+  it('reads the screen for the first time after close without xterm warnings', async () => {
+    const child = useFakePty();
+    const warnings = vi.spyOn(console, 'warn');
+    const tty = await open({ cols: 20, rows: 3 });
+    child.exit(0);
+    await tty.close();
+    expect(tty.screenText()).toBe('\n\n');
+    expect(warnings).not.toHaveBeenCalled();
   });
 });
 

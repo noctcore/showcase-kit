@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { IBufferCell, IBufferLine, Terminal } from '@xterm/headless';
 import { ShowcaseError } from '../errors.js';
+import { log } from '../log.js';
 import { killTreeSync } from '../process.js';
 import { parseKeys } from './keys.js';
 import { loadPty, spawnPty, type PtyProcess } from './pty.js';
@@ -162,14 +163,20 @@ export const openTtySession: OpenTtySession = async opts => {
   });
   const isRunning = (): boolean => exitCode === undefined;
 
-  child.onData(data => term.write(data));
+  // After `close` the grid is final: output the PTY still delivers is dropped instead of drawn into a disposed
+  // terminal. Reading the buffer once now keeps later reads from registering on a disposed terminal, which logs.
+  let disposed = false;
+  void term.buffer.active;
+  child.onData(data => {
+    if (!disposed) term.write(data);
+  });
   // The app's terminal queries (DA1, DSR, cursor position) are answered by the headless xterm.
   term.onData(data => {
     if (isRunning()) child.write(data);
   });
 
   /** Resolves once everything the app printed so far has been parsed into the grid. */
-  const flush = (): Promise<void> => new Promise(resolve => term.write('', resolve));
+  const flush = (): Promise<void> => (disposed ? Promise.resolve() : new Promise(resolve => term.write('', resolve)));
 
   const exitNote = (): string =>
     `exited (code ${String(exitCode)})${lastError ? ` with ${lastError.message}` : ''}`;
@@ -185,11 +192,6 @@ export const openTtySession: OpenTtySession = async opts => {
     return lines.join('\n');
   }
 
-  // On Windows the PID is only known once ConPTY has connected the child.
-  const pidDeadline = Date.now() + 10_000;
-  while (child.pid <= 0 && isRunning() && Date.now() < pidDeadline) await sleep(10);
-  const pid = child.pid;
-
   const write = async (strokes: string[], delayMs: number): Promise<void> => {
     for (const [i, stroke] of strokes.entries()) {
       ensureRunning(`send ${JSON.stringify(stroke)}`);
@@ -201,9 +203,23 @@ export const openTtySession: OpenTtySession = async opts => {
   };
 
   let closing: Promise<void> | undefined;
+  let ptyKilled = false;
+  const killPty = (): void => {
+    if (ptyKilled) return;
+    ptyKilled = true;
+    try {
+      child.kill();
+    } catch {
+      // Already torn down.
+    }
+  };
 
   const session: TtySession = {
-    pid,
+    // Read live: on Windows the PID is only known once ConPTY has connected the app, and the session is returned
+    // before that so the caller can track it (and close it on Ctrl+C) from the start.
+    get pid() {
+      return child.pid;
+    },
     exited,
     async press(keys) {
       await flush();
@@ -243,9 +259,19 @@ export const openTtySession: OpenTtySession = async opts => {
       await flush();
     },
     sleep,
+    /** Everything up to the first `await` runs at once, so a PID-less app is torn down even by a synchronous caller. */
     close({ quitKey = 'q' } = {}) {
       closing ??= (async () => {
-        if (isRunning() && quitKey !== false) {
+        if (isRunning() && child.pid <= 0) {
+          // ConPTY has not connected the app, so there is no tree to kill by PID and keys would only queue up. The
+          // PTY's own kill runs once it connects, and node-pty reports an exit if it never does.
+          log.warn(
+            'The terminal app never reported a process ID; closing its terminal instead of killing its process ' +
+              'tree, so programs it started may keep running.',
+          );
+          killPty();
+          await settlesWithin(exited, KILL_WAIT_MS);
+        } else if (isRunning() && quitKey !== false) {
           try {
             await write(parseKeys(quitKey), 0);
           } catch {
@@ -255,19 +281,14 @@ export const openTtySession: OpenTtySession = async opts => {
         }
         // Until the exit is observed the PTY still holds the child, so its PID cannot belong to anyone else.
         // After that it may, so the tree is only killed while the app is still running.
-        if (isRunning() && pid > 0) {
-          killTreeSync(pid);
+        if (isRunning() && child.pid > 0) {
+          killTreeSync(child.pid);
           await settlesWithin(exited, KILL_WAIT_MS);
         }
         // Windows keeps the pseudo console and its pipes open until `kill`, which would hold the host open.
         // On POSIX `kill` signals the PID, which is only safe while the child runs.
-        if (process.platform === 'win32' || isRunning()) {
-          try {
-            child.kill();
-          } catch {
-            // Already torn down.
-          }
-        }
+        if (process.platform === 'win32' || isRunning()) killPty();
+        disposed = true;
         term.dispose();
       })();
       return closing;
