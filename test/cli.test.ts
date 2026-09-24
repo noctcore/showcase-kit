@@ -143,8 +143,8 @@ describe('showcase CLI', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toBe(
       'showcase: Invalid showcase config (showcase.config.mjs):\n' +
-        '  - config.colour: unknown key (expected one of: name, slug, root, target, ready, viewport, deviceScaleFactor, colorScheme, langs, css, setup, shots, frame, outputs, browser, timeouts)\n' +
-        '  - shots: must be a non-empty array, got an array\n' +
+        '  - config.colour: unknown key (expected one of: name, slug, root, target, ready, viewport, deviceScaleFactor, colorScheme, langs, css, setup, shots, frame, outputs, hero, browser, timeouts)\n' +
+        '  - shots: must be a non-empty array, got an empty array\n' +
         '  - target.url: must start with http:// or https://, got "localhost:3000"\n',
     );
   });
