@@ -5,6 +5,7 @@ import type {
   ResolvedBackground,
   ResolvedConfig,
   ResolvedFrame,
+  ResolvedHero,
   ResolvedPortfolio,
   ResolvedShot,
   Target,
@@ -232,30 +233,35 @@ function resolveShots(issues: Issues, value: unknown, name: string): ResolvedSho
   });
 }
 
-function resolveBackground(issues: Issues, value: unknown): ResolvedBackground {
-  if (value === undefined) return DEFAULT_BACKGROUND;
-  if (typeof value === 'string') return { type: 'solid', color: color(issues, 'frame.background', value) };
+function resolveBackground(
+  issues: Issues,
+  value: unknown,
+  path = 'frame.background',
+  fallback: ResolvedBackground = DEFAULT_BACKGROUND,
+): ResolvedBackground {
+  if (value === undefined) return fallback;
+  if (typeof value === 'string') return { type: 'solid', color: color(issues, path, value) };
   if (isObj(value)) {
     if (value.type === 'solid') {
-      checkKeys(issues, 'frame.background', value, ['type', 'color']);
-      return { type: 'solid', color: color(issues, 'frame.background.color', value.color) };
+      checkKeys(issues, path, value, ['type', 'color']);
+      return { type: 'solid', color: color(issues, `${path}.color`, value.color) };
     }
     if (value.type === 'gradient') {
-      checkKeys(issues, 'frame.background', value, ['type', 'from', 'to', 'angle']);
+      checkKeys(issues, path, value, ['type', 'from', 'to', 'angle']);
       return {
         type: 'gradient',
-        from: color(issues, 'frame.background.from', value.from),
-        to: color(issues, 'frame.background.to', value.to),
-        angle: num(issues, 'frame.background.angle', value.angle, 135, { min: -360, max: 360 }),
+        from: color(issues, `${path}.from`, value.from),
+        to: color(issues, `${path}.to`, value.to),
+        angle: num(issues, `${path}.angle`, value.angle, 135, { min: -360, max: 360 }),
       };
     }
     if (value.type === 'transparent') {
-      checkKeys(issues, 'frame.background', value, ['type']);
+      checkKeys(issues, path, value, ['type']);
       return { type: 'transparent' };
     }
   }
-  issues.add('frame.background', `must be a color string or { type: "solid" | "gradient" | "transparent" }, got ${describe(value)}`);
-  return DEFAULT_BACKGROUND;
+  issues.add(path, `must be a color string or { type: "solid" | "gradient" | "transparent" }, got ${describe(value)}`);
+  return fallback;
 }
 
 function resolveFrame(issues: Issues, value: unknown): ResolvedFrame {
@@ -338,6 +344,63 @@ function resolvePortfolio(
   };
 }
 
+function resolveHero(
+  issues: Issues,
+  value: unknown,
+  { shots, langs, frame }: { shots: ResolvedShot[]; langs: string[]; frame: ResolvedFrame },
+): ResolvedHero {
+  const hero = value === undefined ? {} : value;
+  if (!isObj(hero)) {
+    issues.add('hero', `must be an object, got ${describe(hero)}`);
+    return resolveHero(issues, {}, { shots, langs, frame });
+  }
+  checkKeys(issues, 'hero', hero, ['tagline', 'logo', 'shots', 'lang', 'output', 'size', 'background', 'theme', 'quality']);
+
+  let heroShots = shots.slice(0, 3).map(shot => shot.id);
+  if (hero.shots !== undefined) {
+    const valid =
+      Array.isArray(hero.shots) &&
+      hero.shots.length >= 1 &&
+      hero.shots.length <= 3 &&
+      hero.shots.every(id => typeof id === 'string');
+    if (valid) {
+      heroShots = hero.shots as string[];
+      for (const id of heroShots) {
+        if (!shots.some(shot => shot.id === id)) issues.add('hero.shots', `"${id}" is not a shot id`);
+      }
+    } else {
+      issues.add('hero.shots', `must be an array of one to three shot ids, got ${describe(hero.shots)}`);
+    }
+  }
+  let size: [number, number] = [1280, 640];
+  if (hero.size !== undefined) {
+    const valid =
+      Array.isArray(hero.size) &&
+      hero.size.length === 2 &&
+      hero.size.every(side => typeof side === 'number' && Number.isInteger(side) && side >= 320 && side <= 8192);
+    if (valid) size = hero.size as [number, number];
+    else issues.add('hero.size', `must be [width, height] in whole pixels (320 to 8192), got ${describe(hero.size)}`);
+  }
+  const lang = str(issues, 'hero.lang', hero.lang) ?? langs[0] ?? 'en';
+  if (hero.lang !== undefined && !langs.includes(lang)) issues.add('hero.lang', `"${lang}" is not in langs`);
+
+  return {
+    tagline: str(issues, 'hero.tagline', hero.tagline),
+    logo: str(issues, 'hero.logo', hero.logo),
+    shots: heroShots,
+    lang,
+    output: pathTemplate(issues, 'hero.output', hero.output, 'assets/showcase/hero.webp', {
+      allowed: ['lang', 'slug'],
+      required: [],
+      extensions: ['.webp', '.png'],
+    }),
+    size,
+    background: resolveBackground(issues, hero.background, 'hero.background', frame.background),
+    theme: oneOf(issues, 'hero.theme', hero.theme, ['light', 'dark'] as const, frame.theme),
+    quality: num(issues, 'hero.quality', hero.quality, 90, { min: 1, max: 100, integer: true }),
+  };
+}
+
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -373,6 +436,7 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
     'shots',
     'frame',
     'outputs',
+    'hero',
     'browser',
     'timeouts',
   ]);
@@ -464,6 +528,7 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
     target.cwd = resolve(rootDir, target.cwd);
   }
 
+  const frame = resolveFrame(issues, input.frame);
   const config: ResolvedConfig = {
     name,
     slug,
@@ -477,8 +542,9 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
     css: str(issues, 'css', input.css),
     setup: input.setup as ResolvedConfig['setup'],
     shots,
-    frame: resolveFrame(issues, input.frame),
+    frame,
     outputs: { raw, readme, portfolio },
+    hero: resolveHero(issues, input.hero, { shots, langs, frame }),
     browser: isObj(browser) ? (browser as ResolvedConfig['browser']) : {},
     timeouts: resolvedTimeouts,
   };

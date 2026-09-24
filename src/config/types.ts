@@ -119,6 +119,26 @@ export interface Outputs {
   portfolio?: PortfolioOutput;
 }
 
+export interface HeroOptions {
+  /** Line under the name. */
+  tagline?: string;
+  /** Logo image (PNG, SVG, WebP or JPEG), relative to the config root. */
+  logo?: string;
+  /** One to three shot ids to stack, back to front. Default: the first three shots. */
+  shots?: string[];
+  /** Which language's captures to use. Default: the first of `langs`. */
+  lang?: string;
+  /** Output path (`.webp` or `.png`). Tokens: `{lang}`, `{slug}`. Default `assets/showcase/hero.webp`. */
+  output?: string;
+  /** Exact output size in pixels. Default `[1280, 640]`, the GitHub social preview size. */
+  size?: [number, number];
+  /** Default: `frame.background`. */
+  background?: Background;
+  /** Text color scheme. Default: `frame.theme`. */
+  theme?: 'light' | 'dark';
+  quality?: number;
+}
+
 export interface BrowserOptions {
   /** A Playwright channel such as `chrome` or `msedge`, to use an installed browser instead of a downloaded one. */
   channel?: string;
@@ -158,6 +178,8 @@ export interface ShowcaseConfig {
   shots: Shot[];
   frame?: FrameOptions;
   outputs?: Outputs;
+  /** Banner image for the top of a README: logo, name, tagline and a stack of framed shots. */
+  hero?: HeroOptions;
   browser?: BrowserOptions;
   timeouts?: Timeouts;
 }
@@ -196,6 +218,18 @@ export interface ResolvedPortfolio {
   padding: number;
 }
 
+export interface ResolvedHero {
+  tagline: string | undefined;
+  logo: string | undefined;
+  shots: string[];
+  lang: string;
+  output: string;
+  size: [number, number];
+  background: ResolvedBackground;
+  theme: 'light' | 'dark';
+  quality: number;
+}
+
 export interface ResolvedConfig {
   name: string;
   slug: string;
@@ -211,6 +245,7 @@ export interface ResolvedConfig {
   shots: ResolvedShot[];
   frame: ResolvedFrame;
   outputs: { raw: string; readme: string; portfolio: ResolvedPortfolio | undefined };
+  hero: ResolvedHero;
   browser: BrowserOptions;
   timeouts: Required<Timeouts>;
 }
