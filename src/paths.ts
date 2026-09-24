@@ -30,3 +30,15 @@ export function select(config: ResolvedConfig, only?: string[], langs?: string[]
     langs: langs?.length ? config.langs.filter(lang => langs.includes(lang)) : config.langs,
   };
 }
+
+/**
+ * Where a path `nav` goes in url mode. The target url's path is the app's base directory, with or without a
+ * trailing slash, so `/docs/` against `https://x.io/app/` is `https://x.io/app/docs/`, not the origin's `/docs/`.
+ * Absolute `http(s)://` urls are left alone.
+ */
+export function navUrl(nav: string, base: string): string {
+  if (/^https?:\/\//.test(nav)) return new URL(nav).href;
+  const url = new URL(base);
+  const dir = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
+  return new URL(nav.startsWith('/') ? `.${nav}` : nav, `${url.origin}${dir}`).href;
+}

@@ -6,7 +6,7 @@ import { launchBrowser, loadPlaywright } from './browser.js';
 import type { CdpTarget, ResolvedConfig, ResolvedShot, UrlTarget } from './config/types.js';
 import { ShowcaseError } from './errors.js';
 import { log } from './log.js';
-import { outputPath, select } from './paths.js';
+import { navUrl, outputPath, select } from './paths.js';
 import { answers, startCommand, waitForUrl, type StartedProcess } from './process.js';
 
 export interface CaptureOptions {
@@ -39,7 +39,8 @@ const DETERMINISM_CSS = `*, *::before, *::after {
 
 interface Session {
   config: ResolvedConfig;
-  baseUrl: () => string;
+  /** The absolute URL a path or URL `nav` visits. */
+  resolveNav: (goto: string) => string;
   /** Write a PNG of the page's viewport at device pixels. */
   screenshot: (page: Page, path: string) => Promise<void>;
 }
@@ -121,7 +122,11 @@ async function captureUrl(
         const page = await context.newPage();
         await page.goto(target.url, { waitUntil: 'load', timeout: config.timeouts.readyMs });
         await runSetup(config, page, context, lang);
-        const session: Session = { config, baseUrl: () => target.url, screenshot: playwrightScreenshot };
+        const session: Session = {
+          config,
+          resolveNav: goto => navUrl(goto, target.url),
+          screenshot: playwrightScreenshot,
+        };
         await shootAll(session, page, shots, lang, files, failures);
       } finally {
         await context.close();
@@ -163,7 +168,8 @@ async function captureCdp(
         await runSetup(config, page, context, lang);
         const session: Session = {
           config,
-          baseUrl: () => page.url(),
+          // The live page's URL changes with every shot, so paths resolve against its origin as before.
+          resolveNav: goto => new URL(goto, page.url()).href,
           // Playwright sizes screenshots of a connected page by its own idea of the device scale factor,
           // which ignores the override above; Chromium's own capture honours it.
           screenshot: async (target, path) => {
@@ -299,7 +305,7 @@ async function navigate(session: Session, page: Page, shot: ResolvedShot): Promi
     click = nav.click;
   }
   if (goto !== undefined) {
-    await page.goto(new URL(goto, session.baseUrl()).href, { waitUntil: 'load', timeout });
+    await page.goto(session.resolveNav(goto), { waitUntil: 'load', timeout });
     await waitReady(config, page);
   } else if (click !== undefined) {
     await page.locator(click).first().click({ timeout });

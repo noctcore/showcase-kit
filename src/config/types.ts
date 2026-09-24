@@ -6,7 +6,9 @@ export type NavFn = (page: Page) => Promise<void> | void;
 /**
  * How to reach a shot.
  *
- * - A string starting with `/` (but not `//`) or `http(s)://` is visited as a URL, relative to the target URL.
+ * - A string starting with `/` (but not `//`) or `http(s)://` is visited as a URL. In url mode a path resolves under
+ *   the target URL's path (`/docs/` with `https://x.io/app/` visits `https://x.io/app/docs/`); in cdp mode it
+ *   resolves against the captured page's origin.
  * - Any other string is a selector to click.
  * - `{ click }` and `{ goto }` say which one explicitly.
  * - A function receives the page and does whatever it needs.
@@ -31,7 +33,7 @@ export interface Shot {
 
 export interface UrlTarget {
   mode: 'url';
-  /** The app's URL. Path `nav` values resolve against it. */
+  /** The app's URL. Path `nav` values resolve under its path: it is the app's base directory. */
   url: string;
   /** Shell command that starts the app (for example `pnpm dev:web`). Omit if it is already running. */
   start?: string;

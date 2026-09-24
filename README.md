@@ -140,7 +140,7 @@ file's directory, or `root` if you set one.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `mode: 'url'` | | |
-| `url` | required | The app's URL. Path `nav` values resolve against it. |
+| `url` | required | The app's URL. Path `nav` values resolve under its path (see `shots`). |
 | `start` | none | Shell command that starts the app, such as `pnpm dev:web`. Omit it if the app is already running. |
 | `cwd`, `env` | config dir, none | Working directory and extra environment for `start`. |
 | `readyTimeoutMs` | `60000` | How long to wait for `url` to answer after `start`. |
@@ -182,7 +182,10 @@ shims) in its own process tree. When the run ends, fails, or you press Ctrl+C, t
 
 - a selector to click: `'[data-view="library"]'`;
 - a path or URL to visit: `'/settings'` or `'https://...'` (a string starting with `/` but not `//`, or with
-  `http(s)://`);
+  `http(s)://`). In url mode a path resolves under the target url's path, which counts as the app's base directory
+  with or without a trailing slash: with `url: 'https://x.io/app/'`, `'/docs/'` visits `https://x.io/app/docs/` and
+  `'/'` visits the url itself. The url's query and hash are not carried over. In cdp mode a path resolves against
+  the origin of the page being captured;
 - explicit: `{ click: 'text=Library' }` or `{ goto: '/settings' }`;
 - a function: `async page => { await page.getByRole('button', { name: 'Open' }).click(); }`.
 
