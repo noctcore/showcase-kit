@@ -439,7 +439,9 @@ The kit can only freeze what the app lets it freeze. The terminal equivalent of 
 
 ### Platform notes
 
-- **Windows:** works through ConPTY. `LANG` has no effect there, so pin the locale in the app.
+- **Windows:** works through ConPTY. `LANG` has no effect there, so pin the locale in the app. An array `command`
+  whose program is a `.cmd` or `.bat` shim (`pnpm`, `npm`) runs through cmd.exe, which cannot pass an argument
+  with `"` or `%`: the kit refuses those, so run the program the shim starts directly or use a command string.
 - **macOS:** `@lydell/node-pty` ships its spawn helper executable. With the official `node-pty` 1.1.0 a spawn can
   fail with `posix_spawnp failed` (node-pty issue #919) until its `spawn-helper` binary is made executable; prefer
   `@lydell/node-pty`. Fonts rasterize differently from Windows and Linux (the cell grid stays the same).
