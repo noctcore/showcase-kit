@@ -61,6 +61,16 @@ describe('readme with clips', () => {
     expect(noReadme).not.toContain('resources');
     expect(noReadme).toContain('tour.webp');
   });
+
+  it('says why instead of printing an empty table when outputs.readme is false and --only names only shots', () => {
+    vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const noReadme = { ...base, outputs: { readme: false as const } };
+    expect(() => snippet(noReadme, ['resources'])).toThrow(
+      'outputs.readme is false, so shots have no README images, and --only names only shots (resources). ' +
+        'Name a clip too, or leave out --only to list every clip.',
+    );
+    expect(snippet(noReadme, ['resources', 'tour'])).toContain('tour.webp');
+  });
 });
 
 const TUI = join(FIXTURES, 'tui.mjs');

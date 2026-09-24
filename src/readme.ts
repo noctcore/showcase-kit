@@ -34,6 +34,13 @@ export function readmeSnippet(config: ResolvedConfig, options: ReadmeOptions = {
   }
   const lang = options.lang ?? config.langs[0] ?? 'en';
   const only = splitIds(config, options.only);
+  // An empty list means `--only` named clips and no shots, or the other way round.
+  if (template === false && only.clips?.length === 0) {
+    throw new ShowcaseError(
+      `outputs.readme is false, so shots have no README images, and --only names only shots ` +
+        `(${only.shots?.join(', ') ?? ''}). Name a clip too, or leave out --only to list every clip.`,
+    );
+  }
   const base = resolve(config.root, options.base ?? '.');
   const width = `${String(Math.floor(100 / cols))}%`;
   const src = (path: string, command: string): string => {
@@ -43,7 +50,6 @@ export function readmeSnippet(config: ResolvedConfig, options: ReadmeOptions = {
 
   /** Cell contents as HTML. */
   const cells: { media: string; caption: string }[] = [];
-  // An empty list means `--only` named clips and no shots, or the other way round.
   if (template !== false && only.shots?.length !== 0) {
     for (const shot of select(config, only.shots, [lang]).shots) {
       cells.push({
