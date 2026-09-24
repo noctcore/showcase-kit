@@ -73,9 +73,36 @@ describe('startCommand', () => {
     watchGroupKills();
     const started = startCommand('node -e "setInterval(() => {}, 1000)"', { cwd: process.cwd() });
     await new Promise(resolve => setTimeout(resolve, 300));
+    const begin = performance.now();
     await started.stop();
+    // A tree that ends on the first signal must not sit out the grace period before a forced kill.
+    expect(performance.now() - begin).toBeLessThan(1_000);
     expect(kills.list).toHaveLength(1);
     expect(kills.list[0]).toMatch(process.platform === 'win32' ? /^taskkill \/PID \d+ \/T \/F$/ : /^kill -\d+ SIGTERM$/);
+    expect(isAlive(started.pid)).toBe(false);
+  });
+
+  it('force kills a tree that ignores SIGTERM once the grace period is over', async () => {
+    watchGroupKills();
+    const started = startCommand(
+      `node -e "process.on('SIGTERM', () => {}); console.log('ready ' + process.pid); setInterval(() => {}, 1000)"`,
+      { cwd: process.cwd() },
+    );
+    // Signal only after the handler is in place, or node would still die on the SIGTERM.
+    const deadline = Date.now() + 10_000;
+    let ready: RegExpMatchArray | null = null;
+    while (!(ready = /^ready (\d+)$/m.exec(started.tail())) && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    expect(ready).not.toBeNull();
+    const nodePid = Number(ready?.[1]);
+    await started.stop();
+    expect(kills.list).toEqual(
+      process.platform === 'win32'
+        ? [`taskkill /PID ${String(started.pid)} /T /F`]
+        : [`kill -${String(started.pid)} SIGTERM`, `kill -${String(started.pid)} SIGKILL`],
+    );
+    expect(isAlive(nodePid)).toBe(false);
     expect(isAlive(started.pid)).toBe(false);
   });
 });
