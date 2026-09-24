@@ -9,7 +9,9 @@ One config file describes your app and the views worth showing. From it, `showca
   solid or gradient background, as WebP or PNG;
 - **portfolio images**: exact-size 16:9 WebP images with the framed window contained (never cropped), a
   `thumbnail.webp`, and a `showcase.gallery.json` ready for a portfolio site;
-- **a README table**: an HTML snippet of the framed images with captions, to paste into a README.
+- **a README table**: an HTML snippet of the framed images with captions, to paste into a README;
+- **a hero banner**: logo, name, tagline and a stack of tilted framed shots, 1280x640 by default;
+- **app icons**: web, Electron or Tauri icon sets (PNG, `.ico`, `.icns`) from one square image.
 
 It drives the app with [Playwright](https://playwright.dev): web apps in headless Chromium, and Electron (or
 Tauri on Windows) over the Chrome DevTools Protocol.
@@ -46,6 +48,8 @@ npx showcase readme       # print the README table
 | `showcase portfolio` | Export `outputs.portfolio`: one image per shot, `thumbnail.<format>`, `showcase.gallery.json`. |
 | `showcase readme` | Print an HTML table of the framed images with `<sub>` captions. |
 | `showcase all` | `capture`, then `frame`, then `portfolio` when it is configured. |
+| `showcase hero` | Render the README banner to `hero.output`. |
+| `showcase icons --source <png> --preset <web\|electron\|tauri> [--out <dir>]` | Generate an icon set. Needs no config. |
 | `showcase init` | Write a starter config, filled in from `package.json`. |
 
 Options:
@@ -58,6 +62,7 @@ Options:
 | `--lang <code>` | readme | Language of the images in the table (default: the first of `langs`). |
 | `--cols <n>` | readme | Images per row (default 2). |
 | `--base <dir>` | readme | Directory the README is in, for relative image paths (default: the config's directory). |
+| `--source`, `--preset`, `--out` | icons | Source image, preset, output directory (default `icons`). |
 | `--ts`, `--force` | init | Write TypeScript; overwrite an existing config. |
 | `--verbose`, `--quiet` | all | Show the start command's output; print only warnings and errors. |
 
@@ -229,6 +234,41 @@ one language, so files never overwrite each other. Add `showcase-out/` to `.giti
 The window is scaled to fit inside `size` minus `padding` with its aspect ratio kept, and the background fills the
 rest, so nothing is ever cropped and a 16:9 `object-cover` tile shows the whole window.
 
+### `hero`
+
+`showcase hero` composes a banner from the raw captures: your logo, name and tagline on the left, one to three
+framed shots stacked and tilted on the right. It is rendered at 2x and scaled to the exact size.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `tagline` | none | Line under the name. |
+| `logo` | none | PNG, SVG, WebP or JPEG, relative to the config root. |
+| `shots` | the first three shots | One to three shot ids, back to front. |
+| `lang` | the first of `langs` | Which language's captures to use. |
+| `output` | `assets/showcase/hero.webp` | `.webp` or `.png`. Tokens: `{lang}`, `{slug}`. |
+| `size` | `[1280, 640]` | Exact size in pixels (the GitHub social preview size). |
+| `background` | `frame.background` | Same forms as `frame.background`. |
+| `theme` | `frame.theme` | Text colors: `'dark'` (light text) or `'light'`. |
+| `quality` | `90` | WebP quality. |
+
+## Icons
+
+```sh
+npx showcase icons --source assets/mascot.png --preset electron --out apps/desktop/resources
+```
+
+The source should be a square PNG, 1024x1024 or larger, ideally on a transparent background. Every size is
+`contain`-fitted on transparency.
+
+| Preset | Files |
+| --- | --- |
+| `web` | `favicon.ico` (16, 32, 48), `apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png` |
+| `electron` | `icon.png` (1024), `icon-16.png`, `icon-32.png`, `icon.ico` (16, 32, 48, 256) |
+| `tauri` | `32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.png` (1024), `icon.ico` (16 to 256), `icon.icns` (16 to 512@2x) |
+
+For Tauri, `pnpm tauri icon` produces the full platform set (including the Windows Store tiles); the `tauri` preset
+covers what `bundle.icon` usually lists.
+
 ## Recipes
 
 ### Web app
@@ -348,13 +388,15 @@ export const shiranami: Project = {
 Everything the CLI does is exported:
 
 ```ts
-import { capture, exportPortfolio, frame, loadConfig, readmeSnippet } from '@noctcore/showcase-kit';
+import { capture, exportPortfolio, frame, generateIcons, hero, loadConfig, readmeSnippet } from '@noctcore/showcase-kit';
 
 const config = await loadConfig(); // or loadConfig('path/to/showcase.config.mjs')
 await capture(config, { only: ['library'], langs: ['en'] });
 await frame(config);
 await exportPortfolio(config);
 console.log(readmeSnippet(config, { lang: 'en', cols: 2 }));
+await hero(config);
+await generateIcons('mascot.png', 'web', 'public');
 ```
 
 `resolveConfig(object, rootDir)` validates a config object without a file, and `defineConfig` only exists for
