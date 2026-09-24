@@ -158,6 +158,15 @@ describe('recordTimeline', () => {
     ]);
   });
 
+  it('lets a trailing sleep run out before the tail', async () => {
+    const samples = await recordTimeline(session(), clip({ steps: [{ keys: 'j' }, { sleep: 500 }], tailMs: 200 }), 1000);
+    // The first frame, then 500 ms of sleep and 200 ms of tail on the new screen.
+    expect(samples.map(sample => [sample.screen.text, sample.ticks])).toEqual([
+      ['screen start', 1],
+      ['screen second', 7],
+    ]);
+  });
+
   it('stops at durationMs even with steps left, and says so', async () => {
     const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
     const samples = await recordTimeline(session(), clip({ steps: [{ sleep: 5000 }, { keys: 'j' }], durationMs: 500 }), 1000);

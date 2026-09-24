@@ -244,7 +244,8 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
         resumeAt = tick + 1;
       }
     }
-    if (stepIndex >= clip.steps.length) doneAt ??= tick;
+    // A trailing sleep still has to run out: the tail starts once the next step could have run.
+    if (stepIndex >= clip.steps.length && tick >= resumeAt - 1) doneAt ??= tick;
   };
 
   const start = performance.now();
