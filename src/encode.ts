@@ -51,10 +51,9 @@ export async function encodeAnimation(frames: AnimationFrame[], opts: EncodeOpti
   const delays = frames.map(frame => Math.max(1, Math.round(frame.delayMs)));
   if (format === 'mp4') return encodeMp4(frames, size, opts.fps ?? 30);
 
-  const joined = sharp(
-    frames.map(frame => frame.png),
-    { join: { animated: true } },
-  );
+  // A screen that never changed is one frame, and sharp cannot join fewer than two images.
+  const joined =
+    frames.length === 1 ? sharp(frames[0]?.png) : sharp(frames.map(frame => frame.png), { join: { animated: true } });
   if (format === 'webp') {
     const { quality } = opts;
     if (quality !== undefined && !(Number.isInteger(quality) && quality >= 1 && quality <= 100)) {

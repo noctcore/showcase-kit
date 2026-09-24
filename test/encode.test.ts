@@ -68,6 +68,14 @@ describe('encodeAnimation', () => {
     ]);
   });
 
+  it('encodes a single frame (a screen that never changed) in both formats', async () => {
+    for (const format of ['webp', 'gif'] as const) {
+      const data = await encodeAnimation(await frames([1500]), { format });
+      const meta = await sharp(data, { animated: true }).metadata();
+      expect([meta.format, meta.pages ?? 1, meta.width, meta.height]).toEqual([format, 1, 40, 30]);
+    }
+  });
+
   it('refuses frames of different sizes, no frames, and bad delays', async () => {
     const mixed = [
       { png: await solid('#ff0000'), delayMs: 100 },
