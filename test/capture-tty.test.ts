@@ -314,15 +314,26 @@ describe('captureTty, scripted engine', () => {
 
   it('closes open apps and exits 130 on Ctrl+C, then removes its handlers', async () => {
     const baseline = process.listenerCount('SIGINT');
-    // Playwright's own SIGINT handler also runs and exits 130 once its browser is closed.
     const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
     const config = ttyConfig({ ready: 'never ready', target: { mode: 'tty', command: 'fake-tui', readyTimeoutMs: 60_000 } });
     const { engine, recorder } = fakeEngine(APP);
+    // The session opens after the browser has launched (and Playwright has added its own SIGINT handler), so any
+    // listener added after this snapshot is the kit's. Only that one is called: Playwright's would really exit.
+    let before: Function[] = [];
+    const open = engine.openTtySession;
+    engine.openTtySession = async options => {
+      before = process.listeners('SIGINT');
+      return open(options);
+    };
     const run = captureTty(config, config.shots, config.langs, engine).catch((caught: unknown) => caught);
     await vi.waitFor(() => expect(recorder.sessions).toHaveLength(1), { timeout: 30_000 });
+    await vi.waitFor(() =>
+      expect(process.listeners('SIGINT').filter(listener => !before.includes(listener))).toHaveLength(1),
+    );
+    const [kit] = process.listeners('SIGINT').filter(listener => !before.includes(listener));
 
-    process.emit('SIGINT');
+    kit?.('SIGINT');
     expect(warn).toHaveBeenCalledWith('\nReceived SIGINT, closing the terminal app.');
     // Only the kit's handler knows the session; without it the app would wait 60 s for its ready text.
     await vi.waitFor(() => expect(recorder.sessions[0]?.closed).toBe(true));
@@ -330,6 +341,21 @@ describe('captureTty, scripted engine', () => {
     // Closing made the app exit, which ends the ready wait.
     expect(String(await run)).toMatch(/The app exited \(code 0\)/);
     expect(process.listenerCount('SIGINT')).toBe(baseline);
+  });
+
+  it('without ready, waits for the first drawing before the first shot', async () => {
+    const config = ttyConfig({ ready: undefined, target: { mode: 'tty', command: 'fake-tui', inputDelayMs: 0 } });
+    const { engine, recorder } = fakeEngine({ ...APP, boot: '', drawAfterMs: 300 });
+    await captureTty(config, config.shots.slice(0, 1), config.langs, engine);
+    expect(recorder.rendered.map(render => render.text)).toEqual(['resources (3)']);
+  });
+
+  it('says so when an app without ready never draws anything', async () => {
+    const config = ttyConfig({ ready: undefined, target: { mode: 'tty', command: 'fake-tui', readyTimeoutMs: 200 } });
+    const { engine } = fakeEngine({ ...APP, boot: '', drawAfterMs: 60_000 });
+    await expect(captureTty(config, config.shots, config.langs, engine)).rejects.toThrow(
+      /^Any text \(no ready is set\) did not appear within 200ms .*\nThe screen was empty\.$/,
+    );
   });
 });
 
