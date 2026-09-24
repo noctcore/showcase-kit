@@ -26,7 +26,7 @@ Commands:
   all         capture, then frame, then portfolio (if configured)
   hero        Render a README banner: logo, name, tagline and stacked shots
   icons       Generate an app icon set from one square image (no config needed)
-  init        Write a starter showcase.config.mjs
+  init        Write a starter showcase.config.mjs (--tty for a terminal app)
 
 Options:
   -c, --config <file>   Config file (default: showcase.config.{ts,mts,mjs,js} in the
@@ -40,6 +40,7 @@ Options:
       --preset <name>   web, electron or tauri (icons)
       --out <dir>       Output directory (icons, default: icons)
       --ts              Write showcase.config.ts instead (init)
+      --tty             Start from a terminal app config (init)
       --force           Overwrite an existing config (init)
       --verbose         Show the start command's output and debug detail
       --quiet           Only print warnings and errors
@@ -76,6 +77,7 @@ async function main(argv: string[]): Promise<void> {
       preset: { type: 'string' },
       out: { type: 'string' },
       ts: { type: 'boolean' },
+      tty: { type: 'boolean' },
       force: { type: 'boolean' },
       verbose: { type: 'boolean' },
       quiet: { type: 'boolean' },
@@ -98,7 +100,7 @@ async function main(argv: string[]): Promise<void> {
   log.setQuiet(values.quiet ?? false);
 
   if (command === 'init') {
-    const path = init(process.cwd(), { typescript: values.ts, force: values.force });
+    const path = init(process.cwd(), { typescript: values.ts, force: values.force, tty: values.tty });
     log.info(`Wrote ${relative(process.cwd(), path)}. Edit the target and shots, then run \`showcase all\`.`);
     return;
   }

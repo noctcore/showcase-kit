@@ -1,6 +1,16 @@
 import { isAbsolute, resolve } from 'node:path';
 import { ConfigError } from '../errors.js';
-import { templateTokens } from '../template.js';
+import { resolveTerminalOptions } from '../tty/theme.js';
+import {
+  checkTerminal,
+  resolveTtyShots,
+  resolveTtyTarget,
+  TTY_ONLY_KEYS,
+  TTY_SHOT_KEYS,
+  TTY_TARGET_KEYS,
+  TTY_TIMEOUT_KEYS,
+  WEB_ONLY_KEYS,
+} from './tty.js';
 import type {
   ResolvedBackground,
   ResolvedConfig,
@@ -8,166 +18,56 @@ import type {
   ResolvedHero,
   ResolvedPortfolio,
   ResolvedShot,
-  Target,
+  ResolvedTtyConfig,
+  ResolvedWebConfig,
+  ResolvedWebShot,
 } from './types.js';
+import {
+  bool,
+  checkKeys,
+  color,
+  describe,
+  ID,
+  isObj,
+  Issues,
+  num,
+  oneOf,
+  pathTemplate,
+  resolveShotList,
+  selector,
+  statelessRegExp,
+  str,
+  stringRecord,
+  textPattern,
+} from './validate.js';
 
 export const DEFAULT_RAW = 'showcase-out/raw/{lang}/{id}.png';
 export const DEFAULT_README = 'assets/showcase/{lang}/{id}.webp';
 export const DEFAULT_CDP_URL = 'http://127.0.0.1:9222';
+export const GALLERY_FILE = 'showcase.gallery.json';
 
 const DEFAULT_BACKGROUND: ResolvedBackground = { type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 };
 
-const ID = /^[A-Za-z0-9_-]+$/;
-// Colors end up inside a CSS declaration. Allow color syntax only: characters that cannot close the
-// declaration, and no functions but color functions (so no url() fetches or image-set()).
-const CSS_COLOR = /^[#\w\s(),.%/+-]+$/;
-const CSS_COLOR_FUNCTIONS = new Set(['rgb', 'rgba', 'hsl', 'hsla', 'hwb', 'lab', 'lch', 'oklab', 'oklch', 'color', 'color-mix']);
-
-function isCssColor(text: string): boolean {
-  if (!CSS_COLOR.test(text)) return false;
-  return [...text.matchAll(/([\w-]+)\s*\(/g)].every(match => CSS_COLOR_FUNCTIONS.has((match[1] ?? '').toLowerCase()));
-}
-
-type Obj = Record<string, unknown>;
-
-/** Collects every problem instead of stopping at the first, so one run shows the whole list. */
-class Issues {
-  readonly list: string[] = [];
-
-  add(path: string, message: string): void {
-    this.list.push(`${path}: ${message}`);
-  }
-}
-
-function isObj(value: unknown): value is Obj {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function describe(value: unknown): string {
-  if (value === null) return 'null';
-  if (Array.isArray(value)) return value.length === 0 ? 'an empty array' : 'an array';
-  if (typeof value === 'string') return `"${value}"`;
-  return typeof value === 'object' ? 'an object' : `${typeof value} ${String(value)}`;
-}
-
-function checkKeys(issues: Issues, path: string, value: Obj, allowed: readonly string[]): void {
-  for (const key of Object.keys(value)) {
-    if (!allowed.includes(key)) {
-      issues.add(`${path}.${key}`, `unknown key (expected one of: ${allowed.join(', ')})`);
-    }
-  }
-}
-
-function str(issues: Issues, path: string, value: unknown, required: true): string;
-function str(issues: Issues, path: string, value: unknown, required?: false): string | undefined;
-function str(issues: Issues, path: string, value: unknown, required = false): string | undefined {
-  if (value === undefined) {
-    if (required) issues.add(path, 'is required');
-    return required ? '' : undefined;
-  }
-  if (typeof value !== 'string' || value.trim() === '') {
-    issues.add(path, `must be a non-empty string, got ${describe(value)}`);
-    return required ? '' : undefined;
-  }
-  return value;
-}
-
-function num(
-  issues: Issues,
-  path: string,
-  value: unknown,
-  fallback: number,
-  { min, max, integer = false }: { min: number; max?: number; integer?: boolean },
-): number {
-  if (value === undefined) return fallback;
-  const ok =
-    typeof value === 'number' &&
-    Number.isFinite(value) &&
-    value >= min &&
-    (max === undefined || value <= max) &&
-    (!integer || Number.isInteger(value));
-  if (!ok) {
-    const range = max === undefined ? `>= ${String(min)}` : `between ${String(min)} and ${String(max)}`;
-    issues.add(path, `must be ${integer ? 'an integer' : 'a number'} ${range}, got ${describe(value)}`);
-    return fallback;
-  }
-  return value;
-}
-
-function bool(issues: Issues, path: string, value: unknown, fallback: boolean): boolean {
-  if (value === undefined) return fallback;
-  if (typeof value !== 'boolean') {
-    issues.add(path, `must be true or false, got ${describe(value)}`);
-    return fallback;
-  }
-  return value;
-}
-
-function oneOf<T extends string>(issues: Issues, path: string, value: unknown, options: readonly T[], fallback: T): T {
-  if (value === undefined) return fallback;
-  if (typeof value !== 'string' || !options.includes(value as T)) {
-    issues.add(path, `must be one of ${options.map(option => `"${option}"`).join(', ')}, got ${describe(value)}`);
-    return fallback;
-  }
-  return value as T;
-}
-
-function color(issues: Issues, path: string, value: unknown): string {
-  const text = str(issues, path, value, true);
-  if (text && !isCssColor(text)) {
-    issues.add(path, `is not a CSS color: "${text}"`);
-  }
-  return text;
-}
-
-function stringRecord(issues: Issues, path: string, value: unknown): Record<string, string> | undefined {
-  if (value === undefined) return undefined;
-  if (!isObj(value) || Object.values(value).some(entry => typeof entry !== 'string')) {
-    issues.add(path, 'must be an object of string values');
-    return undefined;
-  }
-  return value as Record<string, string>;
-}
-
-/** Path templates must only use known tokens, and must include the ones that keep files apart. */
-function pathTemplate(
-  issues: Issues,
-  path: string,
-  value: unknown,
-  fallback: string,
-  { allowed, required, extensions }: { allowed: string[]; required: string[]; extensions?: string[] },
-): string {
-  const template = value === undefined ? fallback : str(issues, path, value, true);
-  if (!template) return fallback;
-  for (const token of templateTokens(template)) {
-    if (!allowed.includes(token)) {
-      issues.add(path, `unknown token {${token}} (allowed: ${allowed.map(name => `{${name}}`).join(', ')})`);
-    }
-  }
-  for (const token of required) {
-    if (!template.includes(`{${token}}`)) {
-      issues.add(path, `must contain {${token}}, or every file overwrites the last`);
-    }
-  }
-  if (extensions && !extensions.some(extension => template.toLowerCase().endsWith(extension))) {
-    issues.add(path, `must end in ${extensions.join(' or ')}`);
-  }
-  return template;
-}
-
-function resolveTarget(issues: Issues, value: unknown): ResolvedConfig['target'] {
+function resolveWebTarget(issues: Issues, value: unknown, rootDir: string): ResolvedWebConfig['target'] {
   if (!isObj(value)) {
-    issues.add('target', `must be an object with mode "url" or "cdp", got ${describe(value)}`);
+    issues.add('target', `must be an object with mode "url", "cdp" or "tty", got ${describe(value)}`);
     return { mode: 'url', url: 'http://localhost', readyTimeoutMs: 60_000 };
   }
   const readyTimeoutMs = num(issues, 'target.readyTimeoutMs', value.readyTimeoutMs, 60_000, { min: 1, integer: true });
   const start = str(issues, 'target.start', value.start);
-  const cwd = str(issues, 'target.cwd', value.cwd);
+  let cwd = str(issues, 'target.cwd', value.cwd);
+  if (cwd !== undefined && !isAbsolute(cwd)) cwd = resolve(rootDir, cwd);
   const env = stringRecord(issues, 'target.env', value.env);
   const common = { start, cwd, env, readyTimeoutMs };
 
   if (value.mode === 'url') {
-    checkKeys(issues, 'target', value, ['mode', 'url', 'start', 'cwd', 'env', 'readyTimeoutMs', 'reuseExisting']);
+    checkKeys(
+      issues,
+      'target',
+      value,
+      ['mode', 'url', 'start', 'cwd', 'env', 'readyTimeoutMs', 'reuseExisting'],
+      TTY_TARGET_KEYS,
+    );
     const url = str(issues, 'target.url', value.url, true);
     if (url && !/^https?:\/\//.test(url)) {
       issues.add('target.url', `must start with http:// or https://, got "${url}"`);
@@ -175,26 +75,24 @@ function resolveTarget(issues: Issues, value: unknown): ResolvedConfig['target']
     return { mode: 'url', url, ...common, reuseExisting: bool(issues, 'target.reuseExisting', value.reuseExisting, true) };
   }
   if (value.mode === 'cdp') {
-    checkKeys(issues, 'target', value, ['mode', 'cdpUrl', 'pageMatch', 'start', 'cwd', 'env', 'readyTimeoutMs']);
+    checkKeys(issues, 'target', value, ['mode', 'cdpUrl', 'pageMatch', 'start', 'cwd', 'env', 'readyTimeoutMs'], TTY_TARGET_KEYS);
     const cdpUrl = str(issues, 'target.cdpUrl', value.cdpUrl) ?? DEFAULT_CDP_URL;
     if (!/^(https?|wss?):\/\//.test(cdpUrl)) {
       issues.add('target.cdpUrl', `must start with http://, https://, ws:// or wss://, got "${cdpUrl}"`);
     }
-    let pageMatch: string | RegExp | undefined;
-    if (value.pageMatch instanceof RegExp) {
-      // A g or y RegExp keeps lastIndex between test() calls, so it would match every other page.
-      pageMatch = new RegExp(value.pageMatch.source, value.pageMatch.flags.replace(/[gy]/g, ''));
-    } else {
-      pageMatch = str(issues, 'target.pageMatch', value.pageMatch);
-    }
+    // A g or y RegExp keeps lastIndex between test() calls, so it would match every other page.
+    const pageMatch =
+      value.pageMatch instanceof RegExp
+        ? statelessRegExp(value.pageMatch)
+        : str(issues, 'target.pageMatch', value.pageMatch);
     return { mode: 'cdp', cdpUrl, pageMatch, ...common };
   }
-  issues.add('target.mode', `must be "url" or "cdp", got ${describe(value.mode)}`);
+  issues.add('target.mode', `must be "url", "cdp" or "tty", got ${describe(value.mode)}`);
   return { mode: 'url', url: 'http://localhost', readyTimeoutMs };
 }
 
-function resolveNav(issues: Issues, path: string, value: unknown): ResolvedShot['nav'] {
-  if (value === undefined || typeof value === 'function') return value as ResolvedShot['nav'];
+function resolveNav(issues: Issues, path: string, value: unknown): ResolvedWebShot['nav'] {
+  if (value === undefined || typeof value === 'function') return value as ResolvedWebShot['nav'];
   if (typeof value === 'string') return str(issues, path, value);
   if (isObj(value)) {
     const keys = Object.keys(value);
@@ -207,37 +105,15 @@ function resolveNav(issues: Issues, path: string, value: unknown): ResolvedShot[
   return undefined;
 }
 
-function resolveShots(issues: Issues, value: unknown, name: string): ResolvedShot[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    issues.add('shots', `must be a non-empty array, got ${describe(value)}`);
-    return [];
-  }
-  const seen = new Set<string>();
-  return value.map((entry: unknown, index) => {
-    const path = `shots[${String(index)}]`;
-    if (!isObj(entry)) {
-      issues.add(path, `must be an object, got ${describe(entry)}`);
-      return { id: `shot-${String(index)}`, title: '', alt: '', delayMs: 0 };
-    }
-    checkKeys(issues, path, entry, ['id', 'title', 'caption', 'alt', 'nav', 'waitFor', 'delayMs']);
-    const id = str(issues, `${path}.id`, entry.id, true);
-    if (id && !ID.test(id)) {
-      issues.add(`${path}.id`, `may only contain letters, digits, "-" and "_", got "${id}"`);
-    }
-    if (id && seen.has(id)) {
-      issues.add(`${path}.id`, `duplicates another shot id "${id}"`);
-    }
-    seen.add(id);
-    const title = str(issues, `${path}.title`, entry.title) ?? id;
-    return {
-      id,
-      title,
-      caption: str(issues, `${path}.caption`, entry.caption),
-      alt: str(issues, `${path}.alt`, entry.alt) ?? `${name}: ${title}`,
+function resolveWebShots(issues: Issues, value: unknown, name: string): ResolvedWebShot[] {
+  return resolveShotList(issues, value, {
+    name,
+    allowed: ['nav'],
+    elsewhere: TTY_SHOT_KEYS,
+    extra: (entry, path) => ({
       nav: resolveNav(issues, `${path}.nav`, entry.nav),
-      waitFor: str(issues, `${path}.waitFor`, entry.waitFor),
-      delayMs: num(issues, `${path}.delayMs`, entry.delayMs, 0, { min: 0, integer: true }),
-    };
+      waitFor: selector(issues, `${path}.waitFor`, entry.waitFor),
+    }),
   });
 }
 
@@ -310,7 +186,17 @@ function resolvePortfolio(
     return undefined;
   }
   const path = 'outputs.portfolio';
-  checkKeys(issues, path, value, ['dir', 'size', 'format', 'quality', 'thumbnail', 'lang', 'publicPath', 'padding']);
+  checkKeys(issues, path, value, [
+    'dir',
+    'size',
+    'format',
+    'quality',
+    'thumbnail',
+    'lang',
+    'publicPath',
+    'padding',
+    'gallery',
+  ]);
   const dir = pathTemplate(issues, `${path}.dir`, value.dir, '', { allowed: ['slug'], required: [] });
   if (value.dir === undefined) issues.add(`${path}.dir`, 'is required');
 
@@ -348,6 +234,16 @@ function resolvePortfolio(
     required: [],
   });
 
+  const defaultGallery = `${dir.replace(/[\\/]+$/, '')}/${GALLERY_FILE}`;
+  const gallery =
+    value.gallery === false
+      ? false
+      : pathTemplate(issues, `${path}.gallery`, value.gallery, defaultGallery, {
+          allowed: ['slug'],
+          required: [],
+          extensions: ['.json'],
+        });
+
   return {
     dir,
     size,
@@ -357,6 +253,7 @@ function resolvePortfolio(
     lang,
     publicPath: publicPath.replace(/\/+$/, ''),
     padding: num(issues, `${path}.padding`, value.padding, 96, { min: 0, integer: true }),
+    gallery,
   };
 }
 
@@ -425,6 +322,32 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/** Narrows a resolved config to tty mode. */
+export function isTtyConfig(config: ResolvedConfig): config is ResolvedTtyConfig {
+  return config.target.mode === 'tty';
+}
+
+const WEB_KEYS = [
+  'name',
+  'slug',
+  'root',
+  'target',
+  'ready',
+  'viewport',
+  'deviceScaleFactor',
+  'colorScheme',
+  'langs',
+  'css',
+  'setup',
+  'shots',
+  'frame',
+  'outputs',
+  'hero',
+  'browser',
+  'timeouts',
+];
+const TTY_KEYS = [...WEB_KEYS.filter(key => !(key in WEB_ONLY_KEYS)), 'terminal'];
+
 /**
  * Validate a user config and fill in every default.
  *
@@ -437,43 +360,15 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
   if (!isObj(input)) {
     throw new ConfigError([`the config must export an object, got ${describe(input)}`], source);
   }
-  checkKeys(issues, 'config', input, [
-    'name',
-    'slug',
-    'root',
-    'target',
-    'ready',
-    'viewport',
-    'deviceScaleFactor',
-    'colorScheme',
-    'langs',
-    'css',
-    'setup',
-    'shots',
-    'frame',
-    'outputs',
-    'hero',
-    'browser',
-    'timeouts',
-  ]);
+  const ttyTarget = isObj(input.target) && input.target.mode === 'tty' ? input.target : undefined;
+  const tty = ttyTarget !== undefined;
+  if (tty) checkKeys(issues, 'config', input, TTY_KEYS, WEB_ONLY_KEYS);
+  else checkKeys(issues, 'config', input, WEB_KEYS, TTY_ONLY_KEYS);
 
   const name = str(issues, 'name', input.name, true);
   const slug = str(issues, 'slug', input.slug) ?? slugify(name);
   if (slug && !ID.test(slug)) issues.add('slug', `may only contain letters, digits, "-" and "_", got "${slug}"`);
   const rootDir = resolve(root, str(issues, 'root', input.root) ?? '.');
-
-  let viewport = { width: 1440, height: 900 };
-  if (input.viewport !== undefined) {
-    if (isObj(input.viewport)) {
-      checkKeys(issues, 'viewport', input.viewport, ['width', 'height']);
-      viewport = {
-        width: num(issues, 'viewport.width', input.viewport.width, 1440, { min: 16, max: 8192, integer: true }),
-        height: num(issues, 'viewport.height', input.viewport.height, 900, { min: 16, max: 8192, integer: true }),
-      };
-    } else {
-      issues.add('viewport', `must be { width, height }, got ${describe(input.viewport)}`);
-    }
-  }
 
   let langs = ['en'];
   if (input.langs !== undefined) {
@@ -492,26 +387,10 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
     issues.add('setup', `must be a function, got ${describe(input.setup)}`);
   }
 
-  const shots = resolveShots(issues, input.shots, name);
-
-  const outputs = input.outputs === undefined ? {} : input.outputs;
-  let raw = DEFAULT_RAW;
-  let readme = DEFAULT_README;
-  let portfolio: ResolvedPortfolio | undefined;
-  if (isObj(outputs)) {
-    checkKeys(issues, 'outputs', outputs, ['raw', 'readme', 'portfolio']);
-    const required = langs.length > 1 ? ['id', 'lang'] : ['id'];
-    const allowed = ['lang', 'id', 'slug'];
-    raw = pathTemplate(issues, 'outputs.raw', outputs.raw, DEFAULT_RAW, { allowed, required, extensions: ['.png'] });
-    readme = pathTemplate(issues, 'outputs.readme', outputs.readme, DEFAULT_README, {
-      allowed,
-      required,
-      extensions: ['.webp', '.png'],
-    });
-    portfolio = resolvePortfolio(issues, outputs.portfolio, shots, langs);
-  } else {
-    issues.add('outputs', `must be an object, got ${describe(outputs)}`);
-  }
+  const ttyShots = tty ? resolveTtyShots(issues, input.shots, name) : [];
+  const webShots = tty ? [] : resolveWebShots(issues, input.shots, name);
+  const shots: ResolvedShot[] = tty ? ttyShots : webShots;
+  const outputs = resolveOutputs(issues, input.outputs, shots, langs);
 
   const browser = input.browser === undefined ? {} : input.browser;
   if (isObj(browser)) {
@@ -529,7 +408,8 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
   const timeouts = input.timeouts === undefined ? {} : input.timeouts;
   let resolvedTimeouts = { readyMs: 30_000, shotMs: 15_000, networkIdleMs: 3_000 };
   if (isObj(timeouts)) {
-    checkKeys(issues, 'timeouts', timeouts, ['readyMs', 'shotMs', 'networkIdleMs']);
+    if (tty) checkKeys(issues, 'timeouts', timeouts, ['shotMs'], TTY_TIMEOUT_KEYS);
+    else checkKeys(issues, 'timeouts', timeouts, ['readyMs', 'shotMs', 'networkIdleMs']);
     resolvedTimeouts = {
       readyMs: num(issues, 'timeouts.readyMs', timeouts.readyMs, 30_000, { min: 1, integer: true }),
       shotMs: num(issues, 'timeouts.shotMs', timeouts.shotMs, 15_000, { min: 1, integer: true }),
@@ -539,34 +419,89 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
     issues.add('timeouts', `must be an object, got ${describe(timeouts)}`);
   }
 
-  const target: Target & { readyTimeoutMs: number } = resolveTarget(issues, input.target);
-  if (target.cwd !== undefined && !isAbsolute(target.cwd)) {
-    target.cwd = resolve(rootDir, target.cwd);
-  }
-
   const frame = resolveFrame(issues, input.frame);
-  const config: ResolvedConfig = {
+  const common = {
     name,
     slug,
     root: rootDir,
-    target,
-    ready: str(issues, 'ready', input.ready),
-    viewport,
     deviceScaleFactor: num(issues, 'deviceScaleFactor', input.deviceScaleFactor, 2, { min: 0.25, max: 4 }),
-    colorScheme: oneOf(issues, 'colorScheme', input.colorScheme, ['light', 'dark', 'no-preference'] as const, 'dark'),
     langs,
-    css: str(issues, 'css', input.css),
-    setup: input.setup as ResolvedConfig['setup'],
-    shots,
     frame,
-    outputs: { raw, readme, portfolio },
+    outputs,
     hero: resolveHero(issues, input.hero, { shots, langs, frame }),
     browser: isObj(browser) ? (browser as ResolvedConfig['browser']) : {},
     timeouts: resolvedTimeouts,
   };
 
+  let config: ResolvedConfig;
+  if (ttyTarget) {
+    const issuesBefore = issues.list.length;
+    const terminal = checkTerminal(issues, input.terminal, rootDir);
+    config = {
+      ...common,
+      target: resolveTtyTarget(issues, ttyTarget, rootDir),
+      ready: textPattern(issues, 'ready', input.ready),
+      // Only hand a checked look to the engine; a bad one is reported and replaced by the defaults.
+      terminal: resolveTerminalOptions(issues.list.length === issuesBefore ? terminal : undefined, rootDir),
+      setup: input.setup as ResolvedTtyConfig['setup'],
+      shots: ttyShots,
+    };
+  } else {
+    config = {
+      ...common,
+      target: resolveWebTarget(issues, input.target, rootDir),
+      ready: selector(issues, 'ready', input.ready),
+      viewport: resolveViewport(issues, input.viewport),
+      colorScheme: oneOf(issues, 'colorScheme', input.colorScheme, ['light', 'dark', 'no-preference'] as const, 'dark'),
+      css: str(issues, 'css', input.css),
+      setup: input.setup as ResolvedWebConfig['setup'],
+      shots: webShots,
+    };
+  }
+
   if (issues.list.length > 0) {
     throw new ConfigError(issues.list, source);
   }
   return config;
+}
+
+function resolveViewport(issues: Issues, value: unknown): ResolvedWebConfig['viewport'] {
+  if (value === undefined) return { width: 1440, height: 900 };
+  if (!isObj(value)) {
+    issues.add('viewport', `must be { width, height }, got ${describe(value)}`);
+    return { width: 1440, height: 900 };
+  }
+  checkKeys(issues, 'viewport', value, ['width', 'height']);
+  return {
+    width: num(issues, 'viewport.width', value.width, 1440, { min: 16, max: 8192, integer: true }),
+    height: num(issues, 'viewport.height', value.height, 900, { min: 16, max: 8192, integer: true }),
+  };
+}
+
+function resolveOutputs(
+  issues: Issues,
+  value: unknown,
+  shots: ResolvedShot[],
+  langs: string[],
+): ResolvedConfig['outputs'] {
+  const outputs = value === undefined ? {} : value;
+  if (!isObj(outputs)) {
+    issues.add('outputs', `must be an object, got ${describe(outputs)}`);
+    return { raw: DEFAULT_RAW, readme: DEFAULT_README, portfolio: undefined };
+  }
+  checkKeys(issues, 'outputs', outputs, ['raw', 'readme', 'portfolio']);
+  const required = langs.length > 1 ? ['id', 'lang'] : ['id'];
+  const allowed = ['lang', 'id', 'slug'];
+  return {
+    raw: pathTemplate(issues, 'outputs.raw', outputs.raw, DEFAULT_RAW, { allowed, required, extensions: ['.png'] }),
+    readme:
+      outputs.readme === false
+        ? false
+        : pathTemplate(issues, 'outputs.readme', outputs.readme, DEFAULT_README, {
+            allowed,
+            required,
+            extensions: ['.webp', '.png'],
+          }),
+    portfolio: resolvePortfolio(issues, outputs.portfolio, shots, langs),
+  };
 }

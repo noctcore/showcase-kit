@@ -22,7 +22,12 @@ export interface FramedFile {
 /** Turn raw captures into framed README images at `outputs.readme`. */
 export async function frame(config: ResolvedConfig, options: FrameRunOptions = {}): Promise<FramedFile[]> {
   const { shots, langs } = select(config, options.only, options.langs);
-  const format = formatOf(config.outputs.readme);
+  const readme = config.outputs.readme;
+  if (readme === false) {
+    log.info('outputs.readme is false, skipping the README images.');
+    return [];
+  }
+  const format = formatOf(readme);
   // Read everything first: a missing capture should fail before a browser starts.
   const jobs = [];
   for (const lang of langs) {
@@ -41,7 +46,7 @@ export async function frame(config: ResolvedConfig, options: FrameRunOptions = {
         title: frameTitle(config, shot, lang),
         deviceScaleFactor: config.deviceScaleFactor,
       });
-      const path = outputPath(config, config.outputs.readme, lang, shot.id);
+      const path = outputPath(config, readme, lang, shot.id);
       const size = await writeImage(png, path, {
         format,
         quality: config.frame.quality,

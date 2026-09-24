@@ -3,10 +3,11 @@ import { dirname, relative } from 'node:path';
 import type { Browser, BrowserContext, ElementHandle, Page } from 'playwright';
 import sharp from 'sharp';
 import { launchBrowser, loadPlaywright } from './browser.js';
-import type { CdpTarget, ResolvedConfig, ResolvedShot, UrlTarget } from './config/types.js';
+import { isTtyConfig } from './config/resolve.js';
+import type { CdpTarget, ResolvedConfig, ResolvedWebConfig, ResolvedWebShot, UrlTarget } from './config/types.js';
 import { ShowcaseError } from './errors.js';
 import { log } from './log.js';
-import { outputPath, select } from './paths.js';
+import { navUrl, outputPath, select } from './paths.js';
 import { answers, startCommand, waitForUrl, type StartedProcess } from './process.js';
 
 export interface CaptureOptions {
@@ -38,8 +39,9 @@ const DETERMINISM_CSS = `*, *::before, *::after {
 }`;
 
 interface Session {
-  config: ResolvedConfig;
-  baseUrl: () => string;
+  config: ResolvedWebConfig;
+  /** The absolute URL a path or URL `nav` visits. */
+  resolveNav: (goto: string) => string;
   /** Write a PNG of the page's viewport at device pixels. */
   screenshot: (page: Page, path: string) => Promise<void>;
 }
@@ -51,6 +53,14 @@ async function playwrightScreenshot(page: Page, path: string): Promise<void> {
 
 /** Capture raw screenshots of every selected shot in every selected language. */
 export async function capture(config: ResolvedConfig, options: CaptureOptions = {}): Promise<CaptureResult> {
+  if (isTtyConfig(config)) {
+    const selection = select(config, options.only, options.langs);
+    // Loaded only in tty mode: it pulls in the terminal engine (xterm and the PTY package).
+    const { captureTty } = await import('./tty/capture.js');
+    const { files, failures } = await captureTty(config, selection.shots, selection.langs);
+    throwOnFailures(failures, files);
+    return { files };
+  }
   const selection = select(config, options.only, options.langs);
   let started: StartedProcess | undefined;
   try {
@@ -65,7 +75,7 @@ export async function capture(config: ResolvedConfig, options: CaptureOptions = 
   }
 }
 
-async function startTarget(config: ResolvedConfig): Promise<StartedProcess | undefined> {
+async function startTarget(config: ResolvedWebConfig): Promise<StartedProcess | undefined> {
   const { target } = config;
   const probe = target.mode === 'url' ? target.url : cdpVersionUrl(target);
   if (!target.start) {
@@ -100,9 +110,9 @@ function cdpVersionUrl(target: CdpTarget): string | undefined {
 }
 
 async function captureUrl(
-  config: ResolvedConfig,
+  config: ResolvedWebConfig,
   target: UrlTarget,
-  shots: ResolvedShot[],
+  shots: ResolvedWebShot[],
   langs: string[],
 ): Promise<CapturedFile[]> {
   const browser: Browser = await launchBrowser(config);
@@ -121,7 +131,11 @@ async function captureUrl(
         const page = await context.newPage();
         await page.goto(target.url, { waitUntil: 'load', timeout: config.timeouts.readyMs });
         await runSetup(config, page, context, lang);
-        const session: Session = { config, baseUrl: () => target.url, screenshot: playwrightScreenshot };
+        const session: Session = {
+          config,
+          resolveNav: goto => navUrl(goto, target.url),
+          screenshot: playwrightScreenshot,
+        };
         await shootAll(session, page, shots, lang, files, failures);
       } finally {
         await context.close();
@@ -135,9 +149,9 @@ async function captureUrl(
 }
 
 async function captureCdp(
-  config: ResolvedConfig,
+  config: ResolvedWebConfig,
   target: CdpTarget,
-  shots: ResolvedShot[],
+  shots: ResolvedWebShot[],
   langs: string[],
 ): Promise<CapturedFile[]> {
   const { chromium } = await loadPlaywright();
@@ -163,7 +177,8 @@ async function captureCdp(
         await runSetup(config, page, context, lang);
         const session: Session = {
           config,
-          baseUrl: () => page.url(),
+          // The live page's URL changes with every shot, so paths resolve against its origin as before.
+          resolveNav: goto => new URL(goto, page.url()).href,
           // Playwright sizes screenshots of a connected page by its own idea of the device scale factor,
           // which ignores the override above; Chromium's own capture honours it.
           screenshot: async (target, path) => {
@@ -213,7 +228,7 @@ async function pickPage(browser: Browser, target: CdpTarget, timeoutMs: number):
   }
 }
 
-async function waitReady(config: ResolvedConfig, page: Page): Promise<void> {
+async function waitReady(config: ResolvedWebConfig, page: Page): Promise<void> {
   if (!config.ready) return;
   try {
     await page.locator(config.ready).first().waitFor({ state: 'attached', timeout: config.timeouts.readyMs });
@@ -224,7 +239,7 @@ async function waitReady(config: ResolvedConfig, page: Page): Promise<void> {
   }
 }
 
-async function runSetup(config: ResolvedConfig, page: Page, context: BrowserContext, lang: string): Promise<void> {
+async function runSetup(config: ResolvedWebConfig, page: Page, context: BrowserContext, lang: string): Promise<void> {
   await waitReady(config, page);
   if (!config.setup) return;
   await config.setup({ page, context, lang, mode: config.target.mode, config });
@@ -236,7 +251,7 @@ async function runSetup(config: ResolvedConfig, page: Page, context: BrowserCont
 async function shootAll(
   session: Session,
   page: Page,
-  shots: ResolvedShot[],
+  shots: ResolvedWebShot[],
   lang: string,
   files: CapturedFile[],
   failures: string[],
@@ -268,7 +283,7 @@ async function shootAll(
   }
 }
 
-function expectedSize(config: ResolvedConfig): { width: number; height: number } {
+function expectedSize(config: ResolvedWebConfig): { width: number; height: number } {
   return {
     width: Math.round(config.viewport.width * config.deviceScaleFactor),
     height: Math.round(config.viewport.height * config.deviceScaleFactor),
@@ -279,7 +294,7 @@ function sizeText({ width, height }: { width: number; height: number }): string 
   return `${String(width)}x${String(height)}`;
 }
 
-async function navigate(session: Session, page: Page, shot: ResolvedShot): Promise<void> {
+async function navigate(session: Session, page: Page, shot: ResolvedWebShot): Promise<void> {
   const { config } = session;
   const { nav } = shot;
   const timeout = config.timeouts.shotMs;
@@ -299,7 +314,7 @@ async function navigate(session: Session, page: Page, shot: ResolvedShot): Promi
     click = nav.click;
   }
   if (goto !== undefined) {
-    await page.goto(new URL(goto, session.baseUrl()).href, { waitUntil: 'load', timeout });
+    await page.goto(session.resolveNav(goto), { waitUntil: 'load', timeout });
     await waitReady(config, page);
   } else if (click !== undefined) {
     await page.locator(click).first().click({ timeout });
@@ -307,7 +322,7 @@ async function navigate(session: Session, page: Page, shot: ResolvedShot): Promi
 }
 
 /** Wait for the view to be still and inject the determinism CSS. Returns the style tag, for removal. */
-async function settle(config: ResolvedConfig, page: Page, shot: ResolvedShot): Promise<ElementHandle> {
+async function settle(config: ResolvedWebConfig, page: Page, shot: ResolvedWebShot): Promise<ElementHandle> {
   const timeout = config.timeouts.shotMs;
   if (shot.waitFor) {
     await page.locator(shot.waitFor).first().waitFor({ state: 'visible', timeout });
