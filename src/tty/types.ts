@@ -63,6 +63,11 @@ export interface TtySessionOptions {
   cwd: string;
   /** Extra environment, merged over the deterministic defaults (TERM, COLORTERM, FORCE_COLOR, TZ, LANG). */
   env: Record<string, string>;
+  /**
+   * Which variables of the kit's own environment the app inherits. `true` (default): all but CI and terminal hints.
+   * `false` or `[]`: only the few the platform needs to start a program. An array of names: those as well.
+   */
+  inheritEnv?: boolean | string[];
   cols: number;
   rows: number;
 }

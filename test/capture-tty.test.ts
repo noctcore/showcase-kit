@@ -294,6 +294,20 @@ describe('captureTty, scripted engine', () => {
     );
   });
 
+  it('passes inheritEnv to the session, inheriting everything by default', async () => {
+    const cases: Array<[TtyConfig['target'], boolean | string[]]> = [
+      [{ mode: 'tty', command: 'fake-tui', inputDelayMs: 0 }, true],
+      [{ mode: 'tty', command: 'fake-tui', inputDelayMs: 0, inheritEnv: false }, false],
+      [{ mode: 'tty', command: 'fake-tui', inputDelayMs: 0, inheritEnv: ['HOME'] }, ['HOME']],
+    ];
+    for (const [target, expected] of cases) {
+      const config = ttyConfig({ target, shots: [{ id: 'resources' }] });
+      const { engine, recorder } = fakeEngine(APP);
+      await captureTty(config, config.shots, config.langs, engine);
+      expect(recorder.sessions[0]?.options.inheritEnv).toEqual(expected);
+    }
+  });
+
   it('refuses an env function that does not return strings', async () => {
     // As a plain JS config would: resolveConfig cannot see what the function returns.
     const config = resolveConfig(

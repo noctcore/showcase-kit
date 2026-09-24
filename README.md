@@ -338,6 +338,7 @@ export default defineConfig({
 | `command` | required | A string runs through the shell, like `start` in the other modes. An array `['node', 'dist/cli.js']` is spawned directly. |
 | `cwd` | config dir | Working directory. |
 | `env` | none | Extra environment, or a function `({ lang }) => ({ ... })` for apps that take their language from an env var. |
+| `inheritEnv` | `true` | Which of your environment variables the app gets: `true` all of them (see below), `false` or `[]` only the few needed to start a program, an array of names those as well: `['HOME', 'XDG_CONFIG_HOME']`. |
 | `cols`, `rows` | `120`, `32` | Terminal size. Never taken from your own terminal. |
 | `quitKey` | `'q'` | Sent to quit at the end, before the process tree is killed. `false` just kills. |
 | `inputDelayMs` | `300` | Grace after `ready` before the first key (from `setup` or a shot). Keys sent before an app switches its terminal to raw mode are lost. |
@@ -346,6 +347,18 @@ export default defineConfig({
 The app gets `TERM=xterm-256color`, `COLORTERM=truecolor`, `FORCE_COLOR=3`, `TZ=UTC` and (on macOS and Linux)
 `LANG=LC_ALL=en_US.UTF-8`, and does not inherit `NO_COLOR`, `CI`, `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`,
 `WT_SESSION`, `COLUMNS` or `LINES`. `env` overrides any of them.
+
+By default the app also inherits the rest of your environment, tokens and home paths included, and whatever it
+prints ends up in a committed image. If it can show its environment, config paths or credentials (a status line
+with the user name, an error that dumps a token), set `inheritEnv: false` and pass what it needs through `env`, or
+list the names to keep. With `inheritEnv` off the app still gets what a program needs to start: `PATH` on macOS and
+Linux, and on Windows `PATH`, `PATHEXT` (to find `.cmd` shims), `SystemRoot` (Node aborts at startup without it)
+and `ComSpec` (to run command strings and shims). They are not secrets, but they may reveal paths such as your
+user folder. Nothing else is needed for Node or Bun apps: without `HOME` or `USERPROFILE` they still find the home
+folder, and without `TEMP`, `TMP` or `TMPDIR` they use the system temp folder (`/tmp`, `C:\Windows\Temp`). A
+command string that uses `~`, or a tool that reads `$HOME` for its config (git, XDG apps), needs
+`inheritEnv: ['HOME']`. Names match case-insensitively on Windows only, and the CI and terminal hints above stay
+out even when listed: set them in `env`.
 
 In tty mode `viewport`, `colorScheme` and `css` are errors (the image size comes from `cols`, `rows`, the font size
 and the padding), and so are `timeouts.readyMs` (use `target.readyTimeoutMs`) and `timeouts.networkIdleMs`.

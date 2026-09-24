@@ -155,6 +155,7 @@ async function startSession(
     command: target.command,
     cwd: target.cwd,
     env: envFor(config, lang),
+    inheritEnv: target.inheritEnv,
     cols: target.cols,
     rows: target.rows,
   });

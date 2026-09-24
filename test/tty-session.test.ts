@@ -292,6 +292,62 @@ describe('ttyEnv', () => {
     expect(Object.keys(windows).map(name => name.toUpperCase())).not.toContain('NO_COLOR');
     expect(ttyEnv({ tz: 'Asia/Tokyo' }, {}, 'linux')).toMatchObject({ TZ: 'UTC', tz: 'Asia/Tokyo' });
   });
+
+  const DEFAULTS = {
+    TERM: 'xterm-256color',
+    COLORTERM: 'truecolor',
+    FORCE_COLOR: '3',
+    TZ: 'UTC',
+    LANG: 'en_US.UTF-8',
+    LC_ALL: 'en_US.UTF-8',
+  };
+
+  it('inherits only what a program needs to start when inheritEnv is off', () => {
+    const secret = { ...base, GITHUB_TOKEN: 'ghp_x', AWS_SECRET_ACCESS_KEY: 'y' };
+    expect(ttyEnv({ APP: '1' }, secret, 'linux', false)).toEqual({ PATH: '/bin', ...DEFAULTS, APP: '1' });
+    expect(ttyEnv({}, secret, 'linux', [])).toEqual({ PATH: '/bin', ...DEFAULTS });
+    const windows = {
+      Path: 'C:\\bin',
+      PATHEXT: '.EXE;.CMD',
+      SystemRoot: 'C:\\Windows',
+      ComSpec: 'C:\\Windows\\system32\\cmd.exe',
+      USERPROFILE: 'C:\\Users\\me',
+      GITHUB_TOKEN: 'ghp_x',
+    };
+    expect(Object.keys(ttyEnv({}, windows, 'win32', false)).slice(0, 4)).toEqual(['Path', 'PATHEXT', 'SystemRoot', 'ComSpec']);
+    expect(ttyEnv({}, windows, 'win32', false)).not.toHaveProperty('USERPROFILE');
+    expect(ttyEnv({}, windows, 'win32', false)).not.toHaveProperty('GITHUB_TOKEN');
+  });
+
+  it('adds the listed names, case-insensitively on Windows only, but never CI and terminal hints', () => {
+    expect(ttyEnv({}, base, 'linux', ['HOME', 'CI', 'MISSING'])).toEqual({ PATH: '/bin', HOME: '/home/me', ...DEFAULTS });
+    expect(ttyEnv({}, base, 'linux', ['home'])).not.toHaveProperty('HOME');
+    expect(ttyEnv({}, { Path: 'C:\\bin', UserProfile: 'C:\\Users\\me' }, 'win32', ['USERPROFILE'])).toMatchObject({
+      Path: 'C:\\bin',
+      UserProfile: 'C:\\Users\\me',
+    });
+  });
+});
+
+describe('inheritEnv in a real terminal', () => {
+  const NAME = 'SHOWCASE_TTY_SECRET_TEST';
+  const show = `process.stdout.write('secret=' + (process.env.${NAME} ?? 'unset') + ' done')`;
+
+  afterEach(() => {
+    delete process.env[NAME];
+  });
+
+  it.each([
+    [true, 'secret=s3cret done'],
+    [false, 'secret=unset done'],
+    [[NAME], 'secret=s3cret done'],
+  ])('with inheritEnv %j the app sees "%s", and still starts', async (inheritEnv, expected) => {
+    process.env[NAME] = 's3cret';
+    const tty = await open({ command: [process.execPath, '-e', show], inheritEnv });
+    await tty.waitForText(' done');
+    expect(await tty.exited).toBe(0);
+    expect(tty.screenText()).toContain(expected);
+  });
 });
 
 describe('ptyCommand', () => {

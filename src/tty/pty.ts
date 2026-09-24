@@ -85,17 +85,35 @@ const DEFAULTS: Record<string, string> = {
 };
 
 /**
- * The child's environment: the inherited one without CI and terminal hints, then the deterministic defaults,
- * then `extra`. Names compare case-insensitively on Windows, where `Path` and `PATH` are one variable.
+ * What a program needs to start at all, inherited even when `inheritEnv` is off. Without SystemRoot Node aborts on
+ * Windows; PATH (and there PATHEXT and ComSpec) find the command and run `.cmd` shims and command strings.
+ */
+export const SPAWN_ENV: Readonly<Record<'posix' | 'win32', readonly string[]>> = {
+  posix: ['PATH'],
+  win32: ['PATH', 'PATHEXT', 'SystemRoot', 'ComSpec'],
+};
+
+/**
+ * The child's environment: the inherited one (all of it, or with `inherit` off or a list of names, only those plus
+ * `SPAWN_ENV`) without CI and terminal hints, then the deterministic defaults, then `extra`. Names compare
+ * case-insensitively on Windows, where `Path` and `PATH` are one variable.
  */
 export function ttyEnv(
   extra: Record<string, string>,
   base: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
+  inherit: boolean | readonly string[] = true,
 ): Record<string, string> {
   const fold = (name: string): string => (platform === 'win32' ? name.toUpperCase() : name);
+  const kept =
+    inherit === true
+      ? undefined
+      : new Set([...SPAWN_ENV[platform === 'win32' ? 'win32' : 'posix'], ...(inherit === false ? [] : inherit)].map(fold));
   const env = new Map<string, [name: string, value: string]>();
-  for (const [name, value] of Object.entries(base)) if (value !== undefined) env.set(fold(name), [name, value]);
+  for (const [name, value] of Object.entries(base)) {
+    if (value !== undefined && (!kept || kept.has(fold(name)))) env.set(fold(name), [name, value]);
+  }
+  // Even when listed: they would make the app behave as in CI or in another terminal. Set them in `extra` instead.
   for (const name of STRIPPED) env.delete(fold(name));
   for (const layer of [DEFAULTS, extra]) {
     for (const [name, value] of Object.entries(layer)) env.set(fold(name), [name, value]);
@@ -163,6 +181,7 @@ export interface SpawnPtyOptions {
   command: string | readonly string[];
   cwd: string;
   env: Record<string, string>;
+  inheritEnv?: boolean | readonly string[];
   cols: number;
   rows: number;
 }
@@ -172,7 +191,7 @@ export function spawnPty(pty: PtyModule, opts: SpawnPtyOptions): PtyProcess {
   if (!existsSync(opts.cwd) || !statSync(opts.cwd).isDirectory()) {
     throw new ShowcaseError(`The terminal working directory does not exist: ${opts.cwd}`);
   }
-  const env = ttyEnv(opts.env);
+  const env = ttyEnv(opts.env, process.env, process.platform, opts.inheritEnv);
   const { file, args } = ptyCommand(opts.command, env);
   try {
     return pty.spawn(file, args, { name: env.TERM ?? DEFAULTS.TERM ?? '', cols: opts.cols, rows: opts.rows, cwd: opts.cwd, env });
