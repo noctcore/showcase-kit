@@ -11,3 +11,12 @@ export { exportPortfolio, GALLERY_FILE, type GalleryItem, type PortfolioResult }
 export { readmeSnippet, type ReadmeOptions } from './readme.js';
 export type * from './config/types.js';
 export type * from './tty/types.js';
+export {
+  DARK_THEME,
+  LIGHT_THEME,
+  openTtySession,
+  parseKeys,
+  renderTtyScreen,
+  resolveTerminalOptions,
+  TERMINAL_DEFAULTS,
+} from './tty/index.js';
