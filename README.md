@@ -338,7 +338,7 @@ export default defineConfig({
 | `cols`, `rows` | `120`, `32` | Terminal size. Never taken from your own terminal. |
 | `quitKey` | `'q'` | Sent to quit at the end, before the process tree is killed. `false` just kills. |
 | `inputDelayMs` | `300` | Grace after `ready` before the first key (from `setup` or a shot). Keys sent before an app switches its terminal to raw mode are lost. |
-| `readyTimeoutMs` | `30000` | How long to wait for the `ready` text. |
+| `readyTimeoutMs` | `30000` | How long to wait for the `ready` text (without `ready`, for the app to draw anything). |
 
 The app gets `TERM=xterm-256color`, `COLORTERM=truecolor`, `FORCE_COLOR=3`, `TZ=UTC` and (on macOS and Linux)
 `LANG=LC_ALL=en_US.UTF-8`, and does not inherit `NO_COLOR`, `CI`, `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`,
@@ -361,11 +361,14 @@ and the padding), and so are `timeouts.readyMs` (use `target.readyTimeoutMs`) an
 One app process runs per language, and the shots run in order in it, so each shot starts where the last one left
 off. Per shot the kit presses the keys (or runs `nav`), waits for `waitFor`, waits `delayMs`, and renders the
 screen. Without `waitFor` it gives the app up to one second to redraw after the keys; set `waitFor` for anything
-slower. `setup` runs in each new process once `ready` has shown and receives `{ tty, lang, mode: 'tty', config }`.
+slower. `setup` runs in each new process once `ready` has shown and receives `{ tty, lang, mode: 'tty', config }`. Without
+`ready` the kit only waits for the app to draw anything, then the `inputDelayMs` grace, which may catch an app
+halfway through its first screen: set `ready` to text the finished screen shows.
 A failed shot fails alone, and its error shows the screen the app was on.
 
-When the run ends, fails, or you press Ctrl+C, the kit sends `quitKey` (parsed like `keys`, so `'{C-c}'` works),
-waits up to 1.5 s for the app to quit, and then kills the app's whole process tree by PID.
+When the run ends or fails, the kit sends `quitKey` (parsed like `keys`, so `'{C-c}'` works), waits up to 1.5 s
+for the app to quit, and then kills the app's whole process tree by PID. On Ctrl+C the process tree is always
+killed, but the quit key is best effort: the browser's own Ctrl+C handling can end the run before it is sent.
 
 ### `terminal`
 

@@ -56,7 +56,8 @@ export default defineConfig({
     cols: 120,
     rows: 32,
   },
-  // Text on screen once the app has drawn: a string or a RegExp.
+  // Text on screen once the app has drawn: a string or a RegExp. Without it the first shot only waits for the
+  // app to draw anything, which can catch it halfway through its first screen.
   // ready: 'Press ? for help',
   deviceScaleFactor: 2,
   langs: ['en'],
