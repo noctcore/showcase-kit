@@ -195,7 +195,11 @@ shims) in its own process tree. When the run ends, fails, or you press Ctrl+C, t
   visits `http://localhost:5173/about`. A trailing slash always means a directory, so a dotted one such as `/v1.2/`
   needs it. The url's query and hash are not carried over. In cdp mode a path resolves against the origin of the
   page being captured;
-- explicit: `{ click: 'text=Library' }` or `{ goto: '/settings' }`;
+- explicit: `{ click: 'text=Library' }` or `{ goto: '/settings' }`. `goto` also takes what a link would: `'#/settings'`
+  and `'?tab=2'` keep the target url's file (`http://h/app/index.html#/settings`), and `'docs/'` or `'../x'` resolve
+  from the url as written. Only a leading `/` gets the base directory rule (read as the url parser reads it, so also
+  a leading `\`, or either after leading spaces). A protocol-relative `'//host/x'` gets it too, so it stays on the
+  target origin instead of visiting another host;
 - a function: `async page => { await page.getByRole('button', { name: 'Open' }).click(); }`.
 
 Before each shutter the kit waits for `waitFor`, a bounded network idle, `document.fonts.ready` and two animation
@@ -484,7 +488,8 @@ failure and on Ctrl+C). A failed clip fails alone, like a failed shot.
 | `caption`, `alt` | `title`, `<name>: <title>` | Like a shot's. |
 | `steps` | required | The timeline, see below. |
 | `fps` | `10` | Frames per second, 1 to 50. |
-| `durationMs` | none | Upper bound on the length. |
+| `durationMs` | `60000` | Upper bound on the length. |
+| `maxFrames` | `300` | Upper bound on the frames, counted after unchanged frames merge. At the limit the kit warns, stops recording and writes what it has. |
 | `tailMs` | `1500` | How long to keep recording after the last step. |
 | `formats` | `['webp', 'gif']` | Any of `'webp'`, `'gif'`, `'mp4'`. MP4 needs `ffmpeg` on PATH. |
 
@@ -497,7 +502,11 @@ Steps:
 | `{ waitFor }` | Waits until the text (a substring or a RegExp) is on screen, for up to `timeouts.shotMs`. |
 | `{ sleep }` | Pauses, in milliseconds. |
 
-The clip ends `tailMs` after the last step or at `durationMs`, whichever comes first. Clips go to `outputs.clips`
+The clip ends `tailMs` after the last step, at `durationMs` or at `maxFrames`, whichever comes first. The app may exit
+during the tail (a CLI that prints and exits, or a last step that quits it): the clip then ends on its last screen.
+Exiting before the steps are done fails the clip. Leave the quit key out of the steps, though: most TUIs clear the
+screen when they quit, so the clip would end on an empty terminal, and the kit quits the app with `quitKey` after the
+tail anyway. Clips go to `outputs.clips`
 (default `assets/showcase/{lang}/{id}.{ext}`), framed like the README images: the frame is rendered once per clip
 and every frame of the terminal is put into it, so a clip matches the stills next to it. `frame.maxWidth` applies to
 clips too.
@@ -549,7 +558,9 @@ WebP, 11.8 MB of GIF and 7.7 MB of MP4, and took about two minutes to render and
 
 **ffmpeg.** Needed only for `'mp4'`, and found on PATH without a shell (`ffmpeg.exe` on Windows). Install it with
 `winget install ffmpeg`, `brew install ffmpeg` or `apt install ffmpeg`. When a clip asks for MP4 and there is no
-ffmpeg, `record` stops before starting anything and says so.
+ffmpeg, `record` stops before starting anything and says so. Relative PATH entries (such as `.`) are skipped, so the
+binary never depends on the working directory. Ctrl+C while ffmpeg runs stops it and removes its temporary folder, and
+an encode that takes over 5 minutes is stopped with an error.
 
 ## Icons
 
@@ -714,7 +725,8 @@ Playwright page whose context has the same device scale factor. `parseKeys`, `DA
 
 `record(config, { only, langs })` records clips, and `encodeAnimation(frames, { format, loop, quality, fps })` is
 the encoder behind it: frames of one size as `{ png, delayMs }` in, an animated WebP (lossless, or lossy with
-`quality`), a GIF, or an MP4 through `ffmpeg` out.
+`quality`), a GIF, or an MP4 through `ffmpeg` out. A delay longer than one WebP or GIF frame can hold (65535 ms in
+sharp) is split into repeats of the same image, and input it cannot encode is refused with a `ShowcaseError`.
 
 ## License
 

@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { isAbsolute, join, parse, relative } from 'node:path';
 import sharp from 'sharp';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { encodeAnimation, findExecutable, gifDelays, type AnimationFrame } from '../src/encode.js';
+import { encodeAnimation, findExecutable, gifDelays, splitDelays, type AnimationFrame, type EncodeOptions } from '../src/encode.js';
 import { ShowcaseError } from '../src/errors.js';
 import { tempDir } from './helpers.js';
 
@@ -88,6 +88,44 @@ describe('encodeAnimation', () => {
     await expect(encodeAnimation(await frames([100, 0]), { format: 'gif' })).rejects.toThrow(/frame 1 has a delay of 0ms/);
   });
 
+  it('refuses input it cannot encode with a ShowcaseError, before any image work', async () => {
+    const [good] = await frames([100]);
+    const cases: Array<[unknown, unknown, RegExp]> = [
+      [good ? [good] : [], { format: 'avif' }, /unknown format "avif"/],
+      ['not frames', { format: 'webp' }, /no frames to encode/],
+      [[{ png: 'x.png', delayMs: 100 }], { format: 'gif' }, /frame 0 has no image data/],
+      [[good, { png: Buffer.alloc(0), delayMs: 100 }], { format: 'webp' }, /frame 1 has no image data/],
+      [[good, { png: Buffer.from('not an image'), delayMs: 100 }], { format: 'webp' }, /frame 1 is not a readable image/],
+      [[good, { png: good?.png, delayMs: Infinity }], { format: 'gif' }, /frame 1 has a delay of Infinityms/],
+      [[good, { png: good?.png, delayMs: -5 }], { format: 'mp4' }, /frame 1 has a delay of -5ms/],
+    ];
+    for (const [input, opts, message] of cases) {
+      const error = await encodeAnimation(input as AnimationFrame[], opts as EncodeOptions).catch((caught: unknown) => caught);
+      expect(error, String(message)).toBeInstanceOf(ShowcaseError);
+      expect((error as Error).message).toMatch(message);
+    }
+  });
+
+  it('splits a delay longer than sharp takes into repeats that add up to it, in WebP and GIF', async () => {
+    // Over sharp's 65535 ms per frame, and for GIF over the format's own 655350 ms (hundredths in 16 bits). The
+    // encoders merge the repeats again as far as their format allows, so only the sum and the order are fixed.
+    const input = await frames([100, 200_000, 700_010, 150]);
+    for (const format of ['webp', 'gif'] as const) {
+      const data = await encodeAnimation(input, { format });
+      const meta = await sharp(data, { animated: true }).metadata();
+      const delays = meta.delay ?? [];
+      expect(delays.reduce((sum, delay) => sum + delay, 0), format).toBe(900_260);
+      // The pieces repeat their frame: the colors still come in order, red, green, blue, white.
+      const colors = await pageColors(data, meta.pages ?? 1);
+      expect(colors.filter((color, index) => index === 0 || color.join() !== colors[index - 1]?.join()), format).toEqual([
+        [255, 0, 0],
+        [0, 255, 0],
+        [0, 0, 255],
+        [255, 255, 255],
+      ]);
+    }
+  });
+
   it('says how to get ffmpeg when MP4 is asked for and ffmpeg is not on PATH', async () => {
     vi.stubEnv('PATH', tempDir('showcase-empty-path-'));
     await expect(encodeAnimation(await frames([100, 100]), { format: 'mp4' })).rejects.toThrow(
@@ -124,6 +162,23 @@ describe('gifDelays', () => {
   });
 });
 
+describe('splitDelays', () => {
+  it('leaves short delays alone and splits long ones into near-equal pieces of whole units', () => {
+    expect(splitDelays([100, 65_535], 65_535, 1)).toEqual([
+      { frame: 0, delayMs: 100 },
+      { frame: 1, delayMs: 65_535 },
+    ]);
+    expect(splitDelays([65_536], 65_535, 1)).toEqual([
+      { frame: 0, delayMs: 32_768 },
+      { frame: 0, delayMs: 32_768 },
+    ]);
+    const gif = splitDelays([700_010], 65_530, 10);
+    expect(gif).toHaveLength(11);
+    expect(gif.every(piece => piece.delayMs % 10 === 0 && piece.delayMs >= 20 && piece.delayMs <= 65_530)).toBe(true);
+    expect(gif.reduce((sum, piece) => sum + piece.delayMs, 0)).toBe(700_010);
+  });
+});
+
 describe('findExecutable', () => {
   it('finds a binary on PATH without a shell, and only a real file', () => {
     const dir = tempDir();
@@ -134,6 +189,29 @@ describe('findExecutable', () => {
     expect(findExecutable('fake-tool', { Path: [other, dir].join(process.platform === 'win32' ? ';' : ':') })).toBe(file);
     expect(findExecutable('fake-tool', { PATH: other })).toBeUndefined();
     expect(findExecutable('fake-tool', {})).toBeUndefined();
+  });
+
+  it('skips relative PATH entries, which would depend on the working directory', () => {
+    const dir = tempDir();
+    const file = join(dir, process.platform === 'win32' ? 'fake-tool.exe' : 'fake-tool');
+    writeFileSync(file, '');
+    if (process.platform !== 'win32') chmodSync(file, 0o755);
+    const fromCwd = relative(process.cwd(), dir);
+    expect(isAbsolute(fromCwd)).toBe(false);
+    expect(findExecutable('fake-tool', { PATH: fromCwd })).toBeUndefined();
+  });
+
+  it.runIf(process.platform === 'win32')('returns a drive-relative PATH entry with its drive (Windows)', () => {
+    // `\path\to\dir` names a folder on the current drive, so the folder must be on the working directory's drive
+    // (CI keeps the temp folder on another one).
+    const dir = mkdtempSync(join(process.cwd(), 'node_modules', '.showcase-path-'));
+    try {
+      const file = join(dir, 'fake-tool.exe');
+      writeFileSync(file, '');
+      expect(findExecutable('fake-tool', { Path: dir.slice(parse(dir).root.length - 1) })).toBe(file);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it.runIf(process.platform !== 'win32')('skips a file that is not executable (POSIX)', () => {

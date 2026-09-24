@@ -134,7 +134,9 @@ export async function waitForText(
     );
   }
   // `exited` can settle before the app's last output is parsed into the grid. A wait with no time left flushes and
-  // checks the screen once more, so a CLI that prints and exits at once is still capturable.
+  // checks the screen once more, so a CLI that prints and exits at once is still capturable. No output arrives after
+  // the exit event: node-pty only reports the exit once the output pipe has closed (on Windows 1 s after the app's
+  // last output, after it has exited), so everything the app printed has been delivered by then.
   if (exitCode !== undefined && !(await session.waitForText(pattern, { timeoutMs: 0 }).then(() => true, () => false))) {
     throw new ShowcaseError(
       `The app exited (code ${String(exitCode)}) before ${what} appeared.\n` +

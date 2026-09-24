@@ -4,6 +4,14 @@ import { checkKeys, describe, ID, isObj, num, str, textPattern, type Issues } fr
 export const DEFAULT_CLIPS = 'assets/showcase/{lang}/{id}.{ext}';
 export const CLIP_FORMATS: readonly ClipFormat[] = ['webp', 'gif', 'mp4'];
 const DEFAULT_FORMATS: ClipFormat[] = ['webp', 'gif'];
+/** How long a clip may run when it sets no `durationMs`. */
+export const DEFAULT_CLIP_DURATION_MS = 60_000;
+/**
+ * How many frames a clip may have (after identical neighbours merge). Every distinct frame is held as a framed PNG
+ * until the clip is encoded, about 350 KB for a busy 80x24 screen at DPR 2 (1776x1376 framed), so the default keeps
+ * a busy 30 s clip near 550 MB of peak memory; sharp's encoders stream the frames and add little.
+ */
+export const DEFAULT_MAX_FRAMES = 300;
 
 /** Why `clips` and `outputs.clips` are refused in url and cdp mode. */
 export const WEB_CLIPS_MESSAGE = 'web clips arrive in v0.3; clips only work with target.mode "tty" for now';
@@ -78,7 +86,7 @@ export function resolveClips(issues: Issues, value: unknown, name: string, shots
       issues.add(path, `must be an object, got ${describe(entry)}`);
       return;
     }
-    checkKeys(issues, path, entry, ['id', 'title', 'caption', 'alt', 'steps', 'fps', 'durationMs', 'tailMs', 'formats']);
+    checkKeys(issues, path, entry, ['id', 'title', 'caption', 'alt', 'steps', 'fps', 'durationMs', 'maxFrames', 'tailMs', 'formats']);
     const id = str(issues, `${path}.id`, entry.id, true);
     if (id && !ID.test(id)) issues.add(`${path}.id`, `may only contain letters, digits, "-" and "_", got "${id}"`);
     if (id && seen.has(id)) issues.add(`${path}.id`, `duplicates another clip id "${id}"`);
@@ -110,6 +118,7 @@ export function resolveClips(issues: Issues, value: unknown, name: string, shots
         entry.durationMs === undefined
           ? undefined
           : num(issues, `${path}.durationMs`, entry.durationMs, 0, { min: 1, integer: true }),
+      maxFrames: num(issues, `${path}.maxFrames`, entry.maxFrames, DEFAULT_MAX_FRAMES, { min: 1, integer: true }),
       tailMs: num(issues, `${path}.tailMs`, entry.tailMs, 1500, { min: 0, integer: true }),
       formats: formats(issues, `${path}.formats`, entry.formats),
     });
