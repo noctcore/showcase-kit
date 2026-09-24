@@ -179,7 +179,8 @@ async function encodeMp4(frames: AnimationFrame[], size: { width: number; height
   const dir = await mkdtemp(join(tmpdir(), 'showcase-mp4-'));
   try {
     const names = frames.map((_, index) => `${String(index).padStart(5, '0')}.png`);
-    await Promise.all(frames.map((frame, index) => writeFile(join(dir, names[index] ?? ''), frame.png)));
+    // One at a time: hundreds of parallel writes only add open files and memory pressure.
+    for (const [index, frame] of frames.entries()) await writeFile(join(dir, names[index] ?? ''), frame.png);
     // The concat demuxer takes a duration per file; the last file is listed twice or its duration is dropped, and
     // images still run long at the end, so `-t` cuts the video to the clip length.
     const list = frames.map((frame, index) => `file '${names[index] ?? ''}'\nduration ${(frame.delayMs / 1000).toFixed(3)}`);
