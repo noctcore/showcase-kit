@@ -501,9 +501,11 @@ Steps:
 | `{ waitFor }` | Waits until the text (a substring or a RegExp) is on screen, for up to `timeouts.shotMs`. |
 | `{ sleep }` | Pauses, in milliseconds. |
 
-The clip ends `tailMs` after the last step, at `durationMs` or at `maxFrames`, whichever comes first. The app may quit
-during the tail (a last `{ keys: 'q' }`, or a CLI that prints and exits): the clip then ends on its last screen. Quitting
-before the steps are done fails the clip. Clips go to `outputs.clips`
+The clip ends `tailMs` after the last step, at `durationMs` or at `maxFrames`, whichever comes first. The app may exit
+during the tail (a CLI that prints and exits, or a last step that quits it): the clip then ends on its last screen.
+Exiting before the steps are done fails the clip. Leave the quit key out of the steps, though: most TUIs clear the
+screen when they quit, so the clip would end on an empty terminal, and the kit quits the app with `quitKey` after the
+tail anyway. Clips go to `outputs.clips`
 (default `assets/showcase/{lang}/{id}.{ext}`), framed like the README images: the frame is rendered once per clip
 and every frame of the terminal is put into it, so a clip matches the stills next to it. `frame.maxWidth` applies to
 clips too.
