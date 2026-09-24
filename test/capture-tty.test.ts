@@ -82,6 +82,8 @@ class FakeSession implements TtySession {
     const deadline = Date.now() + (opts.timeoutMs ?? 5000);
     const found = (): boolean =>
       typeof pattern === 'string' ? this.screenText().includes(pattern) : pattern.test(this.screenText());
+    // Like the real engine, which flushes pending output into the grid before every look at the screen.
+    await new Promise(resolve => setTimeout(resolve, 0));
     while (!found()) {
       if (Date.now() > deadline) throw new ShowcaseError(`Timed out waiting for ${String(pattern)}`);
       await new Promise(resolve => setTimeout(resolve, 5));
@@ -310,6 +312,16 @@ describe('captureTty, scripted engine', () => {
     }
   });
 
+  it('captures an app that prints its screen and exits before the wait looks at it', async () => {
+    // The exit is observed before the flush that would show the text: the race alone would call it "exited before".
+    const config = ttyConfig({ shots: [{ id: 'resources' }] });
+    const { engine, recorder } = fakeEngine({ ...APP, boot: '', drawAfterMs: 0, exitAfterMs: 0 });
+    const { files, failures } = await captureTty(config, config.shots, config.langs, engine);
+    expect(failures).toEqual([]);
+    expect(files.map(file => file.id)).toEqual(['resources']);
+    expect(recorder.rendered.map(render => render.text)).toEqual(['resources (3)']);
+  });
+
   it('closes an app without a PID from the exit handler instead of skipping it', async () => {
     const config = ttyConfig({ ready: 'never ready', target: { mode: 'tty', command: 'fake-tui', readyTimeoutMs: 60_000 } });
     const { engine, recorder } = fakeEngine({ ...APP, pid: 0 });
@@ -483,6 +495,20 @@ describe('capture, tty mode, real terminal', () => {
     expect((error as Error).message).toContain('en/missing: The waitFor text "no such text" did not appear within 1500ms');
     expect((error as Error).message).toContain('fixture-tui · services');
     expect(existsSync(join(root, 'showcase-out', 'raw', 'en', 'details.png'))).toBe(true);
+  });
+
+  it.each([
+    ['with ready', 'print-exit done'],
+    ['without ready', undefined],
+  ])('captures a CLI that prints and exits 0 at once, %s', async (_, ready) => {
+    const root = tempDir();
+    const config = fixtureTty(root, {
+      target: { mode: 'tty', command: [process.execPath, join(FIXTURES, 'print-exit.mjs'), 'one'], cols: 40, rows: 6 },
+      ready,
+      shots: [{ id: 'done' }],
+    });
+    const { files } = await capture(config);
+    expect(files.map(file => [file.id, file.width, file.height])).toEqual([['done', 40 * 9 + 24, 6 * 20 + 24]]);
   });
 
   it('frames a terminal capture like any other raw capture', async () => {
