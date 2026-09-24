@@ -47,6 +47,7 @@ describe('resolveConfig, tty mode', () => {
       command: 'bun run src/index.tsx',
       cwd: resolve('/work/rumi'),
       env: undefined,
+      inheritEnv: true,
       cols: 120,
       rows: 32,
       quitKey: 'q',
@@ -97,6 +98,7 @@ describe('resolveConfig, tty mode', () => {
           command: ['bun', 'run', 'src/index.tsx'],
           cwd: 'app',
           env,
+          inheritEnv: ['HOME', 'XDG_CONFIG_HOME'],
           cols: 100,
           rows: 30,
           quitKey: false,
@@ -118,6 +120,7 @@ describe('resolveConfig, tty mode', () => {
       command: ['bun', 'run', 'src/index.tsx'],
       cwd: join(root, 'app'),
       env,
+      inheritEnv: ['HOME', 'XDG_CONFIG_HOME'],
       cols: 100,
       rows: 30,
       quitKey: false,
@@ -200,6 +203,16 @@ describe('resolveConfig, tty mode', () => {
     expect(issues).toHaveLength(25);
   });
 
+  it('takes inheritEnv as a boolean or a list of variable names', () => {
+    expect(ttyConfig({ ...minimal, target: { ...minimal.target, inheritEnv: false } }).target.inheritEnv).toBe(false);
+    expect(ttyConfig({ ...minimal, target: { ...minimal.target, inheritEnv: [] } }).target.inheritEnv).toEqual([]);
+    for (const bad of ['HOME', ['HOME', ''], ['A=1'], [42], { HOME: true }]) {
+      expect(issuesOf({ ...minimal, target: { ...minimal.target, inheritEnv: bad } })).toEqual([
+        expect.stringMatching(/^target\.inheritEnv: must be true, false or an array of variable names/),
+      ]);
+    }
+  });
+
   it('rejects a command that is neither a string nor [file, ...args]', () => {
     expect(issuesOf({ ...minimal, target: { mode: 'tty', command: [] } })).toEqual([
       'target.command: must be a command string or an array [file, ...args] of strings, got an empty array',
@@ -214,7 +227,7 @@ describe('resolveConfig, tty-only keys in url and cdp mode', () => {
   it('says which keys belong to tty mode', () => {
     const issues = issuesOf({
       name: 'Web',
-      target: { mode: 'url', url: 'http://localhost:5173', command: 'vite', cols: 80 },
+      target: { mode: 'url', url: 'http://localhost:5173', command: 'vite', cols: 80, inheritEnv: false },
       ready: /Ready/,
       terminal: { theme: 'dark' },
       shots: [{ id: 'home', keys: '{Tab}', restart: true, waitFor: /Home/ }],
@@ -226,7 +239,21 @@ describe('resolveConfig, tty-only keys in url and cdp mode', () => {
       'shots[0].waitFor: must be a selector string in url and cdp mode (a RegExp is screen text, for tty mode)',
       'target.command: only used in tty mode',
       'target.cols: only used in tty mode',
+      'target.inheritEnv: only used in tty mode',
       'ready: must be a selector string in url and cdp mode (a RegExp is screen text, for tty mode)',
+    ]);
+  });
+
+  it('reports keys named like Object.prototype members as unknown, not as another mode', () => {
+    const issues = issuesOf({
+      name: 'Web',
+      target: { mode: 'url', url: 'http://localhost:5173', constructor: 1, toString: 'x' },
+      shots: [{ id: 'home', hasOwnProperty: true }],
+    });
+    expect(issues).toEqual([
+      expect.stringMatching(/^shots\[0\]\.hasOwnProperty: unknown key \(expected one of: /),
+      expect.stringMatching(/^target\.constructor: unknown key \(expected one of: /),
+      expect.stringMatching(/^target\.toString: unknown key \(expected one of: /),
     ]);
   });
 });

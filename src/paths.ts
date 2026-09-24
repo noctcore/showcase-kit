@@ -43,13 +43,18 @@ export function select(config: ResolvedConfig, only?: string[], langs?: string[]
 }
 
 /**
- * Where a path `nav` goes in url mode. The target url's path is the app's base directory, with or without a
- * trailing slash, so `/docs/` against `https://x.io/app/` is `https://x.io/app/docs/`, not the origin's `/docs/`.
- * Absolute `http(s)://` urls are left alone.
+ * Where a path `nav` goes in url mode: like a relative link from the app's base directory. That directory is the
+ * target url's path, with or without a trailing slash, except that a last segment with a dot (`index.html`,
+ * `app.php`) names a file and is dropped. A trailing slash always means a directory, so `https://x.io/v1.2/` is one.
+ * So `/docs/` against `https://x.io/app/` is `https://x.io/app/docs/`, not the origin's `/docs/`, and `/about`
+ * against `http://localhost:5173/index.html` is `http://localhost:5173/about`. Absolute `http(s)://` urls are left
+ * alone.
  */
 export function navUrl(nav: string, base: string): string {
   if (/^https?:\/\//.test(nav)) return new URL(nav).href;
   const url = new URL(base);
-  const dir = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
+  const { pathname } = url;
+  const last = pathname.slice(pathname.lastIndexOf('/') + 1);
+  const dir = pathname.endsWith('/') ? pathname : last.includes('.') ? pathname.slice(0, -last.length) : `${pathname}/`;
   return new URL(nav.startsWith('/') ? `.${nav}` : nav, `${url.origin}${dir}`).href;
 }

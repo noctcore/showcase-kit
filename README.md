@@ -187,10 +187,13 @@ shims) in its own process tree. When the run ends, fails, or you press Ctrl+C, t
 
 - a selector to click: `'[data-view="library"]'`;
 - a path or URL to visit: `'/settings'` or `'https://...'` (a string starting with `/` but not `//`, or with
-  `http(s)://`). In url mode a path resolves under the target url's path, which counts as the app's base directory
-  with or without a trailing slash: with `url: 'https://x.io/app/'`, `'/docs/'` visits `https://x.io/app/docs/` and
-  `'/'` visits the url itself. The url's query and hash are not carried over. In cdp mode a path resolves against
-  the origin of the page being captured;
+  `http(s)://`). In url mode a path resolves like a relative link from the app's base directory: the target url's
+  path, with or without a trailing slash, except that a last segment with a dot (`index.html`, `app.php`) is a file
+  and is dropped. With `url: 'https://x.io/app/'` (or `'https://x.io/app'`), `'/docs/'` visits
+  `https://x.io/app/docs/` and `'/'` visits the url itself; with `url: 'http://localhost:5173/index.html'`, `'/about'`
+  visits `http://localhost:5173/about`. A trailing slash always means a directory, so a dotted one such as `/v1.2/`
+  needs it. The url's query and hash are not carried over. In cdp mode a path resolves against the origin of the
+  page being captured;
 - explicit: `{ click: 'text=Library' }` or `{ goto: '/settings' }`;
 - a function: `async page => { await page.getByRole('button', { name: 'Open' }).click(); }`.
 
@@ -335,6 +338,7 @@ export default defineConfig({
 | `command` | required | A string runs through the shell, like `start` in the other modes. An array `['node', 'dist/cli.js']` is spawned directly. |
 | `cwd` | config dir | Working directory. |
 | `env` | none | Extra environment, or a function `({ lang }) => ({ ... })` for apps that take their language from an env var. |
+| `inheritEnv` | `true` | Which of your environment variables the app gets: `true` all of them (see below), `false` or `[]` only the few needed to start a program, an array of names those as well: `['HOME', 'XDG_CONFIG_HOME']`. |
 | `cols`, `rows` | `120`, `32` | Terminal size. Never taken from your own terminal. |
 | `quitKey` | `'q'` | Sent to quit at the end, before the process tree is killed. `false` just kills. |
 | `inputDelayMs` | `300` | Grace after `ready` before the first key (from `setup` or a shot). Keys sent before an app switches its terminal to raw mode are lost. |
@@ -343,6 +347,18 @@ export default defineConfig({
 The app gets `TERM=xterm-256color`, `COLORTERM=truecolor`, `FORCE_COLOR=3`, `TZ=UTC` and (on macOS and Linux)
 `LANG=LC_ALL=en_US.UTF-8`, and does not inherit `NO_COLOR`, `CI`, `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`,
 `WT_SESSION`, `COLUMNS` or `LINES`. `env` overrides any of them.
+
+By default the app also inherits the rest of your environment, tokens and home paths included, and whatever it
+prints ends up in a committed image. If it can show its environment, config paths or credentials (a status line
+with the user name, an error that dumps a token), set `inheritEnv: false` and pass what it needs through `env`, or
+list the names to keep. With `inheritEnv` off the app still gets what a program needs to start: `PATH` on macOS and
+Linux, and on Windows `PATH`, `PATHEXT` (to find `.cmd` shims), `SystemRoot` (Node aborts at startup without it)
+and `ComSpec` (to run command strings and shims). They are not secrets, but they may reveal paths such as your
+user folder. Nothing else is needed for Node or Bun apps: without `HOME` or `USERPROFILE` they still find the home
+folder, and without `TEMP`, `TMP` or `TMPDIR` they use the system temp folder (`/tmp`, `C:\Windows\Temp`). A
+command string that uses `~`, or a tool that reads `$HOME` for its config (git, XDG apps), needs
+`inheritEnv: ['HOME']`. Names match case-insensitively on Windows only, and the CI and terminal hints above stay
+out even when listed: set them in `env`.
 
 In tty mode `viewport`, `colorScheme` and `css` are errors (the image size comes from `cols`, `rows`, the font size
 and the padding), and so are `timeouts.readyMs` (use `target.readyTimeoutMs`) and `timeouts.networkIdleMs`.
@@ -423,7 +439,9 @@ The kit can only freeze what the app lets it freeze. The terminal equivalent of 
 
 ### Platform notes
 
-- **Windows:** works through ConPTY. `LANG` has no effect there, so pin the locale in the app.
+- **Windows:** works through ConPTY. `LANG` has no effect there, so pin the locale in the app. An array `command`
+  whose program is a `.cmd` or `.bat` shim (`pnpm`, `npm`) runs through cmd.exe, which cannot pass an argument
+  with `"` or `%`: the kit refuses those, so run the program the shim starts directly or use a command string.
 - **macOS:** `@lydell/node-pty` ships its spawn helper executable. With the official `node-pty` 1.1.0 a spawn can
   fail with `posix_spawnp failed` (node-pty issue #919) until its `spawn-helper` binary is made executable; prefer
   `@lydell/node-pty`. Fonts rasterize differently from Windows and Linux (the cell grid stays the same).

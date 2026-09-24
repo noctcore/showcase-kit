@@ -35,7 +35,7 @@ export const WEB_TARGET_KEYS: Readonly<Record<string, string>> = {
   pageMatch: 'not used in tty mode',
 };
 export const TTY_TARGET_KEYS: Readonly<Record<string, string>> = Object.fromEntries(
-  ['command', 'cols', 'rows', 'quitKey', 'inputDelayMs'].map(key => [key, 'only used in tty mode']),
+  ['command', 'inheritEnv', 'cols', 'rows', 'quitKey', 'inputDelayMs'].map(key => [key, 'only used in tty mode']),
 );
 
 export const TTY_SHOT_KEYS: Readonly<Record<string, string>> = {
@@ -86,12 +86,25 @@ function env(issues: Issues, value: unknown): TtyTarget['env'] {
   return undefined;
 }
 
+function inheritEnv(issues: Issues, value: unknown): ResolvedTtyTarget['inheritEnv'] {
+  if (value === undefined) return true;
+  if (typeof value === 'boolean') return value;
+  if (Array.isArray(value) && value.every(name => typeof name === 'string' && /^[^=\s]+$/.test(name))) {
+    return value as string[];
+  }
+  issues.add(
+    'target.inheritEnv',
+    `must be true, false or an array of variable names such as ['HOME', 'XDG_CONFIG_HOME'], got ${describe(value)}`,
+  );
+  return true;
+}
+
 export function resolveTtyTarget(issues: Issues, value: Obj, rootDir: string): ResolvedTtyTarget {
   checkKeys(
     issues,
     'target',
     value,
-    ['mode', 'command', 'cwd', 'env', 'cols', 'rows', 'quitKey', 'inputDelayMs', 'readyTimeoutMs'],
+    ['mode', 'command', 'cwd', 'env', 'inheritEnv', 'cols', 'rows', 'quitKey', 'inputDelayMs', 'readyTimeoutMs'],
     WEB_TARGET_KEYS,
   );
   const cwd = str(issues, 'target.cwd', value.cwd);
@@ -103,6 +116,7 @@ export function resolveTtyTarget(issues: Issues, value: Obj, rootDir: string): R
     command: command(issues, value.command),
     cwd: cwd === undefined ? rootDir : isAbsolute(cwd) ? cwd : resolve(rootDir, cwd),
     env: env(issues, value.env),
+    inheritEnv: inheritEnv(issues, value.inheritEnv),
     cols: num(issues, 'target.cols', value.cols, 120, { min: 10, max: 500, integer: true }),
     rows: num(issues, 'target.rows', value.rows, 32, { min: 5, max: 200, integer: true }),
     quitKey,

@@ -95,6 +95,12 @@ export interface TtyTarget {
   cwd?: string;
   /** Extra environment. A function gets the language, for apps that take their locale from an env var. */
   env?: Record<string, string> | ((ctx: { lang: string }) => Record<string, string>);
+  /**
+   * Which of your environment variables the app inherits. Default `true`: all but CI and terminal hints. `false` or
+   * `[]`: only what the platform needs to start a program (PATH; on Windows also PATHEXT, SystemRoot, ComSpec). An
+   * array of names: those as well.
+   */
+  inheritEnv?: boolean | string[];
   /** Terminal width in columns. Default 120. */
   cols?: number;
   /** Terminal height in rows. Default 32. */
@@ -339,6 +345,7 @@ export interface ResolvedTtyTarget {
   /** Absolute. */
   cwd: string;
   env: TtyTarget['env'];
+  inheritEnv: boolean | string[];
   cols: number;
   rows: number;
   quitKey: string | false;

@@ -29,6 +29,8 @@ interface FakeApp {
   drawAfterMs?: number;
   /** Exit on its own this many milliseconds after start. */
   exitAfterMs?: number;
+  /** The PID the session reports. 0 is a Windows app ConPTY has not connected yet. Default a random fake one. */
+  pid?: number;
 }
 
 interface Recorder {
@@ -50,7 +52,7 @@ class FakeSession implements TtySession {
     private readonly app: FakeApp,
     private readonly log: string[],
   ) {
-    this.pid = 100_000 + Math.floor(Math.random() * 1000);
+    this.pid = app.pid ?? 100_000 + Math.floor(Math.random() * 1000);
     this.exited = new Promise(resolve => (this.exit = resolve));
     setTimeout(() => (this.drawn = true), app.drawAfterMs ?? 0);
     if (app.exitAfterMs !== undefined) setTimeout(() => this.exit(3), app.exitAfterMs);
@@ -80,6 +82,8 @@ class FakeSession implements TtySession {
     const deadline = Date.now() + (opts.timeoutMs ?? 5000);
     const found = (): boolean =>
       typeof pattern === 'string' ? this.screenText().includes(pattern) : pattern.test(this.screenText());
+    // Like the real engine, which flushes pending output into the grid before every look at the screen.
+    await new Promise(resolve => setTimeout(resolve, 0));
     while (!found()) {
       if (Date.now() > deadline) throw new ShowcaseError(`Timed out waiting for ${String(pattern)}`);
       await new Promise(resolve => setTimeout(resolve, 5));
@@ -294,6 +298,56 @@ describe('captureTty, scripted engine', () => {
     );
   });
 
+  it('passes inheritEnv to the session, inheriting everything by default', async () => {
+    const cases: Array<[TtyConfig['target'], boolean | string[]]> = [
+      [{ mode: 'tty', command: 'fake-tui', inputDelayMs: 0 }, true],
+      [{ mode: 'tty', command: 'fake-tui', inputDelayMs: 0, inheritEnv: false }, false],
+      [{ mode: 'tty', command: 'fake-tui', inputDelayMs: 0, inheritEnv: ['HOME'] }, ['HOME']],
+    ];
+    for (const [target, expected] of cases) {
+      const config = ttyConfig({ target, shots: [{ id: 'resources' }] });
+      const { engine, recorder } = fakeEngine(APP);
+      await captureTty(config, config.shots, config.langs, engine);
+      expect(recorder.sessions[0]?.options.inheritEnv).toEqual(expected);
+    }
+  });
+
+  it('captures an app that prints its screen and exits before the wait looks at it', async () => {
+    // The exit is observed before the flush that would show the text: the race alone would call it "exited before".
+    const config = ttyConfig({ shots: [{ id: 'resources' }] });
+    const { engine, recorder } = fakeEngine({ ...APP, boot: '', drawAfterMs: 0, exitAfterMs: 0 });
+    const { files, failures } = await captureTty(config, config.shots, config.langs, engine);
+    expect(failures).toEqual([]);
+    expect(files.map(file => file.id)).toEqual(['resources']);
+    expect(recorder.rendered.map(render => render.text)).toEqual(['resources (3)']);
+  });
+
+  it('closes an app without a PID from the exit handler instead of skipping it', async () => {
+    const config = ttyConfig({ ready: 'never ready', target: { mode: 'tty', command: 'fake-tui', readyTimeoutMs: 60_000 } });
+    const { engine, recorder } = fakeEngine({ ...APP, pid: 0 });
+    const events = ['exit', 'SIGINT', 'SIGTERM', 'SIGHUP'];
+    const listeners = (event: string): Function[] => process.listeners(event as NodeJS.Signals);
+    let before = new Map<string, Function[]>();
+    const open = engine.openTtySession;
+    engine.openTtySession = async options => {
+      before = new Map(events.map(event => [event, listeners(event)]));
+      return open(options);
+    };
+    const added = (event: string): Function[] => listeners(event).filter(listener => !before.get(event)?.includes(listener));
+    const run = captureTty(config, config.shots, config.langs, engine).catch((caught: unknown) => caught);
+    try {
+      await vi.waitFor(() => expect(recorder.sessions).toHaveLength(1), { timeout: 30_000 });
+      await vi.waitFor(() => expect(added('exit')).toHaveLength(1));
+      // Tracked although it has no PID: the handler that runs as the host exits closes its terminal.
+      (added('exit')[0] as () => void)();
+      expect(recorder.sessions[0]?.closed).toBe(true);
+      expect(String(await run)).toMatch(/The app exited \(code 0\)/);
+    } finally {
+      // The handler cleared the kit's list as a real exit would, so its listeners are left to remove here.
+      for (const event of events) for (const listener of added(event)) process.off(event as NodeJS.Signals, listener as () => void);
+    }
+  });
+
   it('refuses an env function that does not return strings', async () => {
     // As a plain JS config would: resolveConfig cannot see what the function returns.
     const config = resolveConfig(
@@ -441,6 +495,20 @@ describe('capture, tty mode, real terminal', () => {
     expect((error as Error).message).toContain('en/missing: The waitFor text "no such text" did not appear within 1500ms');
     expect((error as Error).message).toContain('fixture-tui · services');
     expect(existsSync(join(root, 'showcase-out', 'raw', 'en', 'details.png'))).toBe(true);
+  });
+
+  it.each([
+    ['with ready', 'print-exit done'],
+    ['without ready', undefined],
+  ])('captures a CLI that prints and exits 0 at once, %s', async (_, ready) => {
+    const root = tempDir();
+    const config = fixtureTty(root, {
+      target: { mode: 'tty', command: [process.execPath, join(FIXTURES, 'print-exit.mjs'), 'one'], cols: 40, rows: 6 },
+      ready,
+      shots: [{ id: 'done' }],
+    });
+    const { files } = await capture(config);
+    expect(files.map(file => [file.id, file.width, file.height])).toEqual([['done', 40 * 9 + 24, 6 * 20 + 24]]);
   });
 
   it('frames a terminal capture like any other raw capture', async () => {

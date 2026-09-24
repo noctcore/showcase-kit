@@ -85,17 +85,35 @@ const DEFAULTS: Record<string, string> = {
 };
 
 /**
- * The child's environment: the inherited one without CI and terminal hints, then the deterministic defaults,
- * then `extra`. Names compare case-insensitively on Windows, where `Path` and `PATH` are one variable.
+ * What a program needs to start at all, inherited even when `inheritEnv` is off. Without SystemRoot Node aborts on
+ * Windows; PATH (and there PATHEXT and ComSpec) find the command and run `.cmd` shims and command strings.
+ */
+export const SPAWN_ENV: Readonly<Record<'posix' | 'win32', readonly string[]>> = {
+  posix: ['PATH'],
+  win32: ['PATH', 'PATHEXT', 'SystemRoot', 'ComSpec'],
+};
+
+/**
+ * The child's environment: the inherited one (all of it, or with `inherit` off or a list of names, only those plus
+ * `SPAWN_ENV`) without CI and terminal hints, then the deterministic defaults, then `extra`. Names compare
+ * case-insensitively on Windows, where `Path` and `PATH` are one variable.
  */
 export function ttyEnv(
   extra: Record<string, string>,
   base: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
+  inherit: boolean | readonly string[] = true,
 ): Record<string, string> {
   const fold = (name: string): string => (platform === 'win32' ? name.toUpperCase() : name);
+  const kept =
+    inherit === true
+      ? undefined
+      : new Set([...SPAWN_ENV[platform === 'win32' ? 'win32' : 'posix'], ...(inherit === false ? [] : inherit)].map(fold));
   const env = new Map<string, [name: string, value: string]>();
-  for (const [name, value] of Object.entries(base)) if (value !== undefined) env.set(fold(name), [name, value]);
+  for (const [name, value] of Object.entries(base)) {
+    if (value !== undefined && (!kept || kept.has(fold(name)))) env.set(fold(name), [name, value]);
+  }
+  // Even when listed: they would make the app behave as in CI or in another terminal. Set them in `extra` instead.
   for (const name of STRIPPED) env.delete(fold(name));
   for (const layer of [DEFAULTS, extra]) {
     for (const [name, value] of Object.entries(layer)) env.set(fold(name), [name, value]);
@@ -118,9 +136,20 @@ function whichWindows(file: string, env: Record<string, string>): string | undef
   return undefined;
 }
 
-/** Quote one argument for a cmd.exe command line. */
+/**
+ * Quote one argument of a `.cmd` or `.bat` shim for its cmd.exe command line. Inside quotes cmd.exe still expands
+ * `%VAR%` (a command line has no escape for it, `%%` included) and a `"` flips its quoting for the rest of the line,
+ * so arguments with either are refused. The shim's `%*` hands the text on as is, and the program's own parser reads
+ * a backslash before the closing quote as an escape, so trailing backslashes are doubled.
+ */
 function cmdQuote(arg: string): string {
-  return /^[\w\-./\\:=@+,]+$/.test(arg) ? arg : `"${arg.replace(/"/g, '""')}"`;
+  if (/["%\r\n]/.test(arg)) {
+    throw new ShowcaseError(
+      `Cannot pass ${JSON.stringify(arg)} through a .cmd or .bat shim: cmd.exe cannot take a " or % in an argument, ` +
+        'nor a line break. Run the program the shim starts directly, or use a command string and quote it yourself.',
+    );
+  }
+  return /^[\w\-./\\:@+]+$/.test(arg) ? arg : `"${arg.replace(/(\\+)$/, '$1$1')}"`;
 }
 
 /**
@@ -142,7 +171,8 @@ export function ptyCommand(
   if (platform !== 'win32') return { file, args };
   const found = whichWindows(file, env);
   if (found && /\.(cmd|bat)$/i.test(found)) {
-    return { file: comspec(), args: `/d /s /c "${[found, ...args].map(cmdQuote).join(' ')}"` };
+    // `/v:off`: a `!` stays literal even where delayed expansion is turned on by default.
+    return { file: comspec(), args: `/d /v:off /s /c "${[found, ...args].map(cmdQuote).join(' ')}"` };
   }
   return { file: found ?? file, args };
 }
@@ -151,6 +181,7 @@ export interface SpawnPtyOptions {
   command: string | readonly string[];
   cwd: string;
   env: Record<string, string>;
+  inheritEnv?: boolean | readonly string[];
   cols: number;
   rows: number;
 }
@@ -160,7 +191,7 @@ export function spawnPty(pty: PtyModule, opts: SpawnPtyOptions): PtyProcess {
   if (!existsSync(opts.cwd) || !statSync(opts.cwd).isDirectory()) {
     throw new ShowcaseError(`The terminal working directory does not exist: ${opts.cwd}`);
   }
-  const env = ttyEnv(opts.env);
+  const env = ttyEnv(opts.env, process.env, process.platform, opts.inheritEnv);
   const { file, args } = ptyCommand(opts.command, env);
   try {
     return pty.spawn(file, args, { name: env.TERM ?? DEFAULTS.TERM ?? '', cols: opts.cols, rows: opts.rows, cwd: opts.cwd, env });

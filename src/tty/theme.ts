@@ -51,7 +51,8 @@ export const BUNDLED_ADVANCE = 0.6;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-function checkTheme(theme: TerminalTheme): TerminalTheme {
+/** Throws a `ShowcaseError` unless the theme has 16 ansi colors and every color is `#rrggbb`; returns a copy. */
+export function checkTheme(theme: TerminalTheme): TerminalTheme {
   const bad = [theme.background, theme.foreground, ...(theme.cursor ? [theme.cursor] : []), ...theme.ansi].filter(
     c => !HEX.test(c),
   );

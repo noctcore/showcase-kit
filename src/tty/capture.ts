@@ -35,9 +35,13 @@ const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
 let closingOnSignal = false;
 
 function killOpenSync(): void {
-  // Only apps that have not exited are in the set, so these PIDs are still ours. A PID of 0 (a Windows child that
-  // died before ConPTY connected) must never reach a kill: on POSIX it would signal the kit's own process group.
-  for (const session of open.keys()) if (session.pid > 0) killTreeSync(session.pid);
+  // Only apps that have not exited are in the set, so these PIDs are still ours. A PID of 0 (a Windows app ConPTY
+  // has not connected yet) must never reach a kill: on POSIX it would signal the kit's own process group. Closing
+  // such a session kills its terminal synchronously instead.
+  for (const session of open.keys()) {
+    if (session.pid > 0) killTreeSync(session.pid);
+    else session.close({ quitKey: false }).catch(() => {});
+  }
   open.clear();
 }
 
@@ -95,7 +99,7 @@ function envFor(config: ResolvedTtyConfig, lang: string): Record<string, string>
   return result as Record<string, string>;
 }
 
-function describePattern(pattern: string | RegExp): string {
+export function describePattern(pattern: string | RegExp): string {
   return typeof pattern === 'string' ? JSON.stringify(pattern) : String(pattern);
 }
 
@@ -108,7 +112,7 @@ function lastScreen(session: TtySession): string {
  * Wait for text on screen; fail with what the screen showed instead, or with the exit code if the app quit.
  * `what` names the wait in errors, for example `the ready text "x"`.
  */
-async function waitForText(
+export async function waitForText(
   session: TtySession,
   pattern: string | RegExp,
   timeoutMs: number,
@@ -129,7 +133,9 @@ async function waitForText(
         `(${(error as Error).message.split('\n')[0] ?? ''}).\n${lastScreen(session)}`,
     );
   }
-  if (exitCode !== undefined) {
+  // `exited` can settle before the app's last output is parsed into the grid. A wait with no time left flushes and
+  // checks the screen once more, so a CLI that prints and exits at once is still capturable.
+  if (exitCode !== undefined && !(await session.waitForText(pattern, { timeoutMs: 0 }).then(() => true, () => false))) {
     throw new ShowcaseError(
       `The app exited (code ${String(exitCode)}) before ${what} appeared.\n` +
         lastScreen(session),
@@ -143,7 +149,7 @@ async function waitForChange(session: TtySession, before: string, timeoutMs: num
   while (Date.now() < deadline && session.screen().key === before) await session.sleep(25);
 }
 
-async function startSession(
+export async function startSession(
   config: ResolvedTtyConfig,
   lang: string,
   engine: TtyEngine,
@@ -155,6 +161,7 @@ async function startSession(
     command: target.command,
     cwd: target.cwd,
     env: envFor(config, lang),
+    inheritEnv: target.inheritEnv,
     cols: target.cols,
     rows: target.rows,
   });
@@ -176,7 +183,7 @@ async function startSession(
   }
 }
 
-async function closeSession(config: ResolvedTtyConfig, session: TtySession): Promise<void> {
+export async function closeSession(config: ResolvedTtyConfig, session: TtySession): Promise<void> {
   try {
     await session.close({ quitKey: config.target.quitKey });
   } finally {
