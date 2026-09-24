@@ -53,7 +53,7 @@ export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, char => `&#${String(char.charCodeAt(0))};`);
 }
 
-function backgroundCss(background: ResolvedBackground): string {
+export function backgroundCss(background: ResolvedBackground): string {
   switch (background.type) {
     case 'solid':
       return background.color;
@@ -65,6 +65,79 @@ function backgroundCss(background: ResolvedBackground): string {
 }
 
 const px = (value: number): string => `${String(Math.round(value * 1000) / 1000)}px`;
+
+/**
+ * One framed window as self-contained markup (inline styles only), so a page can hold several at different
+ * scales. `extraStyle` goes on the outer element, for positioning and transforms.
+ */
+export function windowMarkup({
+  frame,
+  image,
+  scale: s,
+  imageSrc,
+  title,
+  extraStyle = '',
+}: {
+  frame: ResolvedFrame;
+  image: { width: number; height: number };
+  scale: number;
+  imageSrc: string;
+  title: string | undefined;
+  extraStyle?: string;
+}): string {
+  const theme = THEMES[frame.theme];
+  const hairline = px(Math.max(1, s));
+  const shadow = frame.shadow
+    ? `0 ${px(24 * s)} ${px(64 * s)} rgba(0,0,0,0.35), 0 ${px(8 * s)} ${px(24 * s)} rgba(0,0,0,0.22)`
+    : 'none';
+  const lights =
+    frame.style === 'window'
+      ? `<div style="display:flex;gap:${px(8 * s)};padding-left:${px(14 * s)};position:relative;z-index:1">${LIGHTS.map(
+          color => `<i style="display:block;width:${px(12 * s)};height:${px(12 * s)};border-radius:50%;background:${color}"></i>`,
+        ).join('')}</div>`
+      : '';
+  const titleMarkup = title
+    ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;` +
+      `font:500 ${px(13 * s)}/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:${theme.title};white-space:nowrap">` +
+      `${escapeHtml(title)}</div>`
+    : '';
+  const bar =
+    frame.style === 'none'
+      ? ''
+      : `<div style="box-sizing:border-box;position:relative;display:flex;align-items:center;` +
+        `height:${px(BAR_HEIGHT[frame.style] * s)};background:${theme.bar};border-bottom:${hairline} solid ${theme.border}">` +
+        `${lights}${titleMarkup}</div>`;
+  // The outline sits on top of the screenshot so light apps keep an edge on light backgrounds.
+  const outline =
+    `<div style="position:absolute;inset:0;border-radius:inherit;pointer-events:none;` +
+    `box-shadow:inset 0 0 0 ${hairline} ${theme.outline}"></div>`;
+  return (
+    `<div class="window" style="position:relative;overflow:hidden;flex:none;width:${px(image.width)};` +
+    `border-radius:${px(frame.radius * s)};background:${theme.bar};box-shadow:${shadow};${extraStyle}">` +
+    `${bar}<img src="${imageSrc}" alt="" style="display:block;width:${px(image.width)};height:${px(image.height)}">` +
+    `${outline}</div>`
+  );
+}
+
+/** A minimal HTML page: fixed-size body, the frame background, `body` markup centered. */
+export function page(canvas: { width: number; height: number }, background: string, body: string, css = ''): string {
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: ${px(canvas.width)}; height: ${px(canvas.height)}; overflow: hidden; position: relative;
+    background: ${background};
+    display: flex; align-items: center; justify-content: center;
+  }
+${css}
+</style>
+</head>
+<body>${body}</body>
+</html>`;
+}
 
 /** A self-contained HTML page that shows the screenshot in its frame. No network, system fonts only. */
 export function frameHtml({
@@ -78,59 +151,9 @@ export function frameHtml({
   imageSrc: string;
   title: string | undefined;
 }): string {
-  const s = layout.scale;
-  const theme = THEMES[frame.theme];
-  const barHeight = BAR_HEIGHT[frame.style] * s;
-  const radius = frame.radius * s;
-  const shadow = frame.shadow
-    ? `box-shadow: 0 ${px(24 * s)} ${px(64 * s)} rgba(0,0,0,0.35), 0 ${px(8 * s)} ${px(24 * s)} rgba(0,0,0,0.22);`
-    : '';
-  const lights =
-    frame.style === 'window'
-      ? `<div class="lights">${LIGHTS.map(color => `<i style="background:${color}"></i>`).join('')}</div>`
-      : '';
-  const bar =
-    frame.style === 'none'
-      ? ''
-      : `<div class="bar">${lights}${title ? `<div class="title">${escapeHtml(title)}</div>` : ''}</div>`;
-
-  return `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  html, body { margin: 0; padding: 0; }
-  body {
-    width: ${px(layout.canvas.width)}; height: ${px(layout.canvas.height)}; overflow: hidden;
-    background: ${backgroundCss(frame.background)};
-    display: flex; align-items: center; justify-content: center;
-  }
-  .window {
-    position: relative; overflow: hidden; flex: none;
-    width: ${px(layout.image.width)};
-    border-radius: ${px(radius)};
-    background: ${theme.bar};
-    ${shadow}
-  }
-  .window::after {
-    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-    box-shadow: inset 0 0 0 ${px(Math.max(1, s))} ${theme.outline};
-  }
-  .bar {
-    box-sizing: border-box; position: relative; display: flex; align-items: center;
-    height: ${px(barHeight)}; background: ${theme.bar};
-    border-bottom: ${px(Math.max(1, s))} solid ${theme.border};
-  }
-  .lights { display: flex; gap: ${px(8 * s)}; padding-left: ${px(14 * s)}; position: relative; z-index: 1; }
-  .lights i { display: block; width: ${px(12 * s)}; height: ${px(12 * s)}; border-radius: 50%; }
-  .title {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    font: 500 ${px(13 * s)}/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    color: ${theme.title}; white-space: nowrap;
-  }
-  img { display: block; width: ${px(layout.image.width)}; height: ${px(layout.image.height)}; }
-</style>
-</head>
-<body><div class="window">${bar}<img src="${imageSrc}" alt=""></div></body>
-</html>`;
+  return page(
+    layout.canvas,
+    backgroundCss(frame.background),
+    windowMarkup({ frame, image: layout.image, scale: layout.scale, imageSrc, title }),
+  );
 }

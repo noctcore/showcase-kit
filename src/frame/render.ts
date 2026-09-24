@@ -81,10 +81,16 @@ export function formatOf(path: string): ImageFormat {
 export async function writeImage(
   png: Buffer,
   path: string,
-  { format, quality, maxWidth }: { format: ImageFormat; quality: number; maxWidth?: number },
+  {
+    format,
+    quality,
+    maxWidth,
+    resize,
+  }: { format: ImageFormat; quality: number; maxWidth?: number; resize?: { width: number; height: number } },
 ): Promise<{ width: number; height: number }> {
   let image = sharp(png);
-  if (maxWidth) image = image.resize({ width: maxWidth, withoutEnlargement: true });
+  if (resize) image = image.resize(resize.width, resize.height);
+  else if (maxWidth) image = image.resize({ width: maxWidth, withoutEnlargement: true });
   image = format === 'webp' ? image.webp({ quality, effort: 5 }) : image.png({ compressionLevel: 9 });
   const { data, info } = await image.toBuffer({ resolveWithObject: true });
   await mkdir(dirname(path), { recursive: true });
