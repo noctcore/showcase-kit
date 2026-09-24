@@ -82,6 +82,20 @@ describe('record, real terminal', () => {
     for (const pid of pids) await vi.waitFor(() => expect(isAlive(pid)).toBe(false), { timeout: 10_000 });
   });
 
+  it('stops a busy app at maxFrames and writes those frames', async () => {
+    const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const config = fixtureTty(tempDir(), {
+      target: { mode: 'tty', command: [process.execPath, join(FIXTURES, 'counter.mjs')], cols: 40, rows: 6 },
+      ready: 'counter',
+      clips: [{ id: 'busy', steps: [{ sleep: 5000 }], maxFrames: 5, formats: ['webp'] }],
+    });
+    const [result] = await record(config);
+    vi.restoreAllMocks();
+    // The counter redraws every 40 ms, so every 100 ms frame differs.
+    expect(result).toMatchObject({ id: 'busy', frames: 5, durationMs: 500 });
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^ {2}clip busy: reached maxFrames \(5 frames\) after 500ms/));
+  });
+
   it('refuses unknown clip ids and web configs', async () => {
     const config = fixtureTty(tempDir());
     await expect(record(config, { only: ['nope'] })).rejects.toThrow('Unknown clip id(s): nope. Known: tour');

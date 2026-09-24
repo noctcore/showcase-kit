@@ -487,7 +487,8 @@ failure and on Ctrl+C). A failed clip fails alone, like a failed shot.
 | `caption`, `alt` | `title`, `<name>: <title>` | Like a shot's. |
 | `steps` | required | The timeline, see below. |
 | `fps` | `10` | Frames per second, 1 to 50. |
-| `durationMs` | none | Upper bound on the length. |
+| `durationMs` | `60000` | Upper bound on the length. |
+| `maxFrames` | `300` | Upper bound on the frames, counted after unchanged frames merge. At the limit the kit warns, stops recording and writes what it has. |
 | `tailMs` | `1500` | How long to keep recording after the last step. |
 | `formats` | `['webp', 'gif']` | Any of `'webp'`, `'gif'`, `'mp4'`. MP4 needs `ffmpeg` on PATH. |
 
@@ -500,7 +501,7 @@ Steps:
 | `{ waitFor }` | Waits until the text (a substring or a RegExp) is on screen, for up to `timeouts.shotMs`. |
 | `{ sleep }` | Pauses, in milliseconds. |
 
-The clip ends `tailMs` after the last step or at `durationMs`, whichever comes first. Clips go to `outputs.clips`
+The clip ends `tailMs` after the last step, at `durationMs` or at `maxFrames`, whichever comes first. Clips go to `outputs.clips`
 (default `assets/showcase/{lang}/{id}.{ext}`), framed like the README images: the frame is rendered once per clip
 and every frame of the terminal is put into it, so a clip matches the stills next to it. `frame.maxWidth` applies to
 clips too.

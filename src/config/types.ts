@@ -84,8 +84,14 @@ export interface Clip {
   steps: ClipStep[];
   /** Frames per second, 1 to 50. Default 10. */
   fps?: number;
-  /** Upper bound on the clip length in milliseconds. Default: none. */
+  /** Upper bound on the clip length in milliseconds. Default 60000. */
   durationMs?: number;
+  /**
+   * Upper bound on the frames, counted after unchanged frames merge (like `RecordedClip.frames`). Each distinct frame
+   * stays in memory until the clip is encoded. When a recording reaches it, the kit warns, stops recording and
+   * writes the frames so far. Default 300.
+   */
+  maxFrames?: number;
   /** How long to keep recording after the last step, in milliseconds. Default 1500. */
   tailMs?: number;
   /** Default `['webp', 'gif']`. `'mp4'` needs `ffmpeg` on PATH. */
@@ -340,7 +346,9 @@ export interface ResolvedClip {
   alt: string;
   steps: ClipStep[];
   fps: number;
+  /** `undefined` means the default, `DEFAULT_CLIP_DURATION_MS`. */
   durationMs: number | undefined;
+  maxFrames: number;
   tailMs: number;
   formats: ClipFormat[];
 }

@@ -2,12 +2,12 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import sharp from 'sharp';
 import { launchBrowser } from './browser.js';
-import { WEB_CLIPS_MESSAGE } from './config/clips.js';
+import { DEFAULT_CLIP_DURATION_MS, WEB_CLIPS_MESSAGE } from './config/clips.js';
 import { isTtyConfig } from './config/resolve.js';
 import type { ClipFormat, ResolvedClip, ResolvedConfig, ResolvedTtyConfig } from './config/types.js';
 import { encodeAnimation, requireFfmpeg, type AnimationFrame } from './encode.js';
 import { ShowcaseError } from './errors.js';
-import { composeInHole, renderFrameHole } from './frame/render.js';
+import { composeInHole, renderFrameHole, type FrameHole } from './frame/render.js';
 import { log } from './log.js';
 import { fillTemplate } from './template.js';
 import type { TtyEngine } from './tty/capture.js';
@@ -112,7 +112,6 @@ export async function recordClips(
 ): Promise<RecordedClip[]> {
   // Loaded only here: they pull in the terminal engine (xterm and the PTY package).
   const tty = await import('./tty/index.js');
-  const { startSession, closeSession } = await import('./tty/capture.js');
   const using: TtyEngine = engine ?? { openTtySession: tty.openTtySession, renderTtyScreen: tty.renderTtyScreen };
   // Fail before an app or a browser starts.
   tty.assertNodeRuntime();
@@ -129,14 +128,7 @@ export async function recordClips(
     for (const lang of langs) {
       for (const clip of clips) {
         try {
-          const session = await startSession(config, lang, using);
-          let samples: ClipSample[];
-          try {
-            samples = await recordTimeline(session, clip, config.timeouts.shotMs);
-          } finally {
-            await closeSession(config, session);
-          }
-          const frames = await renderFrames(samples, clip, lang, config, using, page, browser);
+          const frames = await recordFrames(config, clip, lang, using, page, browser);
           results.push(await writeClip(config, clip, lang, frames));
         } catch (error) {
           const message = (error as Error).message;
@@ -155,6 +147,26 @@ export async function recordClips(
     );
   }
   return results;
+}
+
+/** Start a fresh app, record the clip, close the app, and render the frames. The samples are dropped on return. */
+async function recordFrames(
+  config: ResolvedTtyConfig,
+  clip: ResolvedClip,
+  lang: string,
+  engine: TtyEngine,
+  page: Parameters<TtyEngine['renderTtyScreen']>[0],
+  browser: Awaited<ReturnType<typeof launchBrowser>>,
+): Promise<AnimationFrame[]> {
+  const { startSession, closeSession } = await import('./tty/capture.js');
+  const session = await startSession(config, lang, engine);
+  let samples: ClipSample[];
+  try {
+    samples = await recordTimeline(session, clip, config.timeouts.shotMs);
+  } finally {
+    await closeSession(config, session);
+  }
+  return renderFrames(samples, clip, lang, config, engine, page, browser);
 }
 
 const sleep = (ms: number): Promise<void> => new Promise(done => setTimeout(done, Math.max(0, ms)));
@@ -181,12 +193,14 @@ function screenNote(text: string): string {
  * Steps run in lockstep with the ticks, right after a sample, so a recording does not depend on how fast the
  * machine is: a key's effect shows from the next frame on (if the app redraws within one frame), a `keys` or
  * `type` step takes at least one frame, sleeps are rounded to whole frames, and `waitFor` looks at the sampled
- * frames. The recording ends `tailMs` after the last step, or at `durationMs`, whichever comes first.
+ * frames. The recording ends `tailMs` after the last step, at `durationMs` (default 60 s) or at `maxFrames`,
+ * whichever comes first; the last two warn.
  */
 export async function recordTimeline(session: TtySession, clip: ResolvedClip, waitTimeoutMs: number): Promise<ClipSample[]> {
   const interval = 1000 / clip.fps;
   const tailTicks = Math.round(clip.tailMs / interval);
-  const maxTicks = clip.durationMs === undefined ? Infinity : Math.max(1, Math.round(clip.durationMs / interval));
+  const durationMs = clip.durationMs ?? DEFAULT_CLIP_DURATION_MS;
+  const maxTicks = Math.max(1, Math.round(durationMs / interval));
   let exitCode: number | null | undefined;
   void session.exited.then(code => {
     exitCode = code;
@@ -250,6 +264,7 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
 
   const start = performance.now();
   let tick = 0;
+  let capped = false;
   for (; tick < maxTicks; tick++) {
     await sleep(start + tick * interval - performance.now());
     if (exitCode !== undefined) {
@@ -261,15 +276,25 @@ export async function recordTimeline(session: TtySession, clip: ResolvedClip, wa
     const screen = session.screen();
     const last = samples[samples.length - 1];
     if (last?.screen.key === screen.key) last.ticks++;
-    else samples.push({ screen, ticks: 1 });
+    else if (samples.length >= clip.maxFrames) {
+      capped = true;
+      break;
+    } else samples.push({ screen, ticks: 1 });
     if (doneAt === undefined) await runDue(tick, screen);
     if (doneAt !== undefined && tick >= doneAt + tailTicks) break;
   }
-  if (tick >= maxTicks && stepIndex < clip.steps.length) {
+  const at = `after ${String(Math.round(tick * interval))}ms`;
+  const left = clip.steps.length - stepIndex;
+  const notRun = left > 0 ? ` with ${String(left)} step(s) not run` : '';
+  if (capped) {
     log.warn(
-      `  clip ${clip.id}: durationMs (${String(clip.durationMs)}) ended the recording with ` +
-        `${String(clip.steps.length - stepIndex)} step(s) not run.`,
+      `  clip ${clip.id}: reached maxFrames (${String(clip.maxFrames)} frames) ${at}, so the recording stopped there${notRun}. ` +
+        `The frames so far are written. Raise clips[].maxFrames to record more; every distinct frame is held in ` +
+        `memory until the clip is encoded.`,
     );
+  } else if (tick >= maxTicks && stepIndex < clip.steps.length) {
+    const limit = clip.durationMs === undefined ? `the default durationMs (${String(durationMs)})` : `durationMs (${String(durationMs)})`;
+    log.warn(`  clip ${clip.id}: ${limit} ended the recording${notRun}.`);
   }
   return samples;
 }
@@ -290,7 +315,10 @@ function clipTitle(config: ResolvedTtyConfig, clip: ResolvedClip, lang: string):
   return fillTemplate(config.frame.title, { name: config.name, title: clip.title, id: clip.id, lang });
 }
 
-/** Render each unique screen once, frame it through one hole render, and pair it with its delay. */
+/**
+ * Render each unique screen once and frame it at once, through one hole render per clip, so only the framed PNG is
+ * kept per screen. Each sample then becomes a frame with its delay.
+ */
 async function renderFrames(
   samples: ClipSample[],
   clip: ResolvedClip,
@@ -300,31 +328,33 @@ async function renderFrames(
   page: Parameters<TtyEngine['renderTtyScreen']>[0],
   browser: Awaited<ReturnType<typeof launchBrowser>>,
 ): Promise<AnimationFrame[]> {
-  const rendered = new Map<string, Buffer>();
-  for (const { screen } of samples) {
-    if (!rendered.has(screen.key)) {
-      rendered.set(screen.key, await engine.renderTtyScreen(page, screen, config.terminal, config.deviceScaleFactor));
-    }
-  }
-  const first = rendered.values().next().value;
-  if (!first) throw new ShowcaseError('The recording has no frames.');
-  const { width = 0, height = 0 } = await sharp(first).metadata();
-  const hole = await renderFrameHole(browser, config, {
-    cssWidth: Math.round(width / config.deviceScaleFactor),
-    cssHeight: Math.round(height / config.deviceScaleFactor),
-    title: clipTitle(config, clip, lang),
-  });
   const { maxWidth } = config.frame;
-  const framed = new Map<string, Buffer>();
-  for (const [key, png] of rendered) {
-    let image = await composeInHole(hole, png);
-    if (maxWidth) {
-      image = await sharp(image).resize({ width: maxWidth, withoutEnlargement: true }).png({ compressionLevel: 1 }).toBuffer();
-    }
-    framed.set(key, image);
-  }
   const delays = sampleDelays(samples, clip.fps);
-  return samples.map((sample, index) => ({ png: framed.get(sample.screen.key) ?? first, delayMs: delays[index] ?? 0 }));
+  const framed = new Map<string, Buffer>();
+  let hole: FrameHole | undefined;
+  const frames: AnimationFrame[] = [];
+  for (const [index, { screen }] of samples.entries()) {
+    let image = framed.get(screen.key);
+    if (!image) {
+      const png = await engine.renderTtyScreen(page, screen, config.terminal, config.deviceScaleFactor);
+      if (!hole) {
+        const { width = 0, height = 0 } = await sharp(png).metadata();
+        hole = await renderFrameHole(browser, config, {
+          cssWidth: Math.round(width / config.deviceScaleFactor),
+          cssHeight: Math.round(height / config.deviceScaleFactor),
+          title: clipTitle(config, clip, lang),
+        });
+      }
+      image = await composeInHole(hole, png);
+      if (maxWidth) {
+        image = await sharp(image).resize({ width: maxWidth, withoutEnlargement: true }).png({ compressionLevel: 1 }).toBuffer();
+      }
+      framed.set(screen.key, image);
+    }
+    frames.push({ png: image, delayMs: delays[index] ?? 0 });
+  }
+  if (frames.length === 0) throw new ShowcaseError('The recording has no frames.');
+  return frames;
 }
 
 const kb = (bytes: number): string => `${String(Math.round(bytes / 1024))} KB`;

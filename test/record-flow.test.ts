@@ -26,6 +26,8 @@ class FakeSession implements TtySession {
     private readonly moves: Record<string, Record<string, string>>,
     private readonly events: string[],
     exitAfterMs?: number,
+    /** A key that makes the app exit (code 0), like a quit key. */
+    private readonly exitKey?: string,
   ) {
     this.exited = new Promise(resolve => (this.exit = resolve));
     if (exitAfterMs !== undefined) setTimeout(() => this.exit(3), exitAfterMs);
@@ -44,6 +46,7 @@ class FakeSession implements TtySession {
     for (const key of Array.isArray(keys) ? keys : [keys]) {
       this.events.push(`press ${key}`);
       this.state = this.moves[this.state]?.[key] ?? this.state;
+      if (key === this.exitKey) this.exit(0);
     }
   }
 
@@ -114,11 +117,11 @@ function ttyConfig(overrides: Partial<TtyConfig> = {}): ResolvedTtyConfig {
 }
 
 function clip(overrides: Partial<ResolvedClip>): ResolvedClip {
-  return { id: 'c', title: 'c', caption: undefined, alt: 'c', steps: [], fps: 10, durationMs: undefined, tailMs: 0, formats: ['webp'], ...overrides };
+  return { id: 'c', title: 'c', caption: undefined, alt: 'c', steps: [], fps: 10, durationMs: undefined, maxFrames: 300, tailMs: 0, formats: ['webp'], ...overrides };
 }
 
-function session(): FakeSession {
-  return new FakeSession({ command: 'x', cwd: '.', env: {}, cols: 30, rows: 8 }, MOVES, []);
+function session(exitAfterMs?: number, exitKey?: string): FakeSession {
+  return new FakeSession({ command: 'x', cwd: '.', env: {}, cols: 30, rows: 8 }, MOVES, [], exitAfterMs, exitKey);
 }
 
 afterEach(() => {
@@ -172,6 +175,47 @@ describe('recordTimeline', () => {
     const samples = await recordTimeline(session(), clip({ steps: [{ sleep: 5000 }, { keys: 'j' }], durationMs: 500 }), 1000);
     expect(samples.map(sample => [sample.screen.text, sample.ticks])).toEqual([['screen start', 5]]);
     expect(warn).toHaveBeenCalledWith('  clip c: durationMs (500) ended the recording with 1 step(s) not run.');
+  });
+
+  it('stops at maxFrames with a warning that says how to raise it, and keeps the frames so far', async () => {
+    const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    // One character a frame: every frame differs.
+    const samples = await recordTimeline(session(), clip({ steps: [{ type: 'abcdefgh', delayMs: 100 }], maxFrames: 4, tailMs: 0 }), 1000);
+    expect(samples.map(sample => [sample.screen.text, sample.ticks])).toEqual([
+      ['screen start', 1],
+      ['screen start a', 1],
+      ['screen start ab', 1],
+      ['screen start abc', 1],
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      '  clip c: reached maxFrames (4 frames) after 400ms, so the recording stopped there with 1 step(s) not run. ' +
+        'The frames so far are written. Raise clips[].maxFrames to record more; every distinct frame is held in ' +
+        'memory until the clip is encoded.',
+    );
+  });
+
+  it('counts only changed frames against maxFrames, so a long idle clip fits in a few', async () => {
+    const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const samples = await recordTimeline(session(), clip({ steps: [{ keys: 'j' }, { sleep: 400 }, { keys: 'j' }], maxFrames: 3, tailMs: 300 }), 1000);
+    expect(samples.map(sample => [sample.screen.text, sample.ticks])).toEqual([
+      ['screen start', 1],
+      ['screen second', 5],
+      ['screen third', 3],
+    ]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('ends at 60 s when durationMs is not set, and says it was the default', async () => {
+    vi.useFakeTimers();
+    try {
+      const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+      const recording = recordTimeline(session(), clip({ steps: [{ sleep: 120_000 }, { keys: 'j' }], fps: 1 }), 1000);
+      await vi.runAllTimersAsync();
+      expect((await recording).map(sample => [sample.screen.text, sample.ticks])).toEqual([['screen start', 60]]);
+      expect(warn).toHaveBeenCalledWith('  clip c: the default durationMs (60000) ended the recording with 1 step(s) not run.');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('keeps delays exact at a frame rate that does not divide a second', () => {
@@ -250,6 +294,19 @@ describe('recordClips, scripted engine', () => {
     expect((error as Error).message).toContain('Last screen:\n  | screen start');
     expect(sessions.map(item => item.closed)).toEqual([true, true]);
     expect(existsSync(join(config.root, 'assets', 'showcase', 'en', 'fine.webp'))).toBe(true);
+  });
+
+  it('writes what it recorded when a clip reaches maxFrames, instead of failing', async () => {
+    const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const config = ttyConfig({ clips: [{ id: 'busy', steps: [{ type: 'abcdefgh', delayMs: 100 }], maxFrames: 3, formats: ['webp'] }] });
+    const { engine, sessions, renders } = fakeEngine();
+    const [result] = await recordClips(config, config.clips, config.langs, engine);
+    expect(result).toMatchObject({ id: 'busy', frames: 3, durationMs: 300 });
+    expect(renders).toEqual(['screen start', 'screen start a', 'screen start ab']);
+    expect(sessions[0]?.closed).toBe(true);
+    const meta = await sharp(readFileSync(result?.files[0]?.path ?? ''), { animated: true }).metadata();
+    expect([meta.pages, meta.delay]).toEqual([3, [100, 100, 100]]);
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^ {2}clip busy: reached maxFrames \(3 frames\) after 300ms/));
   });
 
   it('says so when the app exits during the recording', async () => {
