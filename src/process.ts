@@ -65,25 +65,43 @@ function hasExited(child: ChildProcess): boolean {
   return child.exitCode !== null || child.signalCode !== null;
 }
 
+/** Started processes that are still alive. */
 const running = new Set<StartedProcess>();
-let handlersInstalled = false;
 
-/** Ctrl+C and friends must not leave a dev server behind. */
-function installExitHandlers(): void {
-  if (handlersInstalled) return;
-  handlersInstalled = true;
-  const cleanup = (): void => {
-    for (const child of running) killTreeSync(child.pid);
-    running.clear();
-  };
-  process.on('exit', cleanup);
-  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
-    process.on(signal, () => {
+const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
+
+function killRunning(): void {
+  for (const child of running) killTreeSync(child.pid);
+  running.clear();
+}
+
+const signalHandlers = new Map(
+  SIGNALS.map(signal => [
+    signal,
+    (): void => {
       log.warn(`\nReceived ${signal}, stopping started processes.`);
-      cleanup();
+      killRunning();
       process.exit(signal === 'SIGINT' ? 130 : 143);
-    });
+    },
+  ]),
+);
+
+/**
+ * Ctrl+C and friends must not leave a dev server behind, but a library must not own the host's shutdown
+ * either: the handlers exist only while at least one started process is alive.
+ */
+function track(handle: StartedProcess): void {
+  if (running.size === 0) {
+    process.on('exit', killRunning);
+    for (const [signal, handler] of signalHandlers) process.on(signal, handler);
   }
+  running.add(handle);
+}
+
+function untrack(handle: StartedProcess): void {
+  if (!running.delete(handle) || running.size > 0) return;
+  process.off('exit', killRunning);
+  for (const [signal, handler] of signalHandlers) process.off(signal, handler);
 }
 
 /**
@@ -96,7 +114,6 @@ export function startCommand(
   command: string,
   { cwd, env, label = 'start' }: { cwd: string; env?: Record<string, string>; label?: string },
 ): StartedProcess {
-  installExitHandlers();
   const child: ChildProcess = spawn(command, {
     cwd,
     env: { ...process.env, ...env },
@@ -132,7 +149,7 @@ export function startCommand(
 
   const exited = new Promise<number | null>(resolve => {
     child.on('exit', code => {
-      running.delete(handle);
+      untrack(handle);
       resolve(code);
     });
     child.on('error', () => resolve(null));
@@ -145,7 +162,7 @@ export function startCommand(
     tail: () => lines.join('\n'),
     stop() {
       stopping ??= (async () => {
-        running.delete(handle);
+        untrack(handle);
         // Once the child has exited its PID can be reused (Windows does so quickly), and a tree kill
         // would hit whatever owns it now. Until the exit is observed, Node holds the process handle open,
         // so the PID still refers to our child.
@@ -161,7 +178,7 @@ export function startCommand(
       return stopping;
     },
   };
-  running.add(handle);
+  track(handle);
   return handle;
 }
 

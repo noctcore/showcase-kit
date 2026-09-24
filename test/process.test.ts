@@ -46,6 +46,29 @@ describe('startCommand', () => {
     expect(kills.list).toEqual([]);
   });
 
+  it('holds SIGINT/SIGTERM/SIGHUP/exit handlers only while a started process is alive', async () => {
+    const events = ['SIGINT', 'SIGTERM', 'SIGHUP', 'exit'] as const;
+    const counts = (): number[] => events.map(event => process.listenerCount(event));
+    const baseline = counts();
+
+    expect(() => startCommand('node -v', { cwd: join(tempDir(), 'missing') })).toThrow(ShowcaseError);
+    expect(counts()).toEqual(baseline);
+
+    const first = startCommand('node -e "setInterval(() => {}, 1000)"', { cwd: process.cwd() });
+    const second = startCommand('node -e "setInterval(() => {}, 1000)"', { cwd: process.cwd() });
+    expect(counts()).toEqual(baseline.map(count => count + 1));
+    await first.stop();
+    expect(counts()).toEqual(baseline.map(count => count + 1));
+    await second.stop();
+    expect(counts()).toEqual(baseline);
+
+    // A process that ends on its own releases them too.
+    const quick = startCommand('node -e "process.exit(0)"', { cwd: process.cwd() });
+    expect(counts()).toEqual(baseline.map(count => count + 1));
+    await quick.exited;
+    expect(counts()).toEqual(baseline);
+  });
+
   it('still kills a live process tree', async () => {
     watchGroupKills();
     const started = startCommand('node -e "setInterval(() => {}, 1000)"', { cwd: process.cwd() });
