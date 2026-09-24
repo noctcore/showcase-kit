@@ -555,7 +555,9 @@ WebP, 11.8 MB of GIF and 7.7 MB of MP4, and took about two minutes to render and
 
 **ffmpeg.** Needed only for `'mp4'`, and found on PATH without a shell (`ffmpeg.exe` on Windows). Install it with
 `winget install ffmpeg`, `brew install ffmpeg` or `apt install ffmpeg`. When a clip asks for MP4 and there is no
-ffmpeg, `record` stops before starting anything and says so.
+ffmpeg, `record` stops before starting anything and says so. Relative PATH entries (such as `.`) are skipped, so the
+binary never depends on the working directory. Ctrl+C while ffmpeg runs stops it and removes its temporary folder, and
+an encode that takes over 5 minutes is stopped with an error.
 
 ## Icons
 
@@ -720,7 +722,8 @@ Playwright page whose context has the same device scale factor. `parseKeys`, `DA
 
 `record(config, { only, langs })` records clips, and `encodeAnimation(frames, { format, loop, quality, fps })` is
 the encoder behind it: frames of one size as `{ png, delayMs }` in, an animated WebP (lossless, or lossy with
-`quality`), a GIF, or an MP4 through `ffmpeg` out.
+`quality`), a GIF, or an MP4 through `ffmpeg` out. A delay longer than one WebP or GIF frame can hold (65535 ms in
+sharp) is split into repeats of the same image, and input it cannot encode is refused with a `ShowcaseError`.
 
 ## License
 
