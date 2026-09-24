@@ -197,8 +197,9 @@ shims) in its own process tree. When the run ends, fails, or you press Ctrl+C, t
   page being captured;
 - explicit: `{ click: 'text=Library' }` or `{ goto: '/settings' }`. `goto` also takes what a link would: `'#/settings'`
   and `'?tab=2'` keep the target url's file (`http://h/app/index.html#/settings`), and `'docs/'` or `'../x'` resolve
-  from the url as written. Only a leading `/` gets the base directory rule. A protocol-relative `'//host/x'` gets it
-  too, so it stays on the target origin instead of visiting another host;
+  from the url as written. Only a leading `/` gets the base directory rule (read as the url parser reads it, so also
+  a leading `\`, or either after leading spaces). A protocol-relative `'//host/x'` gets it too, so it stays on the
+  target origin instead of visiting another host;
 - a function: `async page => { await page.getByRole('button', { name: 'Open' }).click(); }`.
 
 Before each shutter the kit waits for `waitFor`, a bounded network idle, `document.fonts.ready` and two animation
