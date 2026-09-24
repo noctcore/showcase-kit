@@ -9,7 +9,7 @@ export const DEFAULT_CLIP_DURATION_MS = 60_000;
 /**
  * How many frames a clip may have (after identical neighbours merge). Every distinct frame is held as a framed PNG
  * until the clip is encoded, about 350 KB for a busy 80x24 screen at DPR 2 (1776x1376 framed), so the default keeps
- * a clip near 0.7 GB of peak memory; sharp's encoders stream the frames and add little.
+ * a busy 30 s clip near 550 MB of peak memory; sharp's encoders stream the frames and add little.
  */
 export const DEFAULT_MAX_FRAMES = 300;
 
