@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { isAbsolute, join, parse, relative } from 'node:path';
 import sharp from 'sharp';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { encodeAnimation, findExecutable, gifDelays, splitDelays, type AnimationFrame, type EncodeOptions } from '../src/encode.js';
@@ -189,6 +189,29 @@ describe('findExecutable', () => {
     expect(findExecutable('fake-tool', { Path: [other, dir].join(process.platform === 'win32' ? ';' : ':') })).toBe(file);
     expect(findExecutable('fake-tool', { PATH: other })).toBeUndefined();
     expect(findExecutable('fake-tool', {})).toBeUndefined();
+  });
+
+  it('skips relative PATH entries, which would depend on the working directory', () => {
+    const dir = tempDir();
+    const file = join(dir, process.platform === 'win32' ? 'fake-tool.exe' : 'fake-tool');
+    writeFileSync(file, '');
+    if (process.platform !== 'win32') chmodSync(file, 0o755);
+    const fromCwd = relative(process.cwd(), dir);
+    expect(isAbsolute(fromCwd)).toBe(false);
+    expect(findExecutable('fake-tool', { PATH: fromCwd })).toBeUndefined();
+  });
+
+  it.runIf(process.platform === 'win32')('returns a drive-relative PATH entry with its drive (Windows)', () => {
+    // `\path\to\dir` names a folder on the current drive, so the folder must be on the working directory's drive
+    // (CI keeps the temp folder on another one).
+    const dir = mkdtempSync(join(process.cwd(), 'node_modules', '.showcase-path-'));
+    try {
+      const file = join(dir, 'fake-tool.exe');
+      writeFileSync(file, '');
+      expect(findExecutable('fake-tool', { Path: dir.slice(parse(dir).root.length - 1) })).toBe(file);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it.runIf(process.platform !== 'win32')('skips a file that is not executable (POSIX)', () => {

@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { accessSync, constants, statSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { delimiter, isAbsolute, join, resolve } from 'node:path';
 import sharp from 'sharp';
 import { ShowcaseError } from './errors.js';
 
@@ -138,14 +138,20 @@ export function splitDelays(delays: number[], max: number, unit: number): Array<
   return pieces;
 }
 
-/** An executable on PATH, found without a shell. On Windows only `<name>.exe` counts: a `.cmd` needs a shell. */
+/**
+ * An executable on PATH, found without a shell, as an absolute path. On Windows only `<name>.exe` counts: a `.cmd`
+ * needs a shell. Relative PATH entries (such as `.`) are skipped: they would depend on the working directory.
+ */
 export function findExecutable(name: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
   // Windows spells it `Path`; a plain object (not process.env) is case-sensitive.
   const pathKey = Object.keys(env).find(key => key.toUpperCase() === 'PATH');
   const dirs = (pathKey === undefined ? '' : (env[pathKey] ?? '')).split(delimiter).filter(Boolean);
   const file = process.platform === 'win32' ? `${name}.exe` : name;
-  for (const dir of dirs) {
-    const candidate = join(dir.replace(/^"(.*)"$/, '$1'), file);
+  for (const entry of dirs) {
+    const dir = entry.replace(/^"(.*)"$/, '$1');
+    if (!isAbsolute(dir)) continue;
+    // On Windows `\tools` is absolute but on the current drive; resolving it pins that drive now.
+    const candidate = resolve(dir, file);
     try {
       if (!statSync(candidate).isFile()) continue;
       if (process.platform !== 'win32') accessSync(candidate, constants.X_OK);
