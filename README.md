@@ -364,23 +364,28 @@ screen. Without `waitFor` it gives the app up to one second to redraw after the 
 slower. `setup` runs in each new process once `ready` has shown and receives `{ tty, lang, mode: 'tty', config }`.
 A failed shot fails alone, and its error shows the screen the app was on.
 
-When the run ends, fails, or you press Ctrl+C, the kit sends `quitKey`, waits briefly, and then kills the app's whole
-process tree by PID.
+When the run ends, fails, or you press Ctrl+C, the kit sends `quitKey` (parsed like `keys`, so `'{C-c}'` works),
+waits up to 1.5 s for the app to quit, and then kills the app's whole process tree by PID.
 
 ### `terminal`
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `theme` | `'dark'` | `'dark'`, `'light'`, or `{ background, foreground, cursor?, ansi }` with exactly 16 `ansi` colors (8 normal, then 8 bright). |
-| `font.file` | bundled JetBrains Mono | A `.woff2`, `.woff` or `.ttf` file, relative to the config. `boldFile`, `italicFile` and `boldItalicFile` set the other faces. |
+| `theme` | `'dark'` | `'dark'`, `'light'`, or `{ background, foreground, cursor?, ansi }` in `#rrggbb` colors, with exactly 16 `ansi` colors (8 normal, then 8 bright). |
+| `font.file` | bundled JetBrains Mono | A `.woff2`, `.woff`, `.ttf` or `.otf` file, relative to the config. `boldFile`, `italicFile` and `boldItalicFile` set the other faces. |
 | `font.fallbackFile` | none | A second font for glyphs the main one lacks, for example a symbols or Nerd Font for icons. |
 | `font.size` | `15` | CSS pixels. |
 | `lineHeight` | `1.32` | Multiple of the font size, rounded to whole pixels. |
 | `padding` | `12` | CSS pixels between the grid and the edge of the capture. |
 | `cursor` | `'hide'` | `'show'` draws it (never blinking). |
 
-The raw capture is `cols` cells wide and `rows` cells high plus `padding` on each side, times `deviceScaleFactor`.
-Cells are whole pixels wide, and ligatures and kerning are off, so columns line up exactly.
+The raw capture is `cols` cells wide and `rows` cells high plus `padding` on each side, times `deviceScaleFactor`:
+with the defaults a cell is 9 x 20 CSS pixels, so 120 x 32 at DPR 2 is 2208 x 1328. Cells are whole pixels wide,
+and ligatures and kerning are off, so columns line up exactly. Rendering never touches the network: the fonts are
+inlined into the page.
+
+The bundled font is JetBrains Mono 2.304 under the SIL Open Font License 1.1; the license ships with the package
+(`dist/fonts/OFL.txt`).
 
 ### Determinism checklist
 
@@ -576,6 +581,12 @@ await generateIcons('mascot.png', 'web', 'public');
 `resolveConfig(object, rootDir)` validates a config object without a file, and `defineConfig` only exists for
 types and editor completion: it reads `target.mode`, so tty `setup` and `nav` functions get the terminal session
 instead of a page. A resolved config is a web or a tty config; `isTtyConfig(config)` tells them apart.
+
+The terminal engine is exported too, for scripts of your own: `openTtySession({ command, cwd, env, cols, rows })`
+returns a session with `press`, `type`, `waitForText`, `screen` and `close`, and
+`renderTtyScreen(page, session.screen(), resolveTerminalOptions(undefined, cwd), 2)` renders a screen to a PNG in a
+Playwright page whose context has the same device scale factor. `parseKeys`, `DARK_THEME`, `LIGHT_THEME` and
+`TERMINAL_DEFAULTS` come with them.
 
 ## License
 
