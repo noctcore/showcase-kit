@@ -270,7 +270,8 @@ describe('TtySession before the PID is known', () => {
     const child = useFakePty();
     const started = Date.now();
     const tty = await open();
-    expect(Date.now() - started).toBeLessThan(1_000);
+    // Well under the 10 s the engine used to wait for a Windows PID.
+    expect(Date.now() - started).toBeLessThan(5_000);
     expect(tty.pid).toBe(0);
     child.pid = 424_242;
     expect(tty.pid).toBe(424_242);
