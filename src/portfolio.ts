@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { copyFile, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { launchBrowser } from './browser.js';
 import type { ResolvedConfig, ResolvedPortfolio } from './config/types.js';
 import { ShowcaseError } from './errors.js';
@@ -102,7 +102,7 @@ export async function exportPortfolio(config: ResolvedConfig, options: { only?: 
     }));
   const galleryFile = join(dir, GALLERY_FILE);
   await writeFile(galleryFile, `${JSON.stringify(gallery, null, 2)}\n`);
-  log.info(`  ok    gallery  ${String(gallery.length)} item(s)  ${galleryFile}`);
+  log.info(`  ok    gallery  ${String(gallery.length)} item(s)  ${relative(process.cwd(), galleryFile)}`);
 
   return { dir, files, thumbnail, gallery, galleryFile };
 }
