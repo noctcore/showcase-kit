@@ -4,6 +4,7 @@ import { relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { capture } from './capture.js';
 import { loadConfig } from './config/load.js';
+import { isTtyConfig } from './config/resolve.js';
 import type { ResolvedConfig } from './config/types.js';
 import { ShowcaseError } from './errors.js';
 import { frame } from './frame/index.js';
@@ -13,6 +14,7 @@ import { init } from './init.js';
 import { log } from './log.js';
 import { exportPortfolio } from './portfolio.js';
 import { readmeSnippet } from './readme.js';
+import { record, splitIds } from './record.js';
 
 const HELP = `showcase: capture, frame and export showcase images of your app
 
@@ -23,7 +25,8 @@ Commands:
   frame       Turn raw captures into framed README images
   portfolio   Export fixed-size portfolio images, thumbnail and gallery JSON
   readme      Print an HTML table of the framed images for a README
-  all         capture, then frame, then portfolio (if configured)
+  record      Record animated clips of a terminal app (WebP and GIF, MP4 opt-in)
+  all         capture, frame, portfolio (if configured), then record (if clips exist)
   hero        Render a README banner: logo, name, tagline and stacked shots
   icons       Generate an app icon set from one square image (no config needed)
   init        Write a starter showcase.config.mjs (--tty for a terminal app)
@@ -31,8 +34,9 @@ Commands:
 Options:
   -c, --config <file>   Config file (default: showcase.config.{ts,mts,mjs,js} in the
                         current directory or a parent, up to the project root)
-      --only <ids>      Comma-separated shot ids (capture, frame, portfolio, readme, all)
-      --langs <codes>   Comma-separated languages (capture, frame, all)
+      --only <ids>      Comma-separated shot or clip ids (capture, frame, portfolio,
+                        readme, record, all)
+      --langs <codes>   Comma-separated languages (capture, frame, record, all)
       --lang <code>     Language for readme (default: the first in langs)
       --cols <n>        Images per row for readme (default 2)
       --base <dir>      Directory the README is in, for relative image paths (readme)
@@ -128,19 +132,28 @@ async function main(argv: string[]): Promise<void> {
     hero: async config => {
       await hero(config);
     },
+    record: async config => {
+      await record(config, { only: list(values.only), langs: list(values.langs) });
+    },
     readme: async config => {
       const cols = values.cols === undefined ? undefined : Number(values.cols);
       console.log(readmeSnippet(config, { lang: values.lang, cols, base: values.base, only: list(values.only) }));
     },
     all: async config => {
-      const only = list(values.only);
-      log.info('Capturing');
-      await capture(config, { only, langs: list(values.langs) });
-      await frame(config, { only, langs: list(values.langs) });
-      if (config.outputs.portfolio) {
-        await exportPortfolio(config, { only });
-      } else {
-        log.info('No outputs.portfolio configured, skipping the portfolio export.');
+      const { shots: only, clips } = splitIds(config, list(values.only));
+      if (only === undefined || only.length > 0) {
+        log.info('Capturing');
+        await capture(config, { only, langs: list(values.langs) });
+        await frame(config, { only, langs: list(values.langs) });
+        if (config.outputs.portfolio) {
+          await exportPortfolio(config, { only });
+        } else {
+          log.info('No outputs.portfolio configured, skipping the portfolio export.');
+        }
+      }
+      if (isTtyConfig(config) && config.clips.length > 0 && (clips === undefined || clips.length > 0)) {
+        log.info('Recording clips');
+        await record(config, { only: clips, langs: list(values.langs) });
       }
     },
   };

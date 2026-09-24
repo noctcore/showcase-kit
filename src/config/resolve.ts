@@ -1,6 +1,7 @@
 import { isAbsolute, resolve } from 'node:path';
 import { ConfigError } from '../errors.js';
 import { resolveTerminalOptions } from '../tty/theme.js';
+import { DEFAULT_CLIPS, resolveClips, WEB_CLIPS_MESSAGE } from './clips.js';
 import {
   checkTerminal,
   resolveTtyShots,
@@ -346,7 +347,7 @@ const WEB_KEYS = [
   'browser',
   'timeouts',
 ];
-const TTY_KEYS = [...WEB_KEYS.filter(key => !(key in WEB_ONLY_KEYS)), 'terminal'];
+const TTY_KEYS = [...WEB_KEYS.filter(key => !(key in WEB_ONLY_KEYS)), 'terminal', 'clips'];
 
 /**
  * Validate a user config and fill in every default.
@@ -363,7 +364,7 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
   const ttyTarget = isObj(input.target) && input.target.mode === 'tty' ? input.target : undefined;
   const tty = ttyTarget !== undefined;
   if (tty) checkKeys(issues, 'config', input, TTY_KEYS, WEB_ONLY_KEYS);
-  else checkKeys(issues, 'config', input, WEB_KEYS, TTY_ONLY_KEYS);
+  else checkKeys(issues, 'config', input, WEB_KEYS, { ...TTY_ONLY_KEYS, clips: WEB_CLIPS_MESSAGE });
 
   const name = str(issues, 'name', input.name, true);
   const slug = str(issues, 'slug', input.slug) ?? slugify(name);
@@ -390,7 +391,7 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
   const ttyShots = tty ? resolveTtyShots(issues, input.shots, name) : [];
   const webShots = tty ? [] : resolveWebShots(issues, input.shots, name);
   const shots: ResolvedShot[] = tty ? ttyShots : webShots;
-  const outputs = resolveOutputs(issues, input.outputs, shots, langs);
+  const outputs = resolveOutputs(issues, input.outputs, shots, langs, tty);
 
   const browser = input.browser === undefined ? {} : input.browser;
   if (isObj(browser)) {
@@ -445,6 +446,7 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
       terminal: resolveTerminalOptions(issues.list.length === issuesBefore ? terminal : undefined, rootDir),
       setup: input.setup as ResolvedTtyConfig['setup'],
       shots: ttyShots,
+      clips: resolveClips(issues, input.clips, name, ttyShots),
     };
   } else {
     config = {
@@ -483,13 +485,15 @@ function resolveOutputs(
   value: unknown,
   shots: ResolvedShot[],
   langs: string[],
+  tty: boolean,
 ): ResolvedConfig['outputs'] {
   const outputs = value === undefined ? {} : value;
   if (!isObj(outputs)) {
     issues.add('outputs', `must be an object, got ${describe(outputs)}`);
-    return { raw: DEFAULT_RAW, readme: DEFAULT_README, portfolio: undefined };
+    return { raw: DEFAULT_RAW, readme: DEFAULT_README, portfolio: undefined, clips: DEFAULT_CLIPS };
   }
-  checkKeys(issues, 'outputs', outputs, ['raw', 'readme', 'portfolio']);
+  if (tty) checkKeys(issues, 'outputs', outputs, ['raw', 'readme', 'portfolio', 'clips']);
+  else checkKeys(issues, 'outputs', outputs, ['raw', 'readme', 'portfolio'], { clips: WEB_CLIPS_MESSAGE });
   const required = langs.length > 1 ? ['id', 'lang'] : ['id'];
   const allowed = ['lang', 'id', 'slug'];
   return {
@@ -503,5 +507,10 @@ function resolveOutputs(
             extensions: ['.webp', '.png'],
           }),
     portfolio: resolvePortfolio(issues, outputs.portfolio, shots, langs),
+    clips: pathTemplate(issues, 'outputs.clips', tty ? outputs.clips : undefined, DEFAULT_CLIPS, {
+      allowed: [...allowed, 'ext'],
+      required: [...required, 'ext'],
+      extensions: ['.{ext}'],
+    }),
   };
 }

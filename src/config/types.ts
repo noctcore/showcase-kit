@@ -57,6 +57,41 @@ export interface TtyShot {
   restart?: boolean;
 }
 
+/** One step of a clip's timeline. Steps run on the clip's frame clock, so a key's effect shows from the next frame. */
+export type ClipStep =
+  /** Keys to press, like a shot's `keys`. */
+  | { keys: Keys }
+  /** Text typed literally (no `{Key}` names), all at once or one character every `delayMs`. */
+  | { type: string; delayMs?: number }
+  /** Wait until this text is on screen (a substring or a RegExp), bounded by `timeouts.shotMs`. */
+  | { waitFor: string | RegExp }
+  /** Pause, in milliseconds, rounded to whole frames. */
+  | { sleep: number };
+
+export type ClipFormat = 'webp' | 'gif' | 'mp4';
+
+/** A short animated recording of a terminal app, written by `showcase record`. Each clip starts a fresh app. */
+export interface Clip {
+  /** File name stem and `{id}` token. Letters, digits, `-` and `_`; must not repeat a shot id. */
+  id: string;
+  /** Human name, used in the frame title. Defaults to `id`. */
+  title?: string;
+  /** Caption under the clip in the README table. */
+  caption?: string;
+  /** Alt text. Defaults to `<name>: <title>`. */
+  alt?: string;
+  /** The timeline, run once the app is ready and `setup` has run. */
+  steps: ClipStep[];
+  /** Frames per second, 1 to 50. Default 10. */
+  fps?: number;
+  /** Upper bound on the clip length in milliseconds. Default: none. */
+  durationMs?: number;
+  /** How long to keep recording after the last step, in milliseconds. Default 1500. */
+  tailMs?: number;
+  /** Default `['webp', 'gif']`. `'mp4'` needs `ffmpeg` on PATH. */
+  formats?: ClipFormat[];
+}
+
 export interface UrlTarget {
   mode: 'url';
   /** The app's URL. Path `nav` values resolve under its path: it is the app's base directory. */
@@ -190,6 +225,8 @@ export interface Outputs {
    */
   readme?: string | false;
   portfolio?: PortfolioOutput;
+  /** Clip path without a fixed extension. Tokens: `{lang}`, `{id}`, `{slug}`, `{ext}`. Default `assets/showcase/{lang}/{id}.{ext}`. */
+  clips?: string;
 }
 
 export interface HeroOptions {
@@ -270,9 +307,11 @@ export interface TtyConfig extends CommonConfig {
   ready?: string | RegExp;
   /** How the terminal looks: theme, font, line height, padding, cursor. */
   terminal?: TerminalOptions;
-  /** Runs in each new app process once it is ready, before its first shot. */
+  /** Runs in each new app process once it is ready, before its first shot or clip. */
   setup?: (ctx: TtySetupContext) => Promise<void> | void;
   shots: TtyShot[];
+  /** Animated recordings, written by `showcase record` (and `showcase all`). */
+  clips?: Clip[];
 }
 
 /**
@@ -292,6 +331,18 @@ export interface ResolvedTtyShot extends TtyShot {
   alt: string;
   delayMs: number;
   restart: boolean;
+}
+
+export interface ResolvedClip {
+  id: string;
+  title: string;
+  caption: string | undefined;
+  alt: string;
+  steps: ClipStep[];
+  fps: number;
+  durationMs: number | undefined;
+  tailMs: number;
+  formats: ClipFormat[];
 }
 
 /** A shot of either kind. Frames, the portfolio, the hero and the README only read `id`, `title`, `alt`, `caption`. */
@@ -360,7 +411,7 @@ interface ResolvedCommon {
   deviceScaleFactor: number;
   langs: string[];
   frame: ResolvedFrame;
-  outputs: { raw: string; readme: string | false; portfolio: ResolvedPortfolio | undefined };
+  outputs: { raw: string; readme: string | false; portfolio: ResolvedPortfolio | undefined; clips: string };
   hero: ResolvedHero;
   browser: BrowserOptions;
   timeouts: Required<Timeouts>;
@@ -382,6 +433,7 @@ export interface ResolvedTtyConfig extends ResolvedCommon {
   terminal: ResolvedTerminalOptions;
   setup: TtyConfig['setup'];
   shots: ResolvedTtyShot[];
+  clips: ResolvedClip[];
 }
 
 /** A validated config with every default filled in: the web or the tty kind, told apart by `target.mode`. */

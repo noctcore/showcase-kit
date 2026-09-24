@@ -49,7 +49,8 @@ npx showcase readme       # print the README table
 | `showcase frame` | Frame the raw captures into `outputs.readme` (`.webp` or `.png`). |
 | `showcase portfolio` | Export `outputs.portfolio`: one image per shot, `thumbnail.<format>`, `showcase.gallery.json`. |
 | `showcase readme` | Print an HTML table of the framed images with `<sub>` captions. |
-| `showcase all` | `capture`, then `frame`, then `portfolio` when it is configured. |
+| `showcase record` | Record the terminal `clips` into `outputs.clips` (WebP and GIF, MP4 opt-in). |
+| `showcase all` | `capture`, then `frame`, then `portfolio` when it is configured, then `record` when there are `clips`. |
 | `showcase hero` | Render the README banner to `hero.output`. |
 | `showcase icons --source <png> --preset <web\|electron\|tauri> [--out <dir>]` | Generate an icon set. Needs no config. |
 | `showcase init` | Write a starter config, filled in from `package.json`. `--tty` starts from a terminal app config. |
@@ -59,8 +60,8 @@ Options:
 | Option | Applies to | Meaning |
 | --- | --- | --- |
 | `-c, --config <file>` | all | Config file. By default the kit looks for `showcase.config.{ts,mts,mjs,js}` in the current directory, then in each parent up to the project root: the first directory with a `package.json` or `.git`. In a monorepo, run from the package that has the config or pass `--config`. |
-| `--only <ids>` | capture, frame, portfolio, readme, all | Comma-separated shot ids. |
-| `--langs <codes>` | capture, frame, all | Comma-separated languages. |
+| `--only <ids>` | capture, frame, portfolio, readme, record, all | Comma-separated shot ids, or clip ids for `record`. `readme` and `all` take both. |
+| `--langs <codes>` | capture, frame, record, all | Comma-separated languages. |
 | `--lang <code>` | readme | Language of the images in the table (default: the first of `langs`). |
 | `--cols <n>` | readme | Images per row (default 2). |
 | `--base <dir>` | readme | Directory the README is in, for relative image paths (default: the config's directory). |
@@ -227,6 +228,7 @@ keep README images lighter.
 | `raw` | `showcase-out/raw/{lang}/{id}.png` | Raw captures. Must be `.png`. |
 | `readme` | `assets/showcase/{lang}/{id}.webp` | Framed images. `.webp` or `.png`. `false` skips them (portfolio-only configs). |
 | `portfolio` | none | Portfolio export, see below. |
+| `clips` | `assets/showcase/{lang}/{id}.{ext}` | Terminal clips (tty mode). Also takes `{ext}`, and must end in `.{ext}`. |
 
 Path tokens are `{lang}`, `{id}` and `{slug}`. `{id}` is required, and so is `{lang}` once there is more than
 one language, so files never overwrite each other. Add `showcase-out/` to `.gitignore`; commit the framed images.
@@ -448,6 +450,107 @@ The kit can only freeze what the app lets it freeze. The terminal equivalent of 
 - **Linux:** `@lydell/node-pty` has prebuilds for x64 and arm64 glibc; Alpine (musl) is untested.
 - **Bun:** run the CLI with Node (above). Your app itself can be a Bun app: `command: ['bun', 'run', 'src/index.tsx']`.
 
+### Clips
+
+`clips` records short animated clips of a terminal app, next to the still shots. `showcase record` writes them, and
+`showcase all` records them too once `clips` exist:
+
+```js
+export default defineConfig({
+  name: 'Rumi',
+  target: { mode: 'tty', command: ['bun', 'run', 'src/index.tsx'], env: { RUMI_MOCK: '1' } },
+  ready: /resources \(\d+\)/,
+  frame: { background: '#1e1b4b' },
+  shots: [{ id: 'resources', title: 'Resources' }],
+  clips: [
+    {
+      id: 'tour',
+      title: 'Tour',
+      caption: 'Moving through the resources, then the logs.',
+      steps: [{ sleep: 1000 }, { keys: 'jjj' }, { sleep: 800 }, { keys: '{Tab}' }, { waitFor: 'logs' }, { type: 'api', delayMs: 120 }],
+    },
+  ],
+});
+```
+
+Each clip starts a fresh app, so it is the same from a clean start every time: the kit waits for `ready`, the
+`inputDelayMs` grace and `setup`, runs the steps while it records, then closes the app with `quitKey` (also on a
+failure and on Ctrl+C). A failed clip fails alone, like a failed shot.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `id` | required | File name stem and `{id}` token. Must not repeat a shot id (they share output folders). |
+| `title` | `id` | Frame title (`{title}` in `frame.title`) and the README caption. |
+| `caption`, `alt` | `title`, `<name>: <title>` | Like a shot's. |
+| `steps` | required | The timeline, see below. |
+| `fps` | `10` | Frames per second, 1 to 50. |
+| `durationMs` | none | Upper bound on the length. |
+| `tailMs` | `1500` | How long to keep recording after the last step. |
+| `formats` | `['webp', 'gif']` | Any of `'webp'`, `'gif'`, `'mp4'`. MP4 needs `ffmpeg` on PATH. |
+
+Steps:
+
+| Step | Does |
+| --- | --- |
+| `{ keys }` | Presses keys, like a shot's `keys`: `'jjj'`, `'{Tab}'`, `['{Down}', '{Enter}']`. |
+| `{ type, delayMs? }` | Types text as is (no `{Key}` names): all at once, or one character every `delayMs`. |
+| `{ waitFor }` | Waits until the text (a substring or a RegExp) is on screen, for up to `timeouts.shotMs`. |
+| `{ sleep }` | Pauses, in milliseconds. |
+
+The clip ends `tailMs` after the last step or at `durationMs`, whichever comes first. Clips go to `outputs.clips`
+(default `assets/showcase/{lang}/{id}.{ext}`), framed like the README images: the frame is rendered once per clip
+and every frame of the terminal is put into it, so a clip matches the stills next to it. `frame.maxWidth` applies to
+clips too.
+
+**How the recording works.** The kit samples the screen on its own clock, once per frame, and runs the steps in
+step with that clock, right after a sample. So a key's effect shows from the next frame on, as long as the app
+redraws within one frame (100 ms at 10 fps), a `keys` or `type` step takes at least one frame, sleeps are rounded
+to whole frames, and `waitFor` looks at the recorded frames. Frames that did not change are merged into one longer
+frame, and each distinct screen is rendered once. That makes two things true:
+
+- **Idle time is cheap.** A tail or a pause on an unchanged screen is a single frame, whatever its length or `fps`.
+- **Recordings repeat.** On one OS, two recordings of the same clip of an app with a frozen screen give
+  byte-identical files. Timing noise in the app can only move a change to a neighbouring frame; it never changes
+  the clip's length.
+
+**Formats.** WebP (lossless) and GIF are written by default. GitHub READMEs show both with `<img>`, and
+`showcase readme` lists clips after the shots that way (the WebP when there is one). MP4 is opt-in: GitHub is not known to
+play a video from the repository inline, so `readme` links to it, and a portfolio site can use `<video>`.
+
+| Format | Encoder | Notes |
+| --- | --- | --- |
+| WebP | sharp, lossless | Sharp text, full color, alpha. Small when the frame background is a solid color. |
+| GIF | sharp, 256 colors per frame | Plays everywhere. Delays are rounded to hundredths of a second on a running total, so the length holds. |
+| MP4 | `ffmpeg` from PATH, H.264 CRF 23, 30 fps | Smallest for busy clips. No alpha: a transparent frame background turns black. Odd sides are padded by a pixel. |
+
+Sizes for a 10 s clip of the kit's test TUI (120x32, 9 distinct screens, one key a second), framed, DPR 2
+(2496x1696), on Windows:
+
+| Frame | WebP | GIF | MP4 |
+| --- | --- | --- | --- |
+| default gradient background | 375 KB | 361 KB | 262 KB |
+| solid `#1e1b4b` background | 91 KB | 219 KB | 208 KB |
+| `style: 'none'`, transparent, no padding or shadow | 80 KB | 148 KB | 184 KB |
+| default gradient, `maxWidth: 1200` | 245 KB | 159 KB | 102 KB |
+
+An app whose screen changes on every frame is the other end: the same 10 s with 100 distinct screens was 2.5 MB of
+WebP, 11.8 MB of GIF and 7.7 MB of MP4, and took about two minutes to render and encode.
+
+**Keeping clips small and repeatable:**
+
+- Freeze the app (see [What a TUI should offer](#what-a-tui-should-offer)): a spinner or a clock makes every frame
+  distinct, which multiplies the size and the time.
+- Use a solid `frame.background`: a gradient does not compress losslessly and is most of a quiet clip's WebP.
+- Keep `fps` at 10 unless the app animates on purpose; a higher rate only adds frames when the screen changes that
+  often. Above 50 fps GIF delays would drop under 20 ms, which browsers play as 100 ms.
+- Keep clips short, with a `tailMs` just long enough to read the last screen, and set `durationMs` as a guard.
+- For GIF, `deviceScaleFactor: 1` or a `frame.maxWidth` keeps files and encode times down.
+- Record on one OS if committed clips must not churn, as with the stills.
+
+**ffmpeg.** Needed only for `'mp4'`, and found on PATH without a shell (`ffmpeg.exe` on Windows). Install it with
+`winget install ffmpeg`, `brew install ffmpeg` or `apt install ffmpeg`. When a clip asks for MP4 and there is no
+ffmpeg, `record` stops before starting anything and says so.
+
 ## Icons
 
 ```sh
@@ -608,6 +711,10 @@ returns a session with `press`, `type`, `waitForText`, `screen` and `close`, and
 `renderTtyScreen(page, session.screen(), resolveTerminalOptions(undefined, cwd), 2)` renders a screen to a PNG in a
 Playwright page whose context has the same device scale factor. `parseKeys`, `DARK_THEME`, `LIGHT_THEME` and
 `TERMINAL_DEFAULTS` come with them.
+
+`record(config, { only, langs })` records clips, and `encodeAnimation(frames, { format, loop, quality, fps })` is
+the encoder behind it: frames of one size as `{ png, delayMs }` in, an animated WebP (lossless, or lossy with
+`quality`), a GIF, or an MP4 through `ffmpeg` out.
 
 ## License
 
