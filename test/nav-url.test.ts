@@ -63,6 +63,19 @@ describe('navUrl', () => {
     expect(navUrl('http://other.dev/?q=1#h', 'https://x.io/app/')).toBe('http://other.dev/?q=1#h');
   });
 
+  it('resolves a scheme with a relative path against the target url, like a link (and 0.1.1) would', () => {
+    // On its own `https:docs` parses as https://docs/, but a link with the same scheme reads it as relative.
+    expect(navUrl('https:docs', 'https://x.io/app/')).toBe('https://x.io/app/docs');
+    expect(navUrl('http:/x', 'http://h/app/index.html')).toBe('http://h/x');
+    expect(navUrl('https:docs', 'http://h/app/')).toBe('https://docs/');
+  });
+
+  it('gives a root nav led by a backslash or by spaces the base directory rule too', () => {
+    expect(navUrl('\\docs', 'https://x.io/app/index.html')).toBe('https://x.io/app/docs');
+    expect(navUrl(' /docs', 'https://x.io/app')).toBe('https://x.io/app/docs');
+    expect(navUrl('\t/docs/', 'https://x.io/app/')).toBe('https://x.io/app/docs/');
+  });
+
   it('keeps a protocol-relative nav on the target origin, in every spelling the url parser accepts', () => {
     expect(navUrl('//host/x', 'https://x.io/app/')).toBe('https://x.io/app//host/x');
     expect(navUrl('//host/x', 'http://localhost:5173')).toBe('http://localhost:5173//host/x');

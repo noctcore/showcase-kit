@@ -43,19 +43,18 @@ export function select(config: ResolvedConfig, only?: string[], langs?: string[]
 }
 
 /**
- * Where a `goto` nav goes in url mode. A nav that starts with `/` resolves like a relative link from the app's base
- * directory: the target url's path, with or without a trailing slash, except that a last segment with a dot
+ * Where a `goto` nav goes in url mode. A nav that starts with `/` (or `\`, or either after leading spaces or control
+ * characters, as the url parser reads it) resolves like a relative link from the app's base directory: the target url's path, with or without a trailing slash, except that a last segment with a dot
  * (`index.html`, `app.php`) names a file and is dropped. A trailing slash always means a directory, so
  * `https://x.io/v1.2/` is one. So `/docs/` against `https://x.io/app/` is `https://x.io/app/docs/`, not the origin's
  * `/docs/`, and `/about` against `http://localhost:5173/index.html` is `http://localhost:5173/about`.
  *
- * Everything else resolves against the target url as a browser would (`#x`, `?tab=2`, `docs/`, `../x`,
- * `https://...`), except a protocol-relative `//host/x`: it takes the base directory rule too, so it stays on the
- * target origin (`https://x.io/app//host/x`) instead of visiting another host.
+ * Everything else is `new URL(nav, base)`, as a link on the target url would resolve (`#x`, `?tab=2`, `docs/`,
+ * `../x`, `https://...`, and `https:docs`, which with an https target is the relative `docs`). A protocol-relative
+ * `//host/x` starts with a slash, so it takes the base directory rule too and stays on the target origin
+ * (`https://x.io/app//host/x`) instead of visiting another host.
  */
 export function navUrl(nav: string, base: string): string {
-  // A url with a scheme is absolute.
-  if (URL.canParse(nav)) return new URL(nav).href;
   // What the url parser reads: it drops leading spaces and control characters and every tab and newline, and in
   // http(s) urls a backslash is a slash. So ` //x`, `/<tab>/x` and `\x` start with a slash too.
   const path = nav.replace(/^[\u0000- ]+/, '').replace(/[\t\n\r]/g, '');
