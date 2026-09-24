@@ -327,6 +327,14 @@ function resolvePortfolio(
     }
   }
 
+  shots.forEach((shot, index) => {
+    if (shot.id === 'thumbnail') {
+      issues.add(
+        `shots[${String(index)}].id`,
+        '"thumbnail" is reserved when outputs.portfolio is set (it writes thumbnail.<format>)',
+      );
+    }
+  });
   const thumbnail = str(issues, `${path}.thumbnail`, value.thumbnail) ?? shots[0]?.id ?? '';
   if (value.thumbnail !== undefined && !shots.some(shot => shot.id === thumbnail)) {
     issues.add(`${path}.thumbnail`, `"${thumbnail}" is not a shot id (${shots.map(shot => shot.id).join(', ')})`);

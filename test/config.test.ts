@@ -128,6 +128,14 @@ describe('resolveConfig', () => {
     expect([pageMatch.test(url), pageMatch.test(url), pageMatch.test(url)]).toEqual([true, true, true]);
   });
 
+  it('rejects a shot called "thumbnail" when the portfolio export would overwrite it', () => {
+    const shots = [{ id: 'home' }, { id: 'thumbnail' }];
+    expect(() => resolveConfig({ ...minimal, shots }, '/')).not.toThrow();
+    expect(issuesOf({ ...minimal, shots, outputs: { portfolio: { dir: 'out' } } })).toEqual([
+      'shots[1].id: "thumbnail" is reserved when outputs.portfolio is set (it writes thumbnail.<format>)',
+    ]);
+  });
+
   it('names the file in the error message', () => {
     expect(() => resolveConfig({}, '/', 'showcase.config.mjs')).toThrow(
       /^Invalid showcase config \(showcase\.config\.mjs\):\n {2}- name: is required/,
