@@ -102,8 +102,14 @@ export function startCommand(
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  // Listen before anything can throw: a failed spawn (missing cwd, no shell) reports on a later tick,
+  // and an `error` event without a listener would crash the host process.
+  let spawnError: Error | undefined;
+  child.on('error', error => {
+    spawnError = error;
+  });
   if (child.pid === undefined) {
-    throw new ShowcaseError(`Could not start \`${command}\``);
+    throw new ShowcaseError(`Could not start \`${command}\` in ${cwd}${spawnError ? `: ${spawnError.message}` : ''}`);
   }
   const pid = child.pid;
   log.debug(`${label}: \`${command}\` started (pid ${String(pid)})`);
