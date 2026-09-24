@@ -30,6 +30,19 @@ describe('navUrl', () => {
     expect(navUrl('/about', 'http://localhost:3000/?showcase=1#x')).toBe('http://localhost:3000/about');
   });
 
+  it('drops a file-shaped last segment of the target url, like a relative link', () => {
+    expect(navUrl('/about', 'http://localhost:5173/index.html')).toBe('http://localhost:5173/about');
+    expect(navUrl('/docs/', 'https://x.io/app/index.html?x=1')).toBe('https://x.io/app/docs/');
+    expect(navUrl('/', 'https://x.io/app/app.php')).toBe('https://x.io/app/');
+    expect(navUrl('about', 'http://localhost:5173/index.html')).toBe('http://localhost:5173/about');
+  });
+
+  it('keeps a dotted segment with a trailing slash as a directory', () => {
+    expect(navUrl('/docs', 'https://x.io/v1.2/')).toBe('https://x.io/v1.2/docs');
+    // Without the slash it reads as a file.
+    expect(navUrl('/docs', 'https://x.io/v1.2')).toBe('https://x.io/docs');
+  });
+
   it('resolves a relative path under the target url path too', () => {
     expect(navUrl('docs/', 'https://x.io/app')).toBe('https://x.io/app/docs/');
   });

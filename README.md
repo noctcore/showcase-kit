@@ -187,10 +187,13 @@ shims) in its own process tree. When the run ends, fails, or you press Ctrl+C, t
 
 - a selector to click: `'[data-view="library"]'`;
 - a path or URL to visit: `'/settings'` or `'https://...'` (a string starting with `/` but not `//`, or with
-  `http(s)://`). In url mode a path resolves under the target url's path, which counts as the app's base directory
-  with or without a trailing slash: with `url: 'https://x.io/app/'`, `'/docs/'` visits `https://x.io/app/docs/` and
-  `'/'` visits the url itself. The url's query and hash are not carried over. In cdp mode a path resolves against
-  the origin of the page being captured;
+  `http(s)://`). In url mode a path resolves like a relative link from the app's base directory: the target url's
+  path, with or without a trailing slash, except that a last segment with a dot (`index.html`, `app.php`) is a file
+  and is dropped. With `url: 'https://x.io/app/'` (or `'https://x.io/app'`), `'/docs/'` visits
+  `https://x.io/app/docs/` and `'/'` visits the url itself; with `url: 'http://localhost:5173/index.html'`, `'/about'`
+  visits `http://localhost:5173/about`. A trailing slash always means a directory, so a dotted one such as `/v1.2/`
+  needs it. The url's query and hash are not carried over. In cdp mode a path resolves against the origin of the
+  page being captured;
 - explicit: `{ click: 'text=Library' }` or `{ goto: '/settings' }`;
 - a function: `async page => { await page.getByRole('button', { name: 'Open' }).click(); }`.
 
