@@ -1,7 +1,7 @@
 import type { Page } from 'playwright';
 import { ShowcaseError } from '../errors.js';
 import { Attr, DEFAULT_COLOR, TRUECOLOR, type Grid, type GridCell, type GridColor } from './session.js';
-import { BUNDLED_ADVANCE, FALLBACK_FAMILY, FONT_FAMILY, fontFaceCss, fontFaces } from './theme.js';
+import { BUNDLED_ADVANCE, checkTheme, FALLBACK_FAMILY, FONT_FAMILY, fontFaceCss, fontFaces } from './theme.js';
 import type { RenderTtyScreen, ResolvedTerminalOptions, TerminalTheme, TtyScreen } from './types.js';
 
 /** Whole CSS pixels per cell and per row, and the letter spacing that makes the font's advance match the cell. */
@@ -193,9 +193,12 @@ async function prepare(page: Page, look: ResolvedTerminalOptions): Promise<CellM
  *
  * The page's browser context must have been created with that `deviceScaleFactor`, because Playwright cannot
  * change it per page; a mismatch throws a `ShowcaseError`. The page is taken over: its content and viewport are
- * set here. Later renders with the same look only swap the grid, so rendering clip frames stays cheap.
+ * set here. Later renders with the same look only swap the grid, so rendering clip frames stays cheap. A theme with
+ * other than 16 ansi colors or a color that is not `#rrggbb` throws a `ShowcaseError` before the page is touched.
  */
 export const renderTtyScreen: RenderTtyScreen = async (page, screen: TtyScreen, look, deviceScaleFactor) => {
+  // A public entry point: theme colors go into the page's CSS, so a hand-built look is checked like a resolved one.
+  checkTheme(look.theme);
   const ratio = await page.evaluate(() => window.devicePixelRatio);
   if (ratio !== deviceScaleFactor) {
     throw new ShowcaseError(

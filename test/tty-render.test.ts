@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { Terminal } from '@xterm/headless';
 import { chromium, type Browser, type Page } from 'playwright';
 import sharp from 'sharp';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ShowcaseError } from '../src/errors.js';
 import { cellColors, cellMetrics, gridHtml, renderTtyScreen, shellHtml } from '../src/tty/render.js';
 import { openTtySession, snapshot, TRUECOLOR, type Grid, type GridCell } from '../src/tty/session.js';
@@ -160,6 +160,19 @@ describe('fonts', () => {
     expect(size14.letterSpacing).toBeCloseTo(-0.4, 9);
     expect(cellMetrics(look({ font: { size: 14 } }), 8)).toMatchObject({ cellWidth: 8, letterSpacing: 0 });
     expect(cellMetrics(look({ font: { size: 15 } }), 9)).toEqual({ cellWidth: 9, lineHeight: 20, letterSpacing: 0 });
+  });
+});
+
+describe('renderTtyScreen, input checks', () => {
+  it('refuses a hand-built look with colors the renderer cannot draw, before touching the page', async () => {
+    const evaluate = vi.fn(async () => 1);
+    const page = { evaluate } as unknown as Page;
+    const screen = await screenOf(10, 2, 'x');
+    const injected = { ...look(), theme: { ...DARK_THEME, background: 'red;}</style><script>alert(1)</script>' } };
+    await expect(renderTtyScreen(page, screen, injected, 1)).rejects.toThrow(/terminal\.theme colors must be #rrggbb/);
+    const short = { ...look(), theme: { ...DARK_THEME, ansi: DARK_THEME.ansi.slice(0, 8) } };
+    await expect(renderTtyScreen(page, screen, short, 1)).rejects.toThrow(ShowcaseError);
+    expect(evaluate).not.toHaveBeenCalled();
   });
 });
 
