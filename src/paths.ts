@@ -43,18 +43,27 @@ export function select(config: ResolvedConfig, only?: string[], langs?: string[]
 }
 
 /**
- * Where a path `nav` goes in url mode: like a relative link from the app's base directory. That directory is the
- * target url's path, with or without a trailing slash, except that a last segment with a dot (`index.html`,
- * `app.php`) names a file and is dropped. A trailing slash always means a directory, so `https://x.io/v1.2/` is one.
- * So `/docs/` against `https://x.io/app/` is `https://x.io/app/docs/`, not the origin's `/docs/`, and `/about`
- * against `http://localhost:5173/index.html` is `http://localhost:5173/about`. Absolute `http(s)://` urls are left
- * alone.
+ * Where a `goto` nav goes in url mode. A nav that starts with `/` resolves like a relative link from the app's base
+ * directory: the target url's path, with or without a trailing slash, except that a last segment with a dot
+ * (`index.html`, `app.php`) names a file and is dropped. A trailing slash always means a directory, so
+ * `https://x.io/v1.2/` is one. So `/docs/` against `https://x.io/app/` is `https://x.io/app/docs/`, not the origin's
+ * `/docs/`, and `/about` against `http://localhost:5173/index.html` is `http://localhost:5173/about`.
+ *
+ * Everything else resolves against the target url as a browser would (`#x`, `?tab=2`, `docs/`, `../x`,
+ * `https://...`), except a protocol-relative `//host/x`: it takes the base directory rule too, so it stays on the
+ * target origin (`https://x.io/app//host/x`) instead of visiting another host.
  */
 export function navUrl(nav: string, base: string): string {
-  if (/^https?:\/\//.test(nav)) return new URL(nav).href;
+  // A url with a scheme is absolute.
+  if (URL.canParse(nav)) return new URL(nav).href;
+  // What the url parser reads: it drops leading spaces and control characters and every tab and newline, and in
+  // http(s) urls a backslash is a slash. So ` //x`, `/<tab>/x` and `\x` start with a slash too.
+  const path = nav.replace(/^[\u0000- ]+/, '').replace(/[\t\n\r]/g, '');
+  if (!/^[/\\]/.test(path)) return new URL(nav, base).href;
   const url = new URL(base);
   const { pathname } = url;
   const last = pathname.slice(pathname.lastIndexOf('/') + 1);
   const dir = pathname.endsWith('/') ? pathname : last.includes('.') ? pathname.slice(0, -last.length) : `${pathname}/`;
-  return new URL(nav.startsWith('/') ? `.${nav}` : nav, `${url.origin}${dir}`).href;
+  return new URL(`.${path}`, `${url.origin}${dir}`).href;
 }
+

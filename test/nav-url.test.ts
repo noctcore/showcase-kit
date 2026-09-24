@@ -43,12 +43,34 @@ describe('navUrl', () => {
     expect(navUrl('/docs', 'https://x.io/v1.2')).toBe('https://x.io/docs');
   });
 
-  it('resolves a relative path under the target url path too', () => {
-    expect(navUrl('docs/', 'https://x.io/app')).toBe('https://x.io/app/docs/');
+  it('resolves a hash or a query against the target url itself, keeping its file', () => {
+    expect(navUrl('#/settings', 'http://h/app/index.html')).toBe('http://h/app/index.html#/settings');
+    expect(navUrl('?tab=2', 'http://h/app/index.html?lang=en')).toBe('http://h/app/index.html?tab=2');
+    expect(navUrl('#x', 'http://h/app')).toBe('http://h/app#x');
+    expect(navUrl('#x', 'http://h/app/?lang=en')).toBe('http://h/app/?lang=en#x');
+  });
+
+  it('resolves a relative path like a browser link, from the url as written', () => {
+    expect(navUrl('docs/', 'https://x.io/app/')).toBe('https://x.io/app/docs/');
+    // Without a trailing slash `app` is the file a relative link replaces.
+    expect(navUrl('docs/', 'https://x.io/app')).toBe('https://x.io/docs/');
+    expect(navUrl('../x', 'https://x.io/app/sub/')).toBe('https://x.io/app/x');
+    expect(navUrl('./about', 'http://localhost:5173/index.html')).toBe('http://localhost:5173/about');
   });
 
   it('leaves absolute urls alone', () => {
     expect(navUrl('https://other.dev/page', 'https://x.io/app/')).toBe('https://other.dev/page');
+    expect(navUrl('http://other.dev/?q=1#h', 'https://x.io/app/')).toBe('http://other.dev/?q=1#h');
+  });
+
+  it('keeps a protocol-relative nav on the target origin, in every spelling the url parser accepts', () => {
+    expect(navUrl('//host/x', 'https://x.io/app/')).toBe('https://x.io/app//host/x');
+    expect(navUrl('//host/x', 'http://localhost:5173')).toBe('http://localhost:5173//host/x');
+    for (const nav of ['\\\\host/x', '/\\host/x', '\\/host/x', ' //host/x', '\u0001//host/x', '/\t/host/x', '/\n/host/x']) {
+      // `new URL(nav, base)` would visit https://host/x for each of these.
+      expect(new URL(navUrl(nav, 'https://x.io/app/')).origin, JSON.stringify(nav)).toBe('https://x.io');
+    }
+    expect(navUrl('\\docs', 'https://x.io/app/')).toBe('https://x.io/app/docs');
   });
 });
 

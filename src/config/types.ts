@@ -94,7 +94,7 @@ export interface Clip {
 
 export interface UrlTarget {
   mode: 'url';
-  /** The app's URL. Path `nav` values resolve under its path: it is the app's base directory. */
+  /** The app's URL. `nav` paths that start with `/` resolve under its path: it is the app's base directory. */
   url: string;
   /** Shell command that starts the app (for example `pnpm dev:web`). Omit if it is already running. */
   start?: string;

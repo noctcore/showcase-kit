@@ -195,7 +195,10 @@ shims) in its own process tree. When the run ends, fails, or you press Ctrl+C, t
   visits `http://localhost:5173/about`. A trailing slash always means a directory, so a dotted one such as `/v1.2/`
   needs it. The url's query and hash are not carried over. In cdp mode a path resolves against the origin of the
   page being captured;
-- explicit: `{ click: 'text=Library' }` or `{ goto: '/settings' }`;
+- explicit: `{ click: 'text=Library' }` or `{ goto: '/settings' }`. `goto` also takes what a link would: `'#/settings'`
+  and `'?tab=2'` keep the target url's file (`http://h/app/index.html#/settings`), and `'docs/'` or `'../x'` resolve
+  from the url as written. Only a leading `/` gets the base directory rule. A protocol-relative `'//host/x'` gets it
+  too, so it stays on the target origin instead of visiting another host;
 - a function: `async page => { await page.getByRole('button', { name: 'Open' }).click(); }`.
 
 Before each shutter the kit waits for `waitFor`, a bounded network idle, `document.fonts.ready` and two animation
