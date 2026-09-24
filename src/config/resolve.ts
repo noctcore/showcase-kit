@@ -182,7 +182,8 @@ function resolveTarget(issues: Issues, value: unknown): ResolvedConfig['target']
     }
     let pageMatch: string | RegExp | undefined;
     if (value.pageMatch instanceof RegExp) {
-      pageMatch = value.pageMatch;
+      // A g or y RegExp keeps lastIndex between test() calls, so it would match every other page.
+      pageMatch = new RegExp(value.pageMatch.source, value.pageMatch.flags.replace(/[gy]/g, ''));
     } else {
       pageMatch = str(issues, 'target.pageMatch', value.pageMatch);
     }

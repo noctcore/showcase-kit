@@ -120,6 +120,14 @@ describe('resolveConfig', () => {
     ]);
   });
 
+  it('drops the g and y flags from a RegExp pageMatch, whose lastIndex would make matching flaky', () => {
+    const config = resolveConfig({ ...minimal, target: { mode: 'cdp', pageMatch: /localhost/giy } }, '/');
+    const pageMatch = (config.target as { pageMatch: RegExp }).pageMatch;
+    expect(pageMatch.flags).toBe('i');
+    const url = 'http://localhost:15175/';
+    expect([pageMatch.test(url), pageMatch.test(url), pageMatch.test(url)]).toEqual([true, true, true]);
+  });
+
   it('names the file in the error message', () => {
     expect(() => resolveConfig({}, '/', 'showcase.config.mjs')).toThrow(
       /^Invalid showcase config \(showcase\.config\.mjs\):\n {2}- name: is required/,
