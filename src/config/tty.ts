@@ -4,7 +4,6 @@ import type { TerminalOptions, TerminalTheme } from '../tty/types.js';
 import type { ResolvedTtyShot, ResolvedTtyTarget, TtyNavFn, TtyTarget } from './types.js';
 import {
   checkKeys,
-  color,
   describe,
   isObj,
   num,
@@ -50,7 +49,14 @@ export const TTY_TIMEOUT_KEYS: Readonly<Record<string, string>> = {
 };
 
 const FONT_FILES = ['file', 'boldFile', 'italicFile', 'boldItalicFile', 'fallbackFile'] as const;
-const FONT_EXTENSIONS = ['.woff2', '.woff', '.ttf'];
+const FONT_EXTENSIONS = ['.woff2', '.woff', '.ttf', '.otf'];
+
+/** The renderer mixes and dims theme colors itself, so it takes `#rrggbb` only. */
+function hexColor(issues: Issues, path: string, value: unknown): string {
+  if (typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)) return value;
+  issues.add(path, value === undefined ? 'is required' : `must be a #rrggbb color, got ${describe(value)}`);
+  return '#000000';
+}
 
 function command(issues: Issues, value: unknown): ResolvedTtyTarget['command'] {
   if (typeof value === 'string' && value.trim() !== '') return value;
@@ -156,17 +162,19 @@ function theme(issues: Issues, value: unknown): TerminalOptions['theme'] {
   }
   checkKeys(issues, 'terminal.theme', value, ['background', 'foreground', 'cursor', 'ansi']);
   const custom: TerminalTheme = {
-    background: color(issues, 'terminal.theme.background', value.background),
-    foreground: color(issues, 'terminal.theme.foreground', value.foreground),
+    background: hexColor(issues, 'terminal.theme.background', value.background),
+    foreground: hexColor(issues, 'terminal.theme.foreground', value.foreground),
     ansi: [],
   };
-  if (value.cursor !== undefined) custom.cursor = color(issues, 'terminal.theme.cursor', value.cursor);
+  if (value.cursor !== undefined) custom.cursor = hexColor(issues, 'terminal.theme.cursor', value.cursor);
   if (Array.isArray(value.ansi) && value.ansi.length === 16) {
-    custom.ansi = value.ansi.map((entry: unknown, index) => color(issues, `terminal.theme.ansi[${String(index)}]`, entry));
+    custom.ansi = value.ansi.map((entry: unknown, index) =>
+      hexColor(issues, `terminal.theme.ansi[${String(index)}]`, entry),
+    );
   } else {
     issues.add(
       'terminal.theme.ansi',
-      `must be an array of exactly 16 colors (8 normal, then 8 bright), got ${describe(value.ansi)}`,
+      `must be an array of exactly 16 #rrggbb colors (8 normal, then 8 bright), got ${describe(value.ansi)}`,
     );
   }
   return custom;

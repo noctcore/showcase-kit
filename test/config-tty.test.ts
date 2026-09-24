@@ -154,7 +154,7 @@ describe('resolveConfig, tty mode', () => {
         timeouts: { readyMs: 1000, networkIdleMs: 0 },
         terminal: {
           theme: { background: '#000', foreground: 'red; }', ansi: ['#fff'] },
-          font: { file: 'missing.woff2', boldFile: 'bold.otf', size: 200 },
+          font: { file: 'missing.woff2', boldFile: 'bold.eot', size: 200 },
           cursor: 'blink',
           padding: -1,
           ligatures: true,
@@ -181,10 +181,11 @@ describe('resolveConfig, tty mode', () => {
         'target.quitKey: must be a non-empty string, got ""',
         'timeouts.readyMs: not used in tty mode (set target.readyTimeoutMs)',
         'timeouts.networkIdleMs: not used in tty mode',
-        'terminal.theme.foreground: is not a CSS color: "red; }"',
-        'terminal.theme.ansi: must be an array of exactly 16 colors (8 normal, then 8 bright), got an array',
+        'terminal.theme.background: must be a #rrggbb color, got "#000"',
+        'terminal.theme.foreground: must be a #rrggbb color, got "red; }"',
+        'terminal.theme.ansi: must be an array of exactly 16 #rrggbb colors (8 normal, then 8 bright), got an array',
         `terminal.font.file: file not found: ${join(root, 'missing.woff2')}`,
-        'terminal.font.boldFile: must be a .woff2, .woff, .ttf file, got "bold.otf"',
+        'terminal.font.boldFile: must be a .woff2, .woff, .ttf, .otf file, got "bold.eot"',
         'terminal.font.size: must be a number between 6 and 96, got number 200',
         'terminal.cursor: must be one of "hide", "show", got "blink"',
         'terminal.padding: must be an integer between 0 and 400, got number -1',
@@ -196,7 +197,7 @@ describe('resolveConfig, tty mode', () => {
         'shots[3].waitFor: must be a non-empty string, got number 42',
       ]),
     );
-    expect(issues).toHaveLength(24);
+    expect(issues).toHaveLength(25);
   });
 
   it('rejects a command that is neither a string nor [file, ...args]', () => {

@@ -327,14 +327,17 @@ export function isTtyConfig(config: ResolvedConfig): config is ResolvedTtyConfig
   return config.target.mode === 'tty';
 }
 
-const COMMON_KEYS = [
+const WEB_KEYS = [
   'name',
   'slug',
   'root',
   'target',
   'ready',
+  'viewport',
   'deviceScaleFactor',
+  'colorScheme',
   'langs',
+  'css',
   'setup',
   'shots',
   'frame',
@@ -342,7 +345,8 @@ const COMMON_KEYS = [
   'hero',
   'browser',
   'timeouts',
-] as const;
+];
+const TTY_KEYS = [...WEB_KEYS.filter(key => !(key in WEB_ONLY_KEYS)), 'terminal'];
 
 /**
  * Validate a user config and fill in every default.
@@ -358,8 +362,8 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
   }
   const ttyTarget = isObj(input.target) && input.target.mode === 'tty' ? input.target : undefined;
   const tty = ttyTarget !== undefined;
-  if (tty) checkKeys(issues, 'config', input, [...COMMON_KEYS, 'terminal'], WEB_ONLY_KEYS);
-  else checkKeys(issues, 'config', input, [...COMMON_KEYS, 'viewport', 'colorScheme', 'css'], TTY_ONLY_KEYS);
+  if (tty) checkKeys(issues, 'config', input, TTY_KEYS, WEB_ONLY_KEYS);
+  else checkKeys(issues, 'config', input, WEB_KEYS, TTY_ONLY_KEYS);
 
   const name = str(issues, 'name', input.name, true);
   const slug = str(issues, 'slug', input.slug) ?? slugify(name);
