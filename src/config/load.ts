@@ -12,7 +12,10 @@ export const CONFIG_NAMES = [
   'showcase.config.js',
 ] as const;
 
-/** Find a config file in `from` or the nearest parent directory that has one. */
+/**
+ * Find a config file in `from` or a parent directory, stopping at the first directory that holds a
+ * `package.json` or `.git` (the project root): a config above it belongs to some other project.
+ */
 export function findConfigFile(from: string = process.cwd()): string | undefined {
   let dir = resolve(from);
   for (;;) {
@@ -20,6 +23,7 @@ export function findConfigFile(from: string = process.cwd()): string | undefined
       const candidate = resolve(dir, name);
       if (existsSync(candidate)) return candidate;
     }
+    if (existsSync(resolve(dir, 'package.json')) || existsSync(resolve(dir, '.git'))) return undefined;
     const parent = dirname(dir);
     if (parent === dir || dir === parse(dir).root) return undefined;
     dir = parent;
@@ -31,7 +35,7 @@ export async function loadConfig(file?: string, cwd: string = process.cwd()): Pr
   const path = file ? resolve(cwd, file) : findConfigFile(cwd);
   if (!path) {
     throw new ShowcaseError(
-      `No showcase config found in ${cwd} or its parents (looked for ${CONFIG_NAMES.join(', ')}). ` +
+      `No showcase config found in ${cwd} or its parents up to the project root (looked for ${CONFIG_NAMES.join(', ')}). ` +
         'Run `showcase init` to create one, or pass --config <file>.',
     );
   }

@@ -161,6 +161,25 @@ export default { name: 'Typed', viewport, target: { mode: 'url', url: 'http://lo
     expect(config.root).toBe(dir);
   });
 
+  it('stops looking at the package or repository root', () => {
+    const base = mkdtempSync(join(tmpdir(), 'showcase-boundary-'));
+    writeFileSync(join(base, 'showcase.config.mjs'), 'export default {};\n');
+    // Inside a git repository: the config above the repo is not this project's.
+    mkdirSync(join(base, 'repo', '.git'), { recursive: true });
+    mkdirSync(join(base, 'repo', 'src'), { recursive: true });
+    expect(findConfigFile(join(base, 'repo', 'src'))).toBeUndefined();
+    // Inside a package: same.
+    mkdirSync(join(base, 'pkg', 'src'), { recursive: true });
+    writeFileSync(join(base, 'pkg', 'package.json'), '{}');
+    expect(findConfigFile(join(base, 'pkg', 'src'))).toBeUndefined();
+    // A config at the package root itself is found.
+    writeFileSync(join(base, 'pkg', 'showcase.config.js'), 'export default {};\n');
+    expect(findConfigFile(join(base, 'pkg', 'src'))).toBe(join(base, 'pkg', 'showcase.config.js'));
+    // Plain directories in between are walked through.
+    mkdirSync(join(base, 'plain', 'deeper'), { recursive: true });
+    expect(findConfigFile(join(base, 'plain', 'deeper'))).toBe(join(base, 'showcase.config.mjs'));
+  });
+
   it('explains a missing config', async () => {
     const empty = mkdtempSync(join(tmpdir(), 'showcase-empty-'));
     await expect(loadConfig('nope.mjs', empty)).rejects.toThrow(/Config file not found/);

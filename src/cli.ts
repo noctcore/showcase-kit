@@ -30,7 +30,7 @@ Commands:
 
 Options:
   -c, --config <file>   Config file (default: showcase.config.{ts,mts,mjs,js} in the
-                        current directory or the nearest parent)
+                        current directory or a parent, up to the project root)
       --only <ids>      Comma-separated shot ids (capture, frame, portfolio, readme, all)
       --langs <codes>   Comma-separated languages (capture, frame, all)
       --lang <code>     Language for readme (default: the first in langs)

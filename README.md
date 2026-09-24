@@ -56,7 +56,7 @@ Options:
 
 | Option | Applies to | Meaning |
 | --- | --- | --- |
-| `-c, --config <file>` | all | Config file. By default the kit looks for `showcase.config.{ts,mts,mjs,js}` in the current directory, then in each parent. |
+| `-c, --config <file>` | all | Config file. By default the kit looks for `showcase.config.{ts,mts,mjs,js}` in the current directory, then in each parent up to the project root: the first directory with a `package.json` or `.git`. In a monorepo, run from the package that has the config or pass `--config`. |
 | `--only <ids>` | capture, frame, portfolio, readme, all | Comma-separated shot ids. |
 | `--langs <codes>` | capture, frame, all | Comma-separated languages. |
 | `--lang <code>` | readme | Language of the images in the table (default: the first of `langs`). |
