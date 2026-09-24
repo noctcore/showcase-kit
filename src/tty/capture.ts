@@ -9,7 +9,7 @@ import { ShowcaseError } from '../errors.js';
 import { log } from '../log.js';
 import { outputPath } from '../paths.js';
 import { killTreeSync } from '../process.js';
-import { openTtySession, renderTtyScreen } from './index.js';
+import { assertNodeRuntime, openTtySession, renderTtyScreen } from './index.js';
 import type { OpenTtySession, RenderTtyScreen, TtySession } from './types.js';
 
 /** The engine calls capture needs. A parameter so tests can drive the flow without a PTY. */
@@ -214,6 +214,8 @@ export async function captureTty(
   langs: string[],
   engine: TtyEngine = { openTtySession, renderTtyScreen },
 ): Promise<TtyCaptureResult> {
+  // Fail before a browser starts: under the Bun runtime the PTY package kills the app at once.
+  assertNodeRuntime();
   const files: CapturedFile[] = [];
   const failures: string[] = [];
   const browser = await launchBrowser(config);
