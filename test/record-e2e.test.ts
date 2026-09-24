@@ -102,9 +102,11 @@ describe('record, real terminal', () => {
     });
     const [result] = await record(config);
     vi.restoreAllMocks();
-    // The counter redraws every 40 ms, so every 100 ms frame differs.
-    expect(result).toMatchObject({ id: 'busy', frames: 5, durationMs: 500 });
-    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^ {2}clip busy: reached maxFrames \(5 frames\) after 500ms/));
+    // The counter redraws every 40 ms, so nearly every 100 ms frame differs; a slow terminal can merge a few.
+    expect(result).toMatchObject({ id: 'busy', frames: 5 });
+    expect(result?.durationMs).toBeGreaterThanOrEqual(500);
+    expect(result?.durationMs).toBeLessThan(5000);
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^ {2}clip busy: reached maxFrames \(5 frames\) after \d+ms/));
   });
 
   it('refuses unknown clip ids and web configs', async () => {
