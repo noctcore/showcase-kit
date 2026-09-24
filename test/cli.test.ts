@@ -62,6 +62,8 @@ export default defineConfig({
 
 describe('showcase CLI', () => {
   it('prints help and version under plain Node', async () => {
+    // The suite itself runs on Node (vitest's bin), not on Bun's runtime.
+    expect(process.versions.bun).toBeUndefined();
     const help = await run(['--help'], process.cwd());
     expect(help.code).toBe(0);
     expect(help.stdout).toMatch(/^showcase: capture, frame and export/);
