@@ -38,7 +38,7 @@ function isObj(value: unknown): value is Obj {
 
 function describe(value: unknown): string {
   if (value === null) return 'null';
-  if (Array.isArray(value)) return 'an array';
+  if (Array.isArray(value)) return value.length === 0 ? 'an empty array' : 'an array';
   if (typeof value === 'string') return `"${value}"`;
   return typeof value === 'object' ? 'an object' : `${typeof value} ${String(value)}`;
 }
