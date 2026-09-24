@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
-import { copyFile, writeFile } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join, relative, resolve } from 'node:path';
 import { launchBrowser } from './browser.js';
 import type { ResolvedConfig, ResolvedPortfolio } from './config/types.js';
 import { ShowcaseError } from './errors.js';
@@ -22,10 +22,11 @@ export interface PortfolioResult {
   files: string[];
   thumbnail: string | undefined;
   gallery: GalleryItem[];
-  galleryFile: string;
+  /** Where the gallery JSON was written, or undefined when `outputs.portfolio.gallery` is false. */
+  galleryFile: string | undefined;
 }
 
-export const GALLERY_FILE = 'showcase.gallery.json';
+export { GALLERY_FILE } from './config/resolve.js';
 
 export function portfolioSettings(config: ResolvedConfig): ResolvedPortfolio {
   const portfolio = config.outputs.portfolio;
@@ -100,9 +101,15 @@ export async function exportPortfolio(config: ResolvedConfig, options: { only?: 
       alt: shot.alt,
       caption: shot.caption ?? shot.title,
     }));
-  const galleryFile = join(dir, GALLERY_FILE);
-  await writeFile(galleryFile, `${JSON.stringify(gallery, null, 2)}\n`);
-  log.info(`  ok    gallery  ${String(gallery.length)} item(s)  ${relative(process.cwd(), galleryFile)}`);
+  let galleryFile: string | undefined;
+  if (portfolio.gallery === false) {
+    log.info('  skip  gallery  (outputs.portfolio.gallery is false)');
+  } else {
+    galleryFile = resolve(config.root, fillTemplate(portfolio.gallery, { slug: config.slug }));
+    await mkdir(dirname(galleryFile), { recursive: true });
+    await writeFile(galleryFile, `${JSON.stringify(gallery, null, 2)}\n`);
+    log.info(`  ok    gallery  ${String(gallery.length)} item(s)  ${relative(process.cwd(), galleryFile)}`);
+  }
 
   return { dir, files, thumbnail, gallery, galleryFile };
 }

@@ -49,6 +49,7 @@ describe('resolveConfig', () => {
       lang: 'pl',
       publicPath: '/projects/{slug}',
       padding: 96,
+      gallery: '../portfolio/public/projects/{slug}/showcase.gallery.json',
     });
   });
 

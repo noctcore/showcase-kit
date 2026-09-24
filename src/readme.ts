@@ -24,13 +24,17 @@ export function readmeSnippet(config: ResolvedConfig, options: ReadmeOptions = {
   if (!Number.isInteger(cols) || cols < 1 || cols > 6) {
     throw new ShowcaseError(`--cols must be a whole number from 1 to 6, got ${String(options.cols)}`);
   }
+  const template = config.outputs.readme;
+  if (template === false) {
+    throw new ShowcaseError('outputs.readme is false, so there are no README images to list.');
+  }
   const lang = options.lang ?? config.langs[0] ?? 'en';
   const { shots } = select(config, options.only, [lang]);
   const base = resolve(config.root, options.base ?? '.');
   const width = `${String(Math.floor(100 / cols))}%`;
 
   const cells = shots.map(shot => {
-    const path = outputPath(config, config.outputs.readme, lang, shot.id);
+    const path = outputPath(config, template, lang, shot.id);
     if (!existsSync(path)) log.warn(`warning: ${relative(process.cwd(), path)} does not exist yet (run \`showcase frame\`).`);
     return {
       src: relative(base, path).split(sep).join('/'),

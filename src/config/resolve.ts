@@ -14,6 +14,7 @@ import type {
 export const DEFAULT_RAW = 'showcase-out/raw/{lang}/{id}.png';
 export const DEFAULT_README = 'assets/showcase/{lang}/{id}.webp';
 export const DEFAULT_CDP_URL = 'http://127.0.0.1:9222';
+export const GALLERY_FILE = 'showcase.gallery.json';
 
 const DEFAULT_BACKGROUND: ResolvedBackground = { type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 };
 
@@ -310,7 +311,17 @@ function resolvePortfolio(
     return undefined;
   }
   const path = 'outputs.portfolio';
-  checkKeys(issues, path, value, ['dir', 'size', 'format', 'quality', 'thumbnail', 'lang', 'publicPath', 'padding']);
+  checkKeys(issues, path, value, [
+    'dir',
+    'size',
+    'format',
+    'quality',
+    'thumbnail',
+    'lang',
+    'publicPath',
+    'padding',
+    'gallery',
+  ]);
   const dir = pathTemplate(issues, `${path}.dir`, value.dir, '', { allowed: ['slug'], required: [] });
   if (value.dir === undefined) issues.add(`${path}.dir`, 'is required');
 
@@ -348,6 +359,16 @@ function resolvePortfolio(
     required: [],
   });
 
+  const defaultGallery = `${dir.replace(/[\\/]+$/, '')}/${GALLERY_FILE}`;
+  const gallery =
+    value.gallery === false
+      ? false
+      : pathTemplate(issues, `${path}.gallery`, value.gallery, defaultGallery, {
+          allowed: ['slug'],
+          required: [],
+          extensions: ['.json'],
+        });
+
   return {
     dir,
     size,
@@ -357,6 +378,7 @@ function resolvePortfolio(
     lang,
     publicPath: publicPath.replace(/\/+$/, ''),
     padding: num(issues, `${path}.padding`, value.padding, 96, { min: 0, integer: true }),
+    gallery,
   };
 }
 
@@ -496,18 +518,21 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
 
   const outputs = input.outputs === undefined ? {} : input.outputs;
   let raw = DEFAULT_RAW;
-  let readme = DEFAULT_README;
+  let readme: string | false = DEFAULT_README;
   let portfolio: ResolvedPortfolio | undefined;
   if (isObj(outputs)) {
     checkKeys(issues, 'outputs', outputs, ['raw', 'readme', 'portfolio']);
     const required = langs.length > 1 ? ['id', 'lang'] : ['id'];
     const allowed = ['lang', 'id', 'slug'];
     raw = pathTemplate(issues, 'outputs.raw', outputs.raw, DEFAULT_RAW, { allowed, required, extensions: ['.png'] });
-    readme = pathTemplate(issues, 'outputs.readme', outputs.readme, DEFAULT_README, {
-      allowed,
-      required,
-      extensions: ['.webp', '.png'],
-    });
+    readme =
+      outputs.readme === false
+        ? false
+        : pathTemplate(issues, 'outputs.readme', outputs.readme, DEFAULT_README, {
+            allowed,
+            required,
+            extensions: ['.webp', '.png'],
+          });
     portfolio = resolvePortfolio(issues, outputs.portfolio, shots, langs);
   } else {
     issues.add('outputs', `must be an object, got ${describe(outputs)}`);

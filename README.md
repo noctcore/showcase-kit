@@ -217,7 +217,7 @@ keep README images lighter.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `raw` | `showcase-out/raw/{lang}/{id}.png` | Raw captures. Must be `.png`. |
-| `readme` | `assets/showcase/{lang}/{id}.webp` | Framed images. `.webp` or `.png`. |
+| `readme` | `assets/showcase/{lang}/{id}.webp` | Framed images. `.webp` or `.png`. `false` skips them (portfolio-only configs). |
 | `portfolio` | none | Portfolio export, see below. |
 
 Path tokens are `{lang}`, `{id}` and `{slug}`. `{id}` is required, and so is `{lang}` once there is more than
@@ -235,9 +235,14 @@ one language, so files never overwrite each other. Add `showcase-out/` to `.giti
 | `lang` | the first of `langs` | Language to export. |
 | `publicPath` | `/projects/{slug}` | URL prefix for `src` in the gallery JSON. |
 | `padding` | `96` | Minimum space around the window, in output pixels. |
+| `gallery` | `<dir>/showcase.gallery.json` | Gallery JSON path relative to the config root (token `{slug}`, must end in `.json`), or `false` to skip it. |
 
 The window is scaled to fit inside `size` minus `padding` with its aspect ratio kept, and the background fills the
 rest, so nothing is ever cropped and a 16:9 `object-cover` tile shows the whole window.
+
+The portfolio images and the hero render from the raw captures, not from the README images, so a config that only
+feeds a portfolio can set `outputs: { readme: false, portfolio: { ... } }`: `frame` then does nothing, `all` skips
+it, and `readme` explains that there is nothing to list.
 
 ### `hero`
 
@@ -375,6 +380,9 @@ outputs: {
   { "src": "/projects/shiranami/library.webp", "alt": "Shiranami: Library", "caption": "Browse and play from your own folders." }
 ]
 ```
+
+When `dir` is a web root such as Next's `public/`, the JSON would be served too: point `gallery` somewhere else
+(`gallery: '../portfolio/src/data/{slug}.gallery.json'`) or turn it off with `gallery: false`.
 
 Its entries have the `{ src, alt, caption }` shape of a gallery item, so the portfolio can import it directly:
 

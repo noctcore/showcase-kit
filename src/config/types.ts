@@ -111,13 +111,21 @@ export interface PortfolioOutput {
   publicPath?: string;
   /** Minimum space around the window, in output pixels. Default 96. */
   padding?: number;
+  /**
+   * Where to write the gallery JSON, relative to the config root (token `{slug}`), or `false` to skip it.
+   * Default `<dir>/showcase.gallery.json`.
+   */
+  gallery?: string | false;
 }
 
 export interface Outputs {
   /** Raw capture path (PNG). Tokens: `{lang}`, `{id}`, `{slug}`. */
   raw?: string;
-  /** Framed README image path (`.webp` or `.png`). Tokens: `{lang}`, `{id}`, `{slug}`. */
-  readme?: string;
+  /**
+   * Framed README image path (`.webp` or `.png`). Tokens: `{lang}`, `{id}`, `{slug}`. `false` skips the README
+   * images, for configs that only export a portfolio (which renders from the raw captures).
+   */
+  readme?: string | false;
   portfolio?: PortfolioOutput;
 }
 
@@ -218,6 +226,8 @@ export interface ResolvedPortfolio {
   lang: string;
   publicPath: string;
   padding: number;
+  /** Gallery JSON path template relative to the root, or false to skip it. */
+  gallery: string | false;
 }
 
 export interface ResolvedHero {
@@ -246,7 +256,7 @@ export interface ResolvedConfig {
   setup: ShowcaseConfig['setup'];
   shots: ResolvedShot[];
   frame: ResolvedFrame;
-  outputs: { raw: string; readme: string; portfolio: ResolvedPortfolio | undefined };
+  outputs: { raw: string; readme: string | false; portfolio: ResolvedPortfolio | undefined };
   hero: ResolvedHero;
   browser: BrowserOptions;
   timeouts: Required<Timeouts>;
