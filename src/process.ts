@@ -6,7 +6,7 @@ const isWindows = process.platform === 'win32';
 
 export interface StartedProcess {
   pid: number;
-  /** Kill the whole process tree and wait until the root is gone. Safe to call twice. */
+  /** Kill the whole process tree and wait until it is gone. Safe to call twice. */
   stop(): Promise<void>;
   /** Resolves when the process exits on its own. */
   exited: Promise<number | null>;
@@ -14,17 +14,51 @@ export interface StartedProcess {
   tail(): string;
 }
 
-function isAlive(pid: number): boolean {
+/** Grace period between SIGTERM and SIGKILL when stopping a tree on POSIX. */
+const KILL_GRACE_MS = 2_000;
+
+/** True when `promise` settles within `ms`. Clears its timer, so a long timeout never holds the host open. */
+async function settlesWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<boolean>(resolve => {
+    timer = setTimeout(resolve, Math.max(0, ms), false);
+  });
   try {
-    process.kill(pid, 0);
+    return await Promise.race([promise.then(() => true), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Send `signal` to the process group led by `pid`. False when the group no longer exists. */
+function signalGroup(pid: number, signal: NodeJS.Signals | 0): boolean {
+  try {
+    process.kill(-pid, signal);
     return true;
   } catch (error) {
-    // EPERM means it exists but belongs to someone else: still alive.
+    // EPERM means a member exists but belongs to someone else: still alive.
     return (error as NodeJS.ErrnoException).code === 'EPERM';
   }
 }
 
-/** Kill `pid` and all its descendants, synchronously. Works from an `exit` handler. */
+/**
+ * Poll until the process group led by `pid` is empty. It must yield to the event loop between polls: a blocking
+ * wait keeps libuv from reaping our exited leader, and a zombie still counts as a member of its group.
+ */
+async function groupGone(pid: number, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!signalGroup(pid, 0)) return true;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  return !signalGroup(pid, 0);
+}
+
+/**
+ * Kill `pid` and all its descendants, synchronously, for the `exit` and signal handlers where nothing can wait.
+ * On POSIX that is SIGKILL right away: without a wait a SIGTERM would not buy any clean shutdown, and a blocking
+ * wait cannot reap the exited leader (see `groupGone`), so it would always run to its timeout.
+ */
 export function killTreeSync(pid: number): void {
   if (isWindows) {
     // By PID with /T, never by image name: `node.exe` would take every other worktree down with it.
@@ -32,33 +66,27 @@ export function killTreeSync(pid: number): void {
     return;
   }
   // POSIX: the child was spawned detached, so it leads its own process group. Signal the group.
-  for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
-    try {
-      process.kill(-pid, signal);
-    } catch {
-      return;
-    }
-    if (signal === 'SIGTERM') {
-      const deadline = Date.now() + 2_000;
-      while (Date.now() < deadline) {
-        try {
-          process.kill(-pid, 0);
-        } catch {
-          return;
-        }
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
-      }
-    }
-  }
+  signalGroup(pid, 'SIGKILL');
 }
 
-async function waitGone(pid: number, timeoutMs: number): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (!isAlive(pid)) return true;
-    await new Promise(resolve => setTimeout(resolve, 50));
+/**
+ * Kill the tree led by `pid` and wait until it is gone: false if something outlived `timeoutMs`. On POSIX it
+ * sends SIGTERM to the group, and SIGKILL only if a member is still alive after the grace period.
+ */
+async function killTree(pid: number, exited: Promise<unknown>, timeoutMs: number): Promise<boolean> {
+  if (isWindows) {
+    killTreeSync(pid);
+    return settlesWithin(exited, timeoutMs);
   }
-  return !isAlive(pid);
+  const deadline = Date.now() + timeoutMs;
+  const graceEnd = Date.now() + KILL_GRACE_MS;
+  if (!signalGroup(pid, 'SIGTERM')) return true;
+  // Wait for the leader first. Once its exit is observed libuv has reaped it, so the group check only sees real
+  // survivors. The ID cannot be handed to a new process while its group still exists, so signalling the group
+  // after the leader is gone reaches our own descendants or nothing.
+  if ((await settlesWithin(exited, KILL_GRACE_MS)) && (await groupGone(pid, graceEnd - Date.now()))) return true;
+  signalGroup(pid, 'SIGKILL');
+  return (await settlesWithin(exited, deadline - Date.now())) && (await groupGone(pid, deadline - Date.now()));
 }
 
 function hasExited(child: ChildProcess): boolean {
@@ -167,8 +195,7 @@ export function startCommand(
         // would hit whatever owns it now. Until the exit is observed, Node holds the process handle open,
         // so the PID still refers to our child.
         if (!hasExited(child)) {
-          killTreeSync(pid);
-          if (!(await waitGone(pid, 10_000))) {
+          if (!(await killTree(pid, exited, 10_000))) {
             log.warn(`${label}: process ${String(pid)} is still running after kill.`);
           }
         }
