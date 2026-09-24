@@ -514,8 +514,8 @@ frame, and each distinct screen is rendered once. That makes two things true:
   the clip's length.
 
 **Formats.** WebP (lossless) and GIF are written by default. GitHub READMEs show both with `<img>`, and
-`showcase readme` lists clips after the shots that way (the WebP when there is one). MP4 is opt-in: GitHub does not
-play a video from the repository inline, so `readme` links to it, but a portfolio site can use `<video>`.
+`showcase readme` lists clips after the shots that way (the WebP when there is one). MP4 is opt-in: GitHub is not known to
+play a video from the repository inline, so `readme` links to it, and a portfolio site can use `<video>`.
 
 | Format | Encoder | Notes |
 | --- | --- | --- |

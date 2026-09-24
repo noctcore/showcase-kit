@@ -95,7 +95,7 @@ describe('encodeAnimation', () => {
     );
   });
 
-  // The one conditional test: MP4 is opt-in and needs an ffmpeg binary, which CI runners do not all have.
+  // Conditional: MP4 is opt-in and needs an ffmpeg binary, which CI runners do not all have.
   it.runIf(ffmpeg !== undefined)('encodes an MP4 with ffmpeg from PATH (only where ffmpeg is installed)', async () => {
     // An odd size needs padding for yuv420p.
     const input = await Promise.all(
