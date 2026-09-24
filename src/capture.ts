@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, relative } from 'node:path';
-import type { Browser, BrowserContext, Page } from 'playwright';
+import type { Browser, BrowserContext, ElementHandle, Page } from 'playwright';
 import sharp from 'sharp';
 import { launchBrowser, loadPlaywright } from './browser.js';
 import type { CdpTarget, ResolvedConfig, ResolvedShot, UrlTarget } from './config/types.js';
@@ -175,7 +175,9 @@ async function captureCdp(
         await shootAll(session, page, shots, lang, files, failures);
       }
     } finally {
-      // Leave the app as we found it: it is someone's running window, not ours.
+      // Undo what can be undone in someone's running window: the size override and emulated media here,
+      // the injected styles after each shot. Animations finished or cancelled for the shutter stay that
+      // way until the app reloads (documented in the README).
       await cdp.send('Emulation.clearDeviceMetricsOverride').catch(() => {});
       await page.emulateMedia({ colorScheme: null, reducedMotion: null }).catch(() => {});
       await cdp.detach().catch(() => {});
@@ -242,9 +244,10 @@ async function shootAll(
   const { config } = session;
   for (const shot of shots) {
     const path = outputPath(config, config.outputs.raw, lang, shot.id);
+    let style: ElementHandle | undefined;
     try {
       await navigate(session, page, shot);
-      await settle(config, page, shot);
+      style = await settle(config, page, shot);
       await mkdir(dirname(path), { recursive: true });
       await session.screenshot(page, path);
       const { width = 0, height = 0 } = await sharp(path).metadata();
@@ -256,6 +259,11 @@ async function shootAll(
       const message = (error as Error).message.split('\n')[0] ?? String(error);
       failures.push(`${lang}/${shot.id}: ${message}`);
       log.error(`  FAIL  ${lang}/${shot.id}: ${message}`);
+    } finally {
+      // In cdp mode this is the user's live app: take the injected styles back out. A navigation may
+      // already have dropped the tag, so a failed removal is fine.
+      await style?.evaluate(node => (node as Element).remove()).catch(() => {});
+      await style?.dispose().catch(() => {});
     }
   }
 }
@@ -298,7 +306,8 @@ async function navigate(session: Session, page: Page, shot: ResolvedShot): Promi
   }
 }
 
-async function settle(config: ResolvedConfig, page: Page, shot: ResolvedShot): Promise<void> {
+/** Wait for the view to be still and inject the determinism CSS. Returns the style tag, for removal. */
+async function settle(config: ResolvedConfig, page: Page, shot: ResolvedShot): Promise<ElementHandle> {
   const timeout = config.timeouts.shotMs;
   if (shot.waitFor) {
     await page.locator(shot.waitFor).first().waitFor({ state: 'visible', timeout });
@@ -309,13 +318,14 @@ async function settle(config: ResolvedConfig, page: Page, shot: ResolvedShot): P
       log.debug(`  network did not go idle within ${String(config.timeouts.networkIdleMs)}ms, continuing`);
     });
   }
-  await page.addStyleTag({ content: DETERMINISM_CSS + (config.css ? `\n${config.css}` : '') });
+  const style = await page.addStyleTag({ content: DETERMINISM_CSS + (config.css ? `\n${config.css}` : '') });
   await page.evaluate(async () => {
     await document.fonts.ready;
     // Two frames: one for pending style changes to apply, one for them to paint.
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   });
   if (shot.delayMs > 0) await page.waitForTimeout(shot.delayMs);
+  return style;
 }
 
 /** What Playwright's `animations: 'disabled'` does: finish finite animations, reset infinite ones. */

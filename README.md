@@ -158,7 +158,9 @@ Protocol:
 
 In cdp mode the kit sets the page to the configured viewport and device scale factor with
 `Emulation.setDeviceMetricsOverride`, so captures are the same size on every machine whatever the window size is.
-It clears the override and disconnects afterwards; it never closes the app.
+It clears the override, removes the styles it injected and disconnects afterwards; it never closes the app. One
+thing it cannot undo: animations it finished or reset for the shutter stay that way, so reload the app window
+(Ctrl+R in Electron dev builds) if a spinner or looping animation looks stuck after a capture.
 
 A `start` command runs through the shell (so `pnpm`, `bun` and `npm` work on Windows, where they are `.cmd`
 shims) in its own process tree. When the run ends, fails, or you press Ctrl+C, the kit kills that whole tree by PID

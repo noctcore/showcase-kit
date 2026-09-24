@@ -225,6 +225,27 @@ describe('capture, cdp mode', () => {
     await small.close();
   });
 
+  it('removes the styles it injects from the live app', async () => {
+    const app = browser
+      .contexts()
+      .flatMap(context => context.pages())
+      .find(candidate => candidate.url() === server.url)!;
+    const styles = (): Promise<number> => app.evaluate(() => document.querySelectorAll('style').length);
+    const before = await styles();
+    await capture(
+      fixtureConfig(tempDir(), {
+        target: { mode: 'cdp', cdpUrl, pageMatch: server.url },
+        css: 'main { outline: 4px solid red; }',
+        shots: [
+          { id: 'home', nav: '[data-view="home"]' },
+          { id: 'settings', nav: '[data-view="settings"]' },
+        ],
+      }),
+    );
+    expect(await styles()).toBe(before);
+    expect(await app.evaluate(() => getComputedStyle(document.querySelector('main')!).outlineStyle)).toBe('none');
+  });
+
   it('freezes animations over CDP too', async () => {
     const config = fixtureConfig(tempDir(), {
       target: { mode: 'cdp', cdpUrl, pageMatch: '127.0.0.1' },
