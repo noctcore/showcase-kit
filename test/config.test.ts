@@ -1,0 +1,139 @@
+import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { ConfigError, findConfigFile, loadConfig, resolveConfig } from '../src/index.js';
+
+const minimal = {
+  name: 'Demo App',
+  target: { mode: 'url', url: 'http://localhost:5173' },
+  shots: [{ id: 'home' }],
+};
+
+function issuesOf(input: unknown): string[] {
+  try {
+    resolveConfig(input, process.cwd());
+  } catch (error) {
+    expect(error).toBeInstanceOf(ConfigError);
+    return (error as ConfigError).issues;
+  }
+  throw new Error('expected resolveConfig to throw');
+}
+
+describe('resolveConfig', () => {
+  it('fills defaults for a minimal config', () => {
+    const config = resolveConfig(minimal, '/work/app');
+    expect(config.slug).toBe('demo-app');
+    expect(config.root).toBe(resolve('/work/app'));
+    expect(config.viewport).toEqual({ width: 1440, height: 900 });
+    expect(config.deviceScaleFactor).toBe(2);
+    expect(config.langs).toEqual(['en']);
+    expect(config.shots[0]).toMatchObject({ id: 'home', title: 'home', alt: 'Demo App: home', delayMs: 0 });
+    expect(config.outputs.raw).toBe('showcase-out/raw/{lang}/{id}.png');
+    expect(config.outputs.portfolio).toBeUndefined();
+    expect(config.frame).toMatchObject({ style: 'window', theme: 'dark', padding: 72, title: '{name}' });
+    expect(config.target).toMatchObject({ mode: 'url', readyTimeoutMs: 60_000, reuseExisting: true });
+  });
+
+  it('resolves portfolio defaults from shots and langs', () => {
+    const config = resolveConfig(
+      { ...minimal, langs: ['pl', 'en'], outputs: { portfolio: { dir: '../portfolio/public/projects/{slug}' } } },
+      '/work/app',
+    );
+    expect(config.outputs.portfolio).toEqual({
+      dir: '../portfolio/public/projects/{slug}',
+      size: [1920, 1080],
+      format: 'webp',
+      quality: 90,
+      thumbnail: 'home',
+      lang: 'pl',
+      publicPath: '/projects/{slug}',
+      padding: 96,
+    });
+  });
+
+  it('reports every problem in a bad config at once', () => {
+    const issues = issuesOf({
+      name: '',
+      target: { mode: 'ftp' },
+      viewPort: { width: 10 },
+      deviceScaleFactor: 9,
+      shots: [{ id: 'a b' }, { id: 'x', nav: 42 }, { id: 'x' }],
+      frame: { style: 'fancy', background: { type: 'solid', color: 'red; } body { display:none' } },
+      outputs: { raw: 'out/{lang}/{id}.jpg', readme: 'out/readme.webp', portfolio: { size: [1920], thumbnail: 'nope' } },
+      setup: 'yes',
+    });
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        'name: must be a non-empty string, got ""',
+        'target.mode: must be "url" or "cdp", got "ftp"',
+        expect.stringMatching(/^config\.viewPort: unknown key/),
+        'deviceScaleFactor: must be a number between 0.25 and 4, got number 9',
+        'shots[0].id: may only contain letters, digits, "-" and "_", got "a b"',
+        expect.stringMatching(/^shots\[1\]\.nav: must be a selector/),
+        'shots[2].id: duplicates another shot id "x"',
+        'frame.style: must be one of "window", "minimal", "none", got "fancy"',
+        'frame.background.color: is not a CSS color: "red; } body { display:none"',
+        'outputs.raw: must end in .png',
+        'outputs.readme: must contain {id}, or every file overwrites the last',
+        'outputs.portfolio.dir: is required',
+        expect.stringMatching(/^outputs\.portfolio\.size: must be \[width, height\]/),
+        'outputs.portfolio.thumbnail: "nope" is not a shot id (a b, x, x)',
+        'setup: must be a function, got "yes"',
+      ]),
+    );
+    expect(issues).toHaveLength(15);
+  });
+
+  it('requires {lang} in output paths once there is more than one language', () => {
+    expect(issuesOf({ ...minimal, langs: ['en', 'pl'], outputs: { raw: 'raw/{id}.png' } })).toEqual([
+      'outputs.raw: must contain {lang}, or every file overwrites the last',
+    ]);
+  });
+
+  it('rejects unknown path tokens', () => {
+    expect(issuesOf({ ...minimal, outputs: { readme: 'x/{id}-{theme}.webp' } })).toEqual([
+      'outputs.readme: unknown token {theme} (allowed: {lang}, {id}, {slug})',
+    ]);
+  });
+
+  it('accepts cdp targets with a RegExp page match and function nav', () => {
+    const nav = async () => {};
+    const config = resolveConfig(
+      { ...minimal, target: { mode: 'cdp', pageMatch: /localhost:\d+/ }, shots: [{ id: 'a', nav }] },
+      '/',
+    );
+    expect(config.target).toMatchObject({ mode: 'cdp', cdpUrl: 'http://127.0.0.1:9222' });
+    expect(config.shots[0]?.nav).toBe(nav);
+  });
+
+  it('names the file in the error message', () => {
+    expect(() => resolveConfig({}, '/', 'showcase.config.mjs')).toThrow(
+      /^Invalid showcase config \(showcase\.config\.mjs\):\n {2}- name: is required/,
+    );
+  });
+});
+
+describe('loadConfig', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'showcase-config-'));
+  const nested = join(dir, 'packages', 'app');
+  mkdirSync(nested, { recursive: true });
+  writeFileSync(
+    join(dir, 'showcase.config.ts'),
+    `const viewport: { width: number; height: number } = { width: 800, height: 600 };
+export default { name: 'Typed', viewport, target: { mode: 'url', url: 'http://localhost:1' }, shots: [{ id: 'a' }] };\n`,
+  );
+
+  it('finds a TypeScript config in a parent directory and resolves paths against it', async () => {
+    expect(findConfigFile(nested)).toBe(join(dir, 'showcase.config.ts'));
+    const config = await loadConfig(undefined, nested);
+    expect(config.name).toBe('Typed');
+    expect(config.viewport).toEqual({ width: 800, height: 600 });
+    expect(config.root).toBe(dir);
+  });
+
+  it('explains a missing config', async () => {
+    const empty = mkdtempSync(join(tmpdir(), 'showcase-empty-'));
+    await expect(loadConfig('nope.mjs', empty)).rejects.toThrow(/Config file not found/);
+  });
+});
