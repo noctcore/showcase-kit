@@ -15,6 +15,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
+import { attributesOf } from '../checks';
 import { DIST_DIR, REPO_ROOT, SITE_BASE } from '../site';
 import { gitIn, listTags } from './dates';
 import { parseChangelog } from './parse';
@@ -53,7 +54,7 @@ function htmlFiles(dir: string): string[] {
   });
 }
 
-const TAG_LINK = /https:\/\/github\.com\/[^/"]+\/[^/"]+\/(?:releases\/tag\/([^"#?]+)|compare\/([^"#?]+?)\.\.\.([^"#?]+))/g;
+const TAG_LINK = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(?:releases\/tag\/([^#?]+)|compare\/([^#?]+?)\.\.\.([^#?]+))/;
 const DATE = /<time datetime="\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z">\d{4}-\d{2}-\d{2}<\/time>/;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
@@ -68,7 +69,8 @@ export function checkChangelogDist(dist: string, input: ChangelogCheckInput): Ch
     fail(`no changelog page emitted at ${pageRoute}`);
   } else {
     const html = readFileSync(page, 'utf8');
-    const allIds = [...html.matchAll(/\sid="([^"]*)"/g)].map((m) => decodeEntities(m[1]!));
+    const attributes = attributesOf(html);
+    const allIds = attributes.flatMap(([name, value]) => (name === 'id' ? [value] : []));
     ids = new Set(allIds);
     for (const id of new Set(allIds.filter((id, i) => allIds.indexOf(id) !== i))) {
       fail(`${pageRoute}: the id "${id}" appears more than once`);
@@ -96,17 +98,18 @@ export function checkChangelogDist(dist: string, input: ChangelogCheckInput): Ch
     }
 
     // (2) Tag and compare links name tags that exist.
-    for (const match of html.matchAll(TAG_LINK)) {
-      for (const encoded of match.slice(1)) {
+    for (const [name, href] of attributes) {
+      const match = name === 'href' ? TAG_LINK.exec(href) : null;
+      for (const encoded of match?.slice(1) ?? []) {
         if (encoded === undefined) continue;
         result.tagLinks++;
         let tag: string;
         try {
-          tag = decodeURIComponent(decodeEntities(encoded));
+          tag = decodeURIComponent(encoded);
         } catch {
           tag = encoded;
         }
-        if (!input.tags.has(tag)) fail(`${pageRoute}: ${match[0]} names the tag "${tag}", which does not exist`);
+        if (!input.tags.has(tag)) fail(`${pageRoute}: ${href} names the tag "${tag}", which does not exist`);
       }
     }
   }
@@ -147,7 +150,7 @@ export function checkChangelogDist(dist: string, input: ChangelogCheckInput): Ch
   // (4) No empty ids anywhere.
   if (existsSync(dist)) {
     for (const file of htmlFiles(dist)) {
-      if (/\sid=""/.test(readFileSync(file, 'utf8'))) {
+      if (attributesOf(readFileSync(file, 'utf8')).some(([name, value]) => name === 'id' && value === '')) {
         fail(`${input.base}/${relative(dist, file).split(sep).join('/')} has an empty id (a Markdown heading ending in {...}?)`);
       }
     }

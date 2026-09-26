@@ -120,6 +120,13 @@ describe('checkChangelogDist', () => {
     ]);
   });
 
+  test('markup shown as text in inline code is not read as ids or links', () => {
+    const code = '<code>&lt;h2 id="" id="v1.0.0"&gt; &lt;a href="https://github.com/o/r/releases/tag/v9"&gt;</code>';
+    const files = healthy({ 'guides/x/index.html': `<p>${code}</p>` });
+    files['changelog/index.html'] = files['changelog/index.html']!.replace('</body>', `<p>${code}</p></body>`);
+    expect(checkChangelogDist(dist(files), input).failures).toEqual([]);
+  });
+
   test('an empty id on any page fails, naming the page', () => {
     const failures = checkChangelogDist(dist(healthy({ 'guides/x/index.html': '<h2 not="" id="">x</h2>' })), input).failures;
     expect(failures).toEqual(['/showcase-kit/guides/x/index.html has an empty id (a Markdown heading ending in {...}?)']);
