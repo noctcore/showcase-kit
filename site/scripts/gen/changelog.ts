@@ -1,31 +1,26 @@
 /**
  * Owner: L4 (changelog and feed).
  *
- * Generates src/content/docs/changelog.md from the root CHANGELOG.md. For now
- * it writes a stub page so the route, the sidebar link and the version pill
- * resolve. The page's editUrl points at the root CHANGELOG.md, the file a
- * reader would actually edit.
+ * Generates src/content/docs/changelog.md from the root CHANGELOG.md, git's
+ * release dates and the pending changesets (see scripts/changelog/). The
+ * page's editUrl points at the root CHANGELOG.md, the file a reader would
+ * actually edit.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { DOCS_DIR, STUB_MARKER } from '../site';
+import { loadChangelog } from '../changelog/model';
+import { renderChangelogPage } from '../changelog/page';
+import { DOCS_DIR } from '../site';
 
 export const CHANGELOG_OUT = join(DOCS_DIR, 'changelog.md');
 
+function write(path: string, content: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, content);
+}
+
 export async function generateChangelog(): Promise<void> {
-  mkdirSync(dirname(CHANGELOG_OUT), { recursive: true });
-  writeFileSync(
-    CHANGELOG_OUT,
-    [
-      '---',
-      'title: Changelog',
-      'description: Every release of @noctcore/showcase-kit, generated from CHANGELOG.md.',
-      'editUrl: https://github.com/noctcore/showcase-kit/edit/main/CHANGELOG.md',
-      '---',
-      '',
-      `${STUB_MARKER}: this page will hold every release from CHANGELOG.md, with dates, links and an Atom feed.`,
-      '',
-    ].join('\n'),
-  );
+  const model = loadChangelog();
+  write(CHANGELOG_OUT, renderChangelogPage(model));
 }
