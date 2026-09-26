@@ -1,6 +1,90 @@
 ---
 title: README table
-description: Print an HTML table of the framed images for a README.
+description: Print an HTML table of the framed images with captions, ready to paste into a README.
 ---
 
-STUB(wave-2): this page will hold: how to generate the README table snippet with captions and paste it into a README.
+`showcase readme` prints an HTML table of the framed images, a row of images and a row of `<sub>`
+captions under it, with image paths relative to your README. Run it after `showcase all` (or
+`showcase frame`) and paste the output into the README.
+
+## A minimal run
+
+```sh
+npx showcase readme
+```
+
+For the [getting started](/showcase-kit/getting-started/) config, with a README next to the config:
+
+```html title="output"
+<table>
+  <tr>
+    <td width="50%"><img src="assets/showcase/en/home.webp" alt="My App: Home" /></td>
+    <td width="50%"><img src="assets/showcase/en/settings.webp" alt="My App: Settings" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>The home screen.</sub></td>
+    <td align="center"><sub>Settings</sub></td>
+  </tr>
+</table>
+```
+
+The table goes to standard output and warnings go to standard error, so
+`npx showcase readme > showcase-table.html` writes a clean file. The command only reads the config and
+prints: it launches no browser and captures nothing.
+
+## Captions and alt text
+
+- The caption is the shot's `caption`, or its `title` when there is none.
+- The image's `alt` is the shot's `alt`, which defaults to `<name>: <title>`.
+- Both are HTML-escaped.
+
+So a shot with a `title` and no `caption` gets its title as the caption, as `settings` did above.
+
+## Options
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `--cols <n>` | 2 | Images per row, 1 to 6. Each cell is `100 / n` percent wide, rounded down. |
+| `--lang <code>` | the first of `langs` | Which language's images to list. It must be one of `langs`. |
+| `--base <dir>` | the config's directory | The directory your README is in. Image paths are written relative to it. |
+| `--only <ids>` | every shot and clip | Comma-separated shot and clip ids. The table keeps config order; an unknown id is an error. |
+
+`--base` is resolved against the config's directory (or `root`, if you set one), not the directory you
+run the command from. In a monorepo with the config in `packages/app/` and the README at the
+repository root:
+
+```sh
+npx showcase readme --base ../..
+```
+
+writes image paths such as `packages/app/assets/showcase/en/home.webp`. Paths always use forward
+slashes, on Windows too.
+
+A listed image that does not exist yet still gets its cell, with a warning that names the command to
+run (`showcase frame`, or `showcase record` for a clip).
+
+The [CLI reference](/showcase-kit/reference/cli/#readme) has the command with every option.
+
+## Clips in the table
+
+In a terminal app config with [`clips`](/showcase-kit/guides/clips/), the clips follow the shots in the
+same table:
+
+- a clip with a WebP or GIF gets an `<img>` of the first of those in its `formats`, which GitHub plays
+  inline;
+- when the clip also has an MP4, its caption ends in a link to it: "Tour (MP4)", with "MP4" as the link;
+- an MP4-only clip is a link, because GitHub is not known to play a video from the repository inline.
+
+`--only` takes clip ids as well as shot ids.
+
+## Without README images: `outputs.readme: false`
+
+With `outputs.readme: false` there are no framed images to list, so `readme` stops with an error that
+says so. A terminal app config with clips is the exception: the table then lists only the clips (and
+an `--only` that names only shots is an error that says why).
+
+## Related
+
+- [Frames](/showcase-kit/guides/frames/): where the images come from and how big they are.
+- [Portfolio](/showcase-kit/guides/portfolio/): the gallery JSON, the same idea for a portfolio site.
+- [Hero banner](/showcase-kit/guides/hero/): a banner for the top of the README.
