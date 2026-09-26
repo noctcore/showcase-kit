@@ -1,31 +1,30 @@
 /**
  * Owner: L4 (changelog and feed).
  *
- * Generates src/content/docs/changelog.md from the root CHANGELOG.md. For now
- * it writes a stub page so the route, the sidebar link and the version pill
- * resolve. The page's editUrl points at the root CHANGELOG.md, the file a
- * reader would actually edit.
+ * Generates src/content/docs/changelog.md from the root CHANGELOG.md, git's
+ * release dates and the pending changesets (see scripts/changelog/), plus
+ * src/generated/changelog-feed.json, which src/pages/changelog.xml.ts turns
+ * into the Atom feed. The page's editUrl points at the root CHANGELOG.md, the
+ * file a reader would actually edit.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { DOCS_DIR, STUB_MARKER } from '../site';
+import { feedData } from '../changelog/feed';
+import { loadChangelog } from '../changelog/model';
+import { renderChangelogPage } from '../changelog/page';
+import { DOCS_DIR, SITE_DIR } from '../site';
 
 export const CHANGELOG_OUT = join(DOCS_DIR, 'changelog.md');
+export const FEED_DATA_OUT = join(SITE_DIR, 'src', 'generated', 'changelog-feed.json');
+
+function write(path: string, content: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, content);
+}
 
 export async function generateChangelog(): Promise<void> {
-  mkdirSync(dirname(CHANGELOG_OUT), { recursive: true });
-  writeFileSync(
-    CHANGELOG_OUT,
-    [
-      '---',
-      'title: Changelog',
-      'description: Every release of @noctcore/showcase-kit, generated from CHANGELOG.md.',
-      'editUrl: https://github.com/noctcore/showcase-kit/edit/main/CHANGELOG.md',
-      '---',
-      '',
-      `${STUB_MARKER}: this page will hold every release from CHANGELOG.md, with dates, links and an Atom feed.`,
-      '',
-    ].join('\n'),
-  );
+  const model = loadChangelog();
+  write(CHANGELOG_OUT, renderChangelogPage(model));
+  write(FEED_DATA_OUT, `${JSON.stringify(feedData(model), null, 2)}\n`);
 }

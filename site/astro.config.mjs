@@ -1,3 +1,4 @@
+import { satteri } from '@astrojs/markdown-satteri';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 
@@ -6,13 +7,19 @@ import { defineConfig } from 'astro/config';
 // and 404s every asset, which is why scripts/check-build.ts reads the emitted
 // HTML rather than trusting the exit code.
 //
-// No markdown processor is configured: this site runs no remark plugins. The
-// generated pages (changelog, reference) are shaped by scripts/sync.ts before
-// Astro sees them, so Astro 7's default pipeline is enough.
+// This site runs no remark plugins: the generated pages (changelog, reference)
+// are shaped by scripts/sync.ts before Astro sees them.
 export default defineConfig({
   site: 'https://noctcore.github.io',
   base: '/showcase-kit',
   trailingSlash: 'always',
+  markdown: {
+    // Astro 7's default processor, plus heading attributes (`## 0.2.0 {#v0.2.0}`)
+    // so the generated changelog gets readable, collision-free version anchors.
+    // Without them `## 0.2.0` slugs to `#020`, and 0.1.10 and 0.11.0 would both
+    // slug to `#0110`. Starlight still adds its asides and heading links on top.
+    processor: satteri({ features: { headingAttributes: true } }),
+  },
   integrations: [
     starlight({
       title: 'showcase-kit',
