@@ -47,8 +47,9 @@ beforeAll(() => {
   commitChangelog(repo, '# p\n\n## 0.1.1\n\n## 0.1.0\n', '2026-01-20T23:30:00+02:00');
   git(repo, ['tag', 'v0.1.1']);
   // 0.2.0: never tagged; its heading lands at 01:30 on the 3rd in UTC+2, the 2nd in UTC,
-  // then a later commit edits the file again (the oldest commit must win).
+  // then later commits remove it and add it back (the oldest commit must win).
   commitChangelog(repo, '# p\n\n## 0.2.0\n\n## 0.1.1\n\n## 0.1.0\n', '2026-02-03T01:30:00+02:00');
+  commitChangelog(repo, '# p\n\n## 0.1.1\n\n## 0.1.0\n', '2026-02-05T12:00:00+00:00');
   commitChangelog(repo, '# p\n\n## 0.2.0\n\nedited\n\n## 0.1.1\n\n## 0.1.0\n', '2026-02-09T12:00:00+00:00');
 });
 
