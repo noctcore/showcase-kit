@@ -1,0 +1,55 @@
+# Keeps the pinned GitHub Actions SHAs (and their `# vX.Y.Z` comments) and the
+# Bun lockfile current. A 7-day cooldown means a freshly published release, the
+# usual window for a compromised version, is never proposed the day it lands;
+# it matches `minimumReleaseAge` in bunfig.toml.
+#
+# Groups only batch minor and patch updates. A major version (a new
+# changesets/action, TypeScript, vitest, Playwright...) arrives as its own pull
+# request, because each one usually needs its own migration and must be judged
+# alone. Bun itself (`packageManager` and `bun-version` in the workflows) is
+# not managed here; bump those by hand, together.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']
+        update-types: [minor, patch]
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    # One group, split by name rather than by dependency type: Dependabot
+    # documents `dependency-type` in groups for npm but not for bun. The
+    # excluded packages arrive alone even for a minor or patch update:
+    # - playwright: the exact devDependency pin decides which Chromium the tests
+    #   download, and Chromium renders every frame, hero and terminal screen.
+    #   Bumping it never touches the `>=1.50.0` peer range users see.
+    # - @lydell/node-pty: an exact pin on a prerelease with native prebuilds
+    #   for three platforms; the peer range starts at the version the tty tests
+    #   ran against. Each new beta needs its own Linux and Windows CI run.
+    # - sharp: 0.x, where a minor is the breaking step (Dependabot counts
+    #   0.35 to 0.36 as a minor), and every output is encoded through it.
+    groups:
+      dependencies:
+        patterns: ['*']
+        exclude-patterns: ['playwright', '@lydell/node-pty', 'sharp']
+        update-types: [minor, patch]
+    ignore:
+      # @types/node follows the oldest Node the package supports (engines: >=22), not the
+      # newest Node release.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+    commit-message:
+      prefix: chore
+      include: scope
