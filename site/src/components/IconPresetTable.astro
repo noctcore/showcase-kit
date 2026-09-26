@@ -33,11 +33,10 @@ const presets = Object.entries(ICON_PRESETS) as [IconPreset, IconFile[]][];
       presets.map(([preset, files]) =>
         files.map((entry, index) => (
           <tr>
-            {index === 0 && (
-              <th scope="rowgroup" rowspan={files.length}>
-                <code>{preset}</code>
-              </th>
-            )}
+            {/* One visible label per preset; the other rows name it for screen readers only. */}
+            <th scope="row">
+              {index === 0 ? <code>{preset}</code> : <span class="sr-only">{preset}</span>}
+            </th>
             <td>
               <code>{entry.file}</code>
             </td>
