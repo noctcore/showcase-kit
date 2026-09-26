@@ -3,24 +3,108 @@ title: CLI
 description: Every showcase command and option.
 ---
 
-STUB(wave-2): this page will hold every `showcase` command and its options, generated from the library source.
+import ReferenceCliCommand from '../../../components/ReferenceCliCommand.astro';
+import ReferenceCliOptions from '../../../components/ReferenceCliOptions.astro';
+
+The commands, options and their wording are generated on each build from the built CLI's `--help`; which command
+reads which option comes from `src/cli.ts`, and the build fails when the two disagree.
+
+```sh
+showcase <command> [options]
+```
+
+Run it with your package manager: `npx showcase`, `pnpm exec showcase` or `bunx showcase`. It needs Playwright with
+Chromium (`npx playwright install chromium`), or an installed browser set through `browser.channel` in the
+[config](/showcase-kit/reference/config/).
 
 ## Options
 
+<ReferenceCliOptions />
+
+**Config lookup.** Without `--config`, the kit looks for `showcase.config.ts`, `.mts`, `.mjs` or `.js` (in that
+order) in the current directory, then in each parent, up to the project root: the first directory that has a
+`package.json` or a `.git`. A config above that belongs to another project and is not used. In a monorepo, run
+the command from the package that has the config, or pass `--config`. A `--config` path is relative to the current
+directory, and relative paths inside the config resolve against the config file's directory.
+
+**Selecting.** `--only` and `--langs` take comma-separated lists. A name the config does not know is an error
+rather than a silent no-op, so a typo does not capture nothing.
+
+**Exit codes.** Every command exits with code 1 when it fails, and 0 otherwise. Errors the kit expects (a bad
+config, a missing file, a shot that timed out) print one message without a stack trace. A failed shot does not
+stop the others: the rest are still written, then the run fails with the list of what went wrong. Clips work the
+same way.
+
+`showcase`, `showcase help` and `showcase --help` all print the help. An unknown command, or an extra argument
+after the command, is an error.
+
 ## capture
+
+<ReferenceCliCommand name="capture" />
+
+Screenshots every shot in every language into `outputs.raw`, as PNG. In url mode it starts the app with
+`target.start`, unless `target.reuseExisting` is on (the default) and an app already answers on `target.url`; in cdp mode it attaches to the running app; in tty mode
+it runs `target.command` in a pseudo terminal.
 
 ## frame
 
+<ReferenceCliCommand name="frame" />
+
+Frames the raw captures into `outputs.readme` (`.webp` or `.png`). With `outputs.readme: false` it does nothing.
+
 ## portfolio
+
+<ReferenceCliCommand name="portfolio" />
+
+Exports `outputs.portfolio`: one image per shot, `thumbnail.<format>`, and the gallery JSON (unless
+`gallery: false`). It renders from the raw captures, so it works without the README images.
 
 ## readme
 
+<ReferenceCliCommand name="readme" />
+
+Prints an HTML table of the framed images, with the captions under them in `<sub>`, to paste into a README. Clips
+follow the shots. Image paths are relative to `--base`, which defaults to the config root.
+
 ## record
+
+<ReferenceCliCommand name="record" />
+
+Records the terminal `clips` into `outputs.clips` (WebP and GIF by default, MP4 when a clip lists it). Each clip
+starts a fresh app. When a clip asks for MP4 and `ffmpeg` is not on PATH, it stops before recording anything. Only
+tty mode has clips.
 
 ## all
 
+<ReferenceCliCommand name="all" />
+
+Runs `capture`, then `frame`, then `portfolio` when `outputs.portfolio` is set, then `record` when the config has
+`clips`. `--only` takes shot and clip ids together and passes each to the step it belongs to.
+
 ## hero
+
+<ReferenceCliCommand name="hero" />
+
+Renders the README banner to `hero.output`, from the raw captures of `hero.shots`.
 
 ## icons
 
+<ReferenceCliCommand name="icons" />
+
+Generates an app icon set from one square image. It needs no config, but it needs both `--source` and
+`--preset`:
+
+```sh
+showcase icons --source assets/mascot.png --preset electron --out apps/desktop/resources
+```
+
+The presets are `web`, `electron` and `tauri`; see [Icons](/showcase-kit/guides/icons/) for the files each one
+writes.
+
 ## init
+
+<ReferenceCliCommand name="init" />
+
+Writes a starter `showcase.config.mjs` (or `showcase.config.ts` with `--ts`) into the current directory, filled in
+from its `package.json`. With `--tty` it starts from a terminal app config, with the command taken from the
+package's `bin`, else its `start` or `dev` script. It refuses to overwrite an existing config unless you pass `--force`.

@@ -1,0 +1,77 @@
+---
+/**
+ * CLI options, generated from the built CLI's `--help` and from which command
+ * reads which option in src/cli.ts (scripts/reference/cli.ts). With `command`,
+ * only the options that command reads.
+ */
+import { cliReference } from '../../scripts/reference/data';
+import type { CliOption } from '../../scripts/reference/types';
+
+interface Props {
+  command?: string;
+}
+
+const { command } = Astro.props;
+const options = command
+  ? cliReference.options.filter((option) => cliReference.commands.find((c) => c.name === command)?.options.includes(option.name))
+  : cliReference.options;
+
+function flag(option: CliOption): string {
+  const long = `--${option.name}${option.arg ? ` ${option.arg}` : ''}`;
+  return option.short ? `-${option.short}, ${long}` : long;
+}
+---
+
+<div class="reference-wrap">
+  <table class="reference-table">
+    <thead>
+      <tr>
+        <th scope="col">Option</th>
+        {!command && <th scope="col">Applies to</th>}
+        <th scope="col">Meaning</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        options.map((option) => (
+          <tr>
+            <td class="reference-flag">
+              <code>{flag(option)}</code>
+            </td>
+            {!command && (
+              <td>
+                {option.exits
+                  ? 'any command line: prints, then exits without running a command'
+                  : option.global
+                    ? 'every command'
+                    : option.commands.map((name, i) => (
+                        <>
+                          {i > 0 && ', '}
+                          <a href={`#${name}`}>{name}</a>
+                        </>
+                      ))}
+              </td>
+            )}
+            <td>{option.description}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .reference-wrap {
+    overflow-x: auto;
+  }
+
+  .reference-table {
+    display: table;
+    width: 100%;
+    font-size: var(--sl-text-sm);
+  }
+
+  .reference-flag code {
+    white-space: nowrap;
+  }
+</style>

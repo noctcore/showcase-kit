@@ -3,4 +3,71 @@ title: Programmatic API
 description: Use showcase-kit from code instead of the CLI.
 ---
 
-STUB(wave-2): this page will hold: the exported functions and types, generated from the library source.
+import ReferenceApiGroup from '../../../components/ReferenceApiGroup.astro';
+
+Everything the CLI does is exported from `@noctcore/showcase-kit`:
+
+```ts
+import { capture, exportPortfolio, frame, generateIcons, hero, loadConfig, readmeSnippet } from '@noctcore/showcase-kit';
+
+const config = await loadConfig(); // or loadConfig('path/to/showcase.config.mjs')
+await capture(config, { only: ['library'], langs: ['en'] });
+await frame(config);
+await exportPortfolio(config);
+console.log(readmeSnippet(config, { lang: 'en', cols: 2 }));
+await hero(config);
+await generateIcons('mascot.png', 'web', 'public');
+```
+
+`resolveConfig(object, rootDir)` validates a config object without a file, with the same checks as the CLI (see
+[Config](/showcase-kit/reference/config/)). `defineConfig` only exists for types and editor completion: it reads
+`target.mode`, so tty `setup` and `nav` functions get the terminal session instead of a page. A resolved config is
+a web or a tty config; `isTtyConfig(config)` tells them apart.
+
+The terminal engine is exported too, for scripts of your own: `openTtySession({ command, cwd, env, cols, rows })`
+returns a session with `press`, `type`, `waitForText`, `screen` and `close`, and
+`renderTtyScreen(page, session.screen(), resolveTerminalOptions(undefined, cwd), 2)` renders a screen to a PNG in a
+Playwright page whose context has the same device scale factor. `parseKeys`, `DARK_THEME`, `LIGHT_THEME` and
+`TERMINAL_DEFAULTS` come with them.
+
+`record(config, { only, langs })` records clips, and `encodeAnimation(frames, { format, loop, quality, fps })` is
+the encoder behind it: frames of one size as `{ png, delayMs }` in, an animated WebP (lossless, or lossy with
+`quality`), a GIF, or an MP4 through `ffmpeg` out. A delay longer than one WebP or GIF frame can hold (65535 ms in
+sharp) is split into repeats of the same image, and input it cannot encode is refused with a `ShowcaseError`.
+
+Errors meant for the person running a command are `ShowcaseError`s; an invalid config throws a `ConfigError`, a
+`ShowcaseError` whose `issues` lists every problem.
+
+The rest of this page is generated from `src/index.ts` on each build: every export, whether it exists at runtime
+or only as a type, its summary from the source and its signature.
+
+## Config
+
+<ReferenceApiGroup group="config" />
+
+## Pipeline
+
+<ReferenceApiGroup group="pipeline" />
+
+## Outputs
+
+<ReferenceApiGroup group="outputs" />
+
+## Terminal engine
+
+<ReferenceApiGroup group="terminal" />
+
+## Encoding
+
+<ReferenceApiGroup group="encoding" />
+
+## Errors
+
+<ReferenceApiGroup group="errors" />
+
+## Types
+
+The config types behind [Config](/showcase-kit/reference/config/), their resolved forms, and the terminal engine's
+contract.
+
+<ReferenceApiGroup group="types" />

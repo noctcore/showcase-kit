@@ -1,0 +1,195 @@
+---
+/**
+ * One table of the config reference, generated from src/config/types.ts and
+ * src/tty/types.ts, with modes from the validator. Nothing in it is typed by
+ * hand: see scripts/reference/config.ts.
+ */
+import { configTable } from '../../scripts/reference/data';
+import type { ConfigMode, ConfigRow } from '../../scripts/reference/types';
+import ReferenceText from './ReferenceText.astro';
+
+interface Props {
+  id: string;
+}
+
+const table = configTable(Astro.props.id);
+const showModes = table.modes.length > 1;
+
+/** The label under a key that works in one mode only. */
+function modeLabel(modes: ConfigMode[]): string {
+  return modes[0] === 'web' ? 'web only' : 'tty only';
+}
+
+/** A long literal split after each `/` and `,`, the places a line may break. */
+function breakable(text: string): string[] {
+  return text.split(/(?<=[/,])/);
+}
+
+/** An inline object type with a table of its own reads better as a link than spelled out. */
+function typeText(row: ConfigRow): string {
+  return row.link && row.type.startsWith('{') ? '{ ... }' : row.type;
+}
+---
+
+<div class="reference">
+  {
+    table.description && (
+      <div class="reference-lead">
+        <ReferenceText text={table.description} />
+      </div>
+    )
+  }
+  <div class="reference-wrap">
+    {
+      table.kind === 'fields' ? (
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th scope="col">Key</th>
+              <th scope="col">Type</th>
+              <th scope="col">Default</th>
+              <th scope="col">Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row) => (
+              <tr>
+                <td class="reference-key">
+                  <code>{row.key}</code>
+                  {showModes && row.modes.length === 1 && <span class="reference-mode">{modeLabel(row.modes)}</span>}
+                </td>
+                <td class="reference-type">
+                  {row.link ? (
+                    <a href={`#${row.link}`}>
+                      <code>{typeText(row)}</code>
+                    </a>
+                  ) : (
+                    <code>{row.type}</code>
+                  )}
+                  {row.typeExpanded && (
+                    <span class="reference-alias">
+                      {' '}
+                      = <code>{row.typeExpanded}</code>
+                    </span>
+                  )}
+                </td>
+                <td>
+                  {row.default?.kind === 'literal' ? (
+                    <code>
+                      {breakable(row.default.text).map((part, i) => (
+                        <>
+                          {i > 0 && <wbr />}
+                          {part}
+                        </>
+                      ))}
+                    </code>
+                  ) : row.default ? (
+                    <ReferenceText text={row.default.text} />
+                  ) : row.required ? (
+                    <strong>required</strong>
+                  ) : row.link ? (
+                    <a href={`#${row.link}`}>per key</a>
+                  ) : (
+                    'none'
+                  )}
+                </td>
+                <td class="reference-meaning">
+                  <ReferenceText text={row.description} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <table class="reference-table">
+          <thead>
+            <tr>
+              <th scope="col">Form</th>
+              <th scope="col">Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            {table.forms.map((form) => (
+              <tr>
+                <td class="reference-type">
+                  <code>{form.type}</code>
+                </td>
+                <td class="reference-meaning">
+                  <ReferenceText text={form.description} />
+                  {form.fields
+                    ?.filter((field) => field.description || field.default)
+                    .map((field) => (
+                      <div class="reference-field">
+                        <code>{field.key}</code>
+                        {field.required ? '' : ' (optional)'}: <ReferenceText text={field.description} />
+                        {field.default && (
+                          <>
+                            {' '}
+                            Default:{' '}
+                            {field.default.kind === 'literal' ? (
+                              <code>{field.default.text}</code>
+                            ) : (
+                              <ReferenceText text={field.default.text} />
+                            )}
+                            .
+                          </>
+                        )}
+                      </div>
+                    ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )
+    }
+  </div>
+</div>
+
+<style>
+  .reference-wrap {
+    overflow-x: auto;
+  }
+
+  .reference-table {
+    display: table;
+    width: 100%;
+    font-size: var(--sl-text-sm);
+  }
+
+  .reference-key code {
+    white-space: nowrap;
+  }
+
+  .reference-mode {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+    white-space: nowrap;
+  }
+
+  /* Types wrap between words; long default paths break after a slash or a
+     comma (see breakable), so neither squeezes the other columns. */
+  .reference-type {
+    min-width: 7rem;
+  }
+
+
+  .reference-meaning {
+    min-width: 12rem;
+  }
+
+  .reference-alias {
+    color: var(--sl-color-gray-3);
+  }
+
+  .reference-field {
+    margin-top: 0.35rem;
+  }
+
+  .reference-lead :global(ul) {
+    margin-top: 0.5rem;
+  }
+
+</style>

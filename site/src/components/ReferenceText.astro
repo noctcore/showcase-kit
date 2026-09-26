@@ -1,0 +1,32 @@
+---
+/**
+ * JSDoc text from the generated reference: inline code, paragraphs and `- `
+ * lists. A single paragraph renders inline, so table cells stay compact.
+ */
+import { blocks } from '../../scripts/reference/text';
+
+interface Props {
+  text: string;
+}
+
+const parts = blocks(Astro.props.text);
+const single = parts.length === 1 && parts[0]?.kind === 'p' ? parts[0] : undefined;
+---
+
+{
+  single ? (
+    single.parts.map((part) => (part.code ? <code>{part.text}</code> : part.text))
+  ) : (
+    parts.map((block) =>
+      block.kind === 'p' ? (
+        <p>{block.parts.map((part) => (part.code ? <code>{part.text}</code> : part.text))}</p>
+      ) : (
+        <ul>
+          {block.items.map((item) => (
+            <li>{item.map((part) => (part.code ? <code>{part.text}</code> : part.text))}</li>
+          ))}
+        </ul>
+      ),
+    )
+  )
+}

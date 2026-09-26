@@ -1,0 +1,23 @@
+---
+/**
+ * One CLI command: its summary from `--help`, its usage, and the options it
+ * reads in src/cli.ts. The prose under it on the page is hand-written.
+ */
+import { Code } from '@astrojs/starlight/components';
+
+import { cliReference } from '../../scripts/reference/data';
+import ReferenceCliOptions from './ReferenceCliOptions.astro';
+
+interface Props {
+  name: string;
+}
+
+const command = cliReference.commands.find((c) => c.name === Astro.props.name);
+if (!command) throw new Error(`No command "${Astro.props.name}" in the generated CLI reference. Run \`bun run sync\`.`);
+---
+
+<p>
+  {command.summary}.{command.loadsConfig && ' Reads the config file.'}
+</p>
+<Code code={command.usage} lang="sh" />
+<ReferenceCliOptions command={command.name} />
