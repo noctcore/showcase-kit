@@ -1,0 +1,16 @@
+---
+/**
+ * The portfolio items, rendered from the showcase.gallery.json the kit wrote:
+ * the way a portfolio site is meant to use it. Each `src` is already a served
+ * URL, because the config's `publicPath` is where site/public/gallery/portfolio/
+ * is served.
+ */
+import items from '../../gallery/showcase.gallery.json';
+import { pathOfSrc } from './GalleryData';
+import GalleryGrid from './GalleryGrid.astro';
+import GalleryImage from './GalleryImage.astro';
+---
+
+<GalleryGrid cols={3}>
+  {items.map(item => <GalleryImage file={pathOfSrc(item.src)} alt={item.alt} caption={item.caption} />)}
+</GalleryGrid>

@@ -1,6 +1,142 @@
 ---
 title: Gallery
-description: Real outputs showcase-kit produced from a fixture app.
+description: Real outputs showcase-kit produced from a fixture app, with the configs that made them.
 ---
 
-STUB(wave-2): this page will hold: real captures, frames, portfolio images, a hero banner and clips the kit produced from a fixture app, regenerable by script.
+import GalleryConfig from '../../components/GalleryConfig.astro';
+import GalleryFiles from '../../components/GalleryFiles.astro';
+import GalleryGrid from '../../components/GalleryGrid.astro';
+import GalleryImage from '../../components/GalleryImage.astro';
+import GalleryPortfolio from '../../components/GalleryPortfolio.astro';
+import web from '../../../gallery/showcase.config.mjs';
+import tty from '../../../gallery/showcase.tty.config.mjs';
+import webCode from '../../../gallery/showcase.config.mjs?raw';
+import ttyCode from '../../../gallery/showcase.tty.config.mjs?raw';
+import galleryJson from '../../../gallery/showcase.gallery.json?raw';
+
+export const [tonight, log, gear] = web.shots;
+export const [queue] = tty.shots;
+export const [tour] = tty.clips;
+
+Every image on this page is a file showcase-kit wrote, committed exactly as the kit produced it. The app in them is
+Nightjar, a made-up observing planner that lives in the kit's repository under `site/gallery/`: plain HTML, CSS and
+JavaScript with fixed data (no clock, no randomness, no network), served by a small `node:http` server that the kit
+starts through `target.start`. Its terminal side, `nightjar queue`, is a Node script without dependencies.
+
+One command regenerates everything below, from empty output folders:
+
+```sh
+bun run build          # the kit's CLI, dist/cli.js
+bun run docs:gallery   # site/scripts/gallery.ts
+```
+
+Each caption names the file and its real size. Select an image to open the file itself.
+
+## README images
+
+The web config captures three views at 1280x720 CSS pixels and device scale factor 2, in English and Polish. The app
+takes its language from the browser locale, and the kit gives each entry in `langs` its own browser context with that
+locale, so the config needs no `setup`. `frame` puts each capture in a window on a gradient, and `maxWidth: 1600`
+scales the 2816 pixel wide result down for a lighter README. The [frames guide](/showcase-kit/guides/frames/) explains
+each option.
+
+<GalleryGrid cols={2}>
+  <GalleryImage file="readme/en/tonight.webp" alt={tonight.alt} caption={tonight.caption} />
+  <GalleryImage file="readme/pl/tonight.webp" alt={`${tonight.alt} Polish interface.`} caption="The same view with langs: pl." />
+  <GalleryImage file="readme/en/log.webp" alt={log.alt} caption={log.caption} />
+  <GalleryImage file="readme/pl/log.webp" alt={`${log.alt} Polish interface.`} caption="Log, in Polish." />
+  <GalleryImage file="readme/en/gear.webp" alt={gear.alt} caption={gear.caption} />
+  <GalleryImage file="readme/pl/gear.webp" alt={`${gear.alt} Polish interface.`} caption="Gear, in Polish." />
+</GalleryGrid>
+
+The whole web config. The portfolio and the hero below come from it too:
+
+<GalleryConfig code={webCode} file="site/gallery/showcase.config.mjs" />
+
+## Portfolio
+
+`outputs.portfolio` exports every shot at exactly 1600x900 pixels, the framed window contained on the background and
+never cropped, plus `thumbnail.webp` (a copy of the `tonight` image) and `showcase.gallery.json`. The images below are
+rendered from that JSON at build time, which is how a portfolio site is meant to use it. Its `publicPath` is the URL
+this site serves the images from, so each `src` works as written. See the
+[portfolio guide](/showcase-kit/guides/portfolio/).
+
+<GalleryPortfolio />
+
+<GalleryConfig code={webCode} file="site/gallery/showcase.config.mjs" section="portfolio" />
+
+The gallery JSON the export wrote. It sits next to the config rather than in the served folder, because this page
+imports it:
+
+<GalleryConfig code={galleryJson} file="site/gallery/showcase.gallery.json" />
+
+## Hero banner
+
+`showcase hero` stacks up to three framed shots, tilted, next to the logo, the name and the tagline, at the 1280x640
+GitHub social preview size. It renders from the raw captures, like the portfolio. The logo is this site's own mark.
+See the [hero guide](/showcase-kit/guides/hero/).
+
+<GalleryImage
+  file="hero.webp"
+  alt="The Nightjar banner: the moon logo, the name and the tagline on the left, and the Gear, Log and Tonight windows stacked and tilted on the right."
+/>
+
+<GalleryConfig code={webCode} file="site/gallery/showcase.config.mjs" section="hero" />
+
+## Terminal shot and clip
+
+A second config runs `tui.mjs` in a pseudo terminal at 100x22 cells. The shot presses `j` once and waits for the
+selected target's details; the clip starts a fresh process, moves down the queue and switches to the log. Unchanged
+frames merge, so 4.9 seconds of recording is five distinct frames. The clip is written as WebP and GIF (the default
+`formats`). Two frame choices keep it small: a solid background, and no `maxWidth`. Downscaling blends pixels, and
+with `maxWidth: 1600` this clip's lossless WebP was 351 KB instead of 121 KB at full size. `inheritEnv: false` keeps
+your environment out of the images. See [terminal apps](/showcase-kit/guides/terminal-apps/) and
+[clips](/showcase-kit/guides/clips/).
+
+<GalleryImage file="terminal/queue.webp" alt={queue.alt} caption={queue.caption} />
+
+<GalleryImage file="terminal/tour.webp" alt={tour.alt} caption={tour.caption} />
+
+The same clip as a GIF: [terminal/tour.gif](/showcase-kit/gallery/terminal/tour.gif).
+
+<GalleryConfig code={ttyCode} file="site/gallery/showcase.tty.config.mjs" />
+
+## Icons
+
+The icon set needs no config. The gallery script renders this site's `mark.svg` to a 1024 pixel square PNG with
+`sharp`, then runs:
+
+```sh
+showcase icons --source site/gallery/showcase-out/icon-source.png --preset web --out site/public/gallery/icons
+```
+
+Every size is fitted onto a transparent square. See the [icons guide](/showcase-kit/guides/icons/).
+
+<GalleryGrid cols={3}>
+  <GalleryImage file="icons/icon-512.png" alt="The Nightjar icon at 512 pixels: a crescent moon on a navy rounded square." maxWidth={256} />
+  <GalleryImage file="icons/icon-192.png" alt="The same icon at 192 pixels." maxWidth={192} />
+  <GalleryImage file="icons/apple-touch-icon.png" alt="The same icon at 180 pixels, the Apple touch icon." maxWidth={180} />
+</GalleryGrid>
+
+<GalleryFiles prefix="icons/" />
+
+## How the gallery is made
+
+`site/scripts/gallery.ts` stops with a clear message when `dist/cli.js` is missing or when something already answers
+on the fixture server's port. Otherwise it empties the output folders, renders the icon source, and runs the built CLI
+under Node with an argument list (no shell), one command at a time:
+
+1. `all` with the web config: capture, frame, and the portfolio export;
+2. `hero` with the web config;
+3. `all --only queue` with the tty config: the terminal shot;
+4. `record` with the tty config: the clip;
+5. `icons` with the `web` preset.
+
+The kit starts the fixture server itself and stops its whole process tree when a command ends, and the script checks
+that the port is free again afterwards. Last, it writes `site/gallery/gallery.manifest.json` (the size, pixel size and
+SHA-256 hash of every output, which this page reads for image dimensions) and fails when the committed files together
+pass 4 MB. Raw captures stay in `site/gallery/showcase-out/`, which git ignores.
+
+Two runs on the same machine write the same bytes. Another operating system rasterizes fonts differently, so expect
+small pixel differences in images regenerated there: regenerate on one OS if the committed files must not churn. The
+[config reference](/showcase-kit/reference/config/) lists every key the two configs use.

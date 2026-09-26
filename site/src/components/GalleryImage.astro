@@ -1,0 +1,78 @@
+---
+/**
+ * One file from site/public/gallery/, served as is (no Astro image pipeline),
+ * with its real pixel size from the manifest and a link to the full file.
+ */
+import { formatBytes, galleryFile } from './GalleryData';
+
+interface Props {
+  /** Path under site/public/gallery/. */
+  file: string;
+  alt: string;
+  caption?: string;
+  /** Display cap in CSS pixels; the width and height attributes stay the file's own. */
+  maxWidth?: number;
+}
+
+const { file, alt, caption, maxWidth } = Astro.props;
+const image = galleryFile(file);
+if (image.width === undefined || image.height === undefined) {
+  throw new Error(`gallery: ${file} has no pixel size in the manifest, so it cannot be shown as an image`);
+}
+const facts = [
+  `${String(image.width)}x${String(image.height)}`,
+  image.frames === undefined ? undefined : `${String(image.frames)} frames`,
+  formatBytes(image.bytes),
+].filter(Boolean);
+---
+
+<figure class="gallery-figure">
+  <a href={image.src}>
+    <img
+      src={image.src}
+      alt={alt}
+      width={image.width}
+      height={image.height}
+      loading="lazy"
+      decoding="async"
+      style={maxWidth === undefined ? undefined : `max-width: ${String(maxWidth)}px`}
+    />
+  </a>
+  <figcaption>
+    {caption && <span>{caption}</span>}
+    <span class="gallery-facts"><code>{file}</code> {facts.join(', ')}</span>
+  </figcaption>
+</figure>
+
+<style>
+  .gallery-figure {
+    margin-block: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .gallery-figure a {
+    display: block;
+    line-height: 0;
+  }
+  .gallery-figure img {
+    width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+  }
+  figcaption {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+  .gallery-facts {
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+  .gallery-facts code {
+    font-size: inherit;
+  }
+</style>

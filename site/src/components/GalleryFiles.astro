@@ -1,0 +1,28 @@
+---
+/** A table of the files under one folder of site/public/gallery/, from the manifest. */
+import { formatBytes, galleryFiles } from './GalleryData';
+
+interface Props {
+  /** Path prefix under site/public/gallery/, for example `icons/`. */
+  prefix: string;
+}
+
+const files = galleryFiles(Astro.props.prefix);
+---
+
+<table>
+  <thead>
+    <tr><th>File</th><th>Pixels</th><th>Size</th></tr>
+  </thead>
+  <tbody>
+    {
+      files.map(file => (
+        <tr>
+          <td><a href={file.src}><code>{file.path}</code></a></td>
+          <td>{file.width === undefined ? 'ICO, several sizes' : `${String(file.width)}x${String(file.height)}`}</td>
+          <td>{formatBytes(file.bytes)}</td>
+        </tr>
+      ))
+    }
+  </tbody>
+</table>
