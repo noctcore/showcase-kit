@@ -192,13 +192,18 @@ describe('findExecutable', () => {
   });
 
   it('skips relative PATH entries, which would depend on the working directory', () => {
-    const dir = tempDir();
-    const file = join(dir, process.platform === 'win32' ? 'fake-tool.exe' : 'fake-tool');
-    writeFileSync(file, '');
-    if (process.platform !== 'win32') chmodSync(file, 0o755);
-    const fromCwd = relative(process.cwd(), dir);
-    expect(isAbsolute(fromCwd)).toBe(false);
-    expect(findExecutable('fake-tool', { PATH: fromCwd })).toBeUndefined();
+    // Under the working directory: a temp folder on another drive (CI) has no relative path to it.
+    const dir = mkdtempSync(join(process.cwd(), 'node_modules', '.showcase-path-'));
+    try {
+      const file = join(dir, process.platform === 'win32' ? 'fake-tool.exe' : 'fake-tool');
+      writeFileSync(file, '');
+      if (process.platform !== 'win32') chmodSync(file, 0o755);
+      const fromCwd = relative(process.cwd(), dir);
+      expect(isAbsolute(fromCwd)).toBe(false);
+      expect(findExecutable('fake-tool', { PATH: fromCwd })).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it.runIf(process.platform === 'win32')('returns a drive-relative PATH entry with its drive (Windows)', () => {
