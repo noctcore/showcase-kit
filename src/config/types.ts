@@ -251,7 +251,7 @@ export interface TtyTarget {
    */
   quitKey?: string | false;
   /**
-   * Grace after `ready` and `setup` before the first key, for apps that enter raw mode after drawing, in
+   * Grace after `ready`, before `setup` and the first key, for apps that enter raw mode after drawing, in
    * milliseconds.
    * @default `300`
    */
