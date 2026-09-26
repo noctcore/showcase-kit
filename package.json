@@ -37,7 +37,7 @@
     "type": "git",
     "url": "git+https://github.com/noctcore/showcase-kit.git"
   },
-  "homepage": "https://github.com/noctcore/showcase-kit#readme",
+  "homepage": "https://noctcore.github.io/showcase-kit/",
   "bugs": "https://github.com/noctcore/showcase-kit/issues",
   "publishConfig": {
     "access": "public"
@@ -48,7 +48,10 @@
     "test": "bun run build && vitest run",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "bun run build && changeset publish"
+    "release": "bun run build && changeset publish",
+    "docs:dev": "bun run --cwd site dev",
+    "docs:build": "bun run --cwd site docs:build",
+    "docs:gallery": "bun run --cwd site gallery"
   },
   "dependencies": {
     "@xterm/headless": "^6.0.0",
