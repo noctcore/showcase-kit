@@ -260,6 +260,26 @@ h1#_top,
   color: var(--nc-glow);
 }
 
+/* The splash's hero banner: a real output of the kit, shown as a figure under
+   the hero rather than in its image slot, because it carries another app's name. */
+.splash-shot {
+  margin: 0 0 2.5rem;
+}
+
+.splash-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--sl-color-gray-5);
+}
+
+.splash-shot figcaption {
+  margin-top: 0.75rem;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+}
+
 .site-footer-note {
   margin-top: 1.5rem;
   font-size: var(--sl-text-xs);
