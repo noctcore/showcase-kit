@@ -1,6 +1,82 @@
 ---
 title: Tauri
-description: Capture a Tauri app over the Chrome DevTools Protocol on Windows.
+description: Capture a Tauri app through its web build on any OS, or over CDP through WebView2 on Windows.
 ---
 
-STUB(wave-2): this page will hold: how to capture a Tauri app through WebView2 remote debugging on Windows, and what to do elsewhere.
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+A Tauri app renders its UI in the system web view, and only one of those speaks the DevTools Protocol
+the kit attaches to. So there are two routes: capture the app's web build in url mode, which works
+everywhere, or attach to WebView2 over CDP, which works on Windows only.
+
+| Route | macOS | Windows | Linux | Needs |
+| --- | --- | --- | --- | --- |
+| Web build, url mode | yes | yes | yes | The frontend runs in a browser without the Tauri backend. |
+| WebView2 over CDP | no | yes | no | A dev-only `tauri.conf.json` overlay. |
+
+macOS runs Tauri in WKWebView and Linux in WebKitGTK; neither exposes the DevTools Protocol.
+
+## The portable route: the web build
+
+Run the frontend's dev server and capture it like any [web app](/showcase-kit/guides/web-apps/). The
+screenshots show your real UI, framed in the kit's own window chrome.
+
+```js title="showcase.config.mjs"
+import { defineConfig } from '@noctcore/showcase-kit';
+
+export default defineConfig({
+  name: 'Shiranami',
+  target: { mode: 'url', url: 'http://localhost:15175', start: 'pnpm dev:web' },
+  ready: '[data-view="library"]',
+  setup: async ({ page }) => {
+    // Skip the first-run wizard in a fresh browser profile.
+    await page.evaluate(() =>
+      localStorage.setItem('shiranami.onboarding', JSON.stringify({ state: { hasCompletedOnboarding: true }, version: 1 })),
+    );
+    await page.reload();
+  },
+  shots: [{ id: 'library', title: 'Library', nav: '[data-view="library"]' }],
+});
+```
+
+This needs the web build to run without the Tauri backend: every `invoke` your UI makes on the way to
+the views you capture must be answered by a mock or a fixture mode, or those views render empty or
+throw. Each language (and each run) starts from a fresh browser profile, which is why the example
+skips the onboarding in `setup`.
+
+## Windows only: WebView2 over CDP
+
+On Windows Tauri's WebView2 is Chromium, and it can expose CDP. This captures the real app, with its
+backend, through the [Electron guide's](/showcase-kit/guides/electron/) cdp mode.
+
+1. Pass `--remote-debugging-port=9222 --remote-allow-origins=*` to WebView2 through the window's
+   `additionalBrowserArgs` in `tauri.conf.json`. Put it in a `--config` overlay used only for dev
+   runs, so it never ships in a release build.
+2. `additionalBrowserArgs` replaces wry's default flags, so include them again:
+   `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`.
+3. Use cdp mode with a `pageMatch` for the app's page.
+
+<Tabs>
+  <TabItem label="Dev server">
+    ```js
+    target: { mode: 'cdp', cdpUrl: 'http://127.0.0.1:9222', pageMatch: 'localhost:15175' },
+    ```
+  </TabItem>
+  <TabItem label="Packaged build">
+    ```js
+    target: { mode: 'cdp', cdpUrl: 'http://127.0.0.1:9222', pageMatch: 'tauri.localhost' },
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="caution">
+  A config that uses this route only runs on Windows. If you capture on more than one OS, or want the
+  committed images to come from one config everyone can run, use the web build.
+</Aside>
+
+## Related
+
+- [Electron](/showcase-kit/guides/electron/): cdp mode in full, including what the kit changes in the
+  running window.
+- [Web apps](/showcase-kit/guides/web-apps/): url mode in full.
+- [Icons](/showcase-kit/guides/icons/): the `tauri` icon preset.
