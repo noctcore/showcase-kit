@@ -1,0 +1,66 @@
+---
+/**
+ * Splash-page index of what one config produces: a card per output, each
+ * linking to the guide that explains it. Uses the theme's `.link-grid` cards.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const outputs = [
+  {
+    name: 'Raw captures',
+    desc: 'Pixel-exact PNGs at a fixed viewport and device scale factor, in every UI language.',
+    command: 'showcase capture',
+    guide: 'guides/web-apps/',
+  },
+  {
+    name: 'Framed README images',
+    desc: 'Each capture in a window frame (title bar, rounded corners, soft shadow) on a solid or gradient background, as WebP or PNG.',
+    command: 'showcase frame',
+    guide: 'guides/frames/',
+  },
+  {
+    name: 'README table',
+    desc: 'An HTML table of the framed images with captions, printed for you to paste into a README.',
+    command: 'showcase readme',
+    guide: 'guides/readme-table/',
+  },
+  {
+    name: 'Portfolio images',
+    desc: 'Exact-size 16:9 images with the framed window contained, never cropped, plus a thumbnail and a gallery JSON.',
+    command: 'showcase portfolio',
+    guide: 'guides/portfolio/',
+  },
+  {
+    name: 'Hero banner',
+    desc: 'Logo, name, tagline and up to three tilted framed shots, 1280x640 by default.',
+    command: 'showcase hero',
+    guide: 'guides/hero/',
+  },
+  {
+    name: 'Terminal clips',
+    desc: 'Short animated WebP and GIF recordings of a terminal app (MP4 opt-in), framed like the stills.',
+    command: 'showcase record',
+    guide: 'guides/clips/',
+  },
+  {
+    name: 'App icons',
+    desc: 'Web, Electron or Tauri icon sets (PNG, .ico, .icns) from one square image. Needs no config.',
+    command: 'showcase icons',
+    guide: 'guides/icons/',
+  },
+];
+---
+
+<ul class="link-grid">
+  {
+    outputs.map((output) => (
+      <li class="link-card">
+        <a href={`${base}/${output.guide}`}>
+          <span class="link-card-name">{output.name}</span>
+          <span class="link-card-desc">{output.desc}</span>
+          <span class="link-card-meta">{output.command}</span>
+        </a>
+      </li>
+    ))
+  }
+</ul>
