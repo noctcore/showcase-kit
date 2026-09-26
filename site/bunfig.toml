@@ -1,0 +1,5 @@
+[install]
+# Never resolve a dependency version published less than 7 days ago, matching the
+# root bunfig.toml and the global npm gate. `bun install --cwd site` reads this
+# file, not the root one, so the gate is repeated here.
+minimumReleaseAge = 604800 # seconds
