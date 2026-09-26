@@ -1,0 +1,55 @@
+---
+/**
+ * The exports of one group of the programmatic API, generated from
+ * src/index.ts with the type checker (scripts/reference/api.ts): name, runtime
+ * or type-only, JSDoc summary, signature and source file.
+ */
+import { Code } from '@astrojs/starlight/components';
+
+import { apiReference } from '../../scripts/reference/data';
+import type { ApiGroup } from '../../scripts/reference/types';
+import ReferenceText from './ReferenceText.astro';
+
+interface Props {
+  group: ApiGroup;
+}
+
+const exports = apiReference.exports.filter((entry) => entry.group === Astro.props.group);
+if (exports.length === 0) throw new Error(`No exports in the API group "${Astro.props.group}". Run \`bun run sync\`.`);
+const SOURCE_URL = 'https://github.com/noctcore/showcase-kit/blob/main/';
+---
+
+{
+  exports.map((entry) => (
+    <section class="reference-export">
+      <h3 id={entry.name} class="reference-name">
+        {entry.name}
+      </h3>
+      <p class="reference-meta">
+        {entry.kind}, {entry.runtime ? 'runtime export' : 'type-only export'}, from{' '}
+        <a href={`${SOURCE_URL}${entry.source}`}>
+          <code>{entry.source}</code>
+        </a>
+      </p>
+      {entry.summary && (
+        <div>
+          <ReferenceText text={entry.summary} />
+        </div>
+      )}
+      <Code code={entry.signature} lang="ts" wrap />
+    </section>
+  ))
+}
+
+<style>
+  .reference-name {
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-h4);
+    overflow-wrap: anywhere;
+  }
+
+  .reference-meta {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+  }
+</style>

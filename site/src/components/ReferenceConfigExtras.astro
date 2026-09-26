@@ -1,0 +1,109 @@
+---
+/**
+ * The two generated tables that come from asking the validator rather than
+ * reading the types: path template rules per output, and the keys it refuses
+ * in one mode with a message of its own. See scripts/reference/config.ts.
+ */
+import { configReference } from '../../scripts/reference/data';
+import ReferenceKeyLink from './ReferenceKeyLink.astro';
+
+interface Props {
+  show: 'templates' | 'mode-errors';
+}
+
+const { templates, modeErrors } = configReference;
+
+const tokens = (names: string[]): string => names.map((name) => `{${name}}`).join(', ');
+
+// The same message in url and cdp mode reads as one row.
+const refusals: { path: string; in: string[]; message: string }[] = [];
+for (const error of modeErrors) {
+  const same = refusals.find((r) => r.path === error.path && r.message === error.message);
+  if (same) same.in.push(error.in);
+  else refusals.push({ path: error.path, in: [error.in], message: error.message });
+}
+---
+
+<div class="reference-wrap">
+  {
+    Astro.props.show === 'templates' ? (
+      <table class="reference-table">
+        <thead>
+          <tr>
+            <th scope="col">Key</th>
+            <th scope="col">Tokens</th>
+            <th scope="col">Must contain</th>
+            <th scope="col">Must end in</th>
+          </tr>
+        </thead>
+        <tbody>
+          {templates.map((template) => (
+            <tr>
+              <td>
+                <ReferenceKeyLink path={template.path} />
+              </td>
+              <td>
+                <code>{tokens(template.validated ? template.allowed : template.docTokens)}</code>
+                {!template.validated && ' (filled when the image is drawn; not checked by the validator)'}
+              </td>
+              <td>
+                {template.required.length > 0 ? <code>{tokens(template.required)}</code> : 'nothing'}
+                {template.requiredMultiLang.length > template.required.length && (
+                  <>
+                    ; with more than one language also{' '}
+                    <code>
+                      {tokens(template.requiredMultiLang.filter((token) => !template.required.includes(token)))}
+                    </code>
+                  </>
+                )}
+              </td>
+              <td>
+                {template.extensions.length > 0
+                  ? template.extensions.map((ext, i) => (
+                      <>
+                        {i > 0 && ' or '}
+                        <code>{ext}</code>
+                      </>
+                    ))
+                  : 'anything'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    ) : (
+      <table class="reference-table">
+        <thead>
+          <tr>
+            <th scope="col">Key</th>
+            <th scope="col">Refused in</th>
+            <th scope="col">Message</th>
+          </tr>
+        </thead>
+        <tbody>
+          {refusals.map((refusal) => (
+            <tr>
+              <td>
+                <ReferenceKeyLink path={refusal.path} />
+              </td>
+              <td>{refusal.in.join(' and ')} mode</td>
+              <td>{refusal.message}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
+  }
+</div>
+
+<style>
+  .reference-wrap {
+    overflow-x: auto;
+  }
+
+  .reference-table {
+    display: table;
+    width: 100%;
+    font-size: var(--sl-text-sm);
+  }
+</style>
