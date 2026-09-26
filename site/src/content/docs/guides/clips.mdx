@@ -186,7 +186,11 @@ was 2.5 MB of WebP, 11.8 MB of GIF and 7.7 MB of MP4, and took about two minutes
 - Keep `fps` at 10 unless the app animates on purpose.
 - Keep clips short, with a `tailMs` just long enough to read the last screen, and set `durationMs`
   as a guard.
-- For GIF, `deviceScaleFactor: 1` or a `frame.maxWidth` keeps files and encode times down.
+- For GIF, `deviceScaleFactor: 1` keeps files and encode times down. `frame.maxWidth` depends on the
+  background: it shrank the gradient clip in the table above, but scaling blends the terminal's sharp
+  pixel edges, so on a solid background it can make the files larger. The
+  [gallery](/showcase-kit/gallery/#terminal-shot-and-clip)'s clip grew from 121 KB to 351 KB of WebP
+  and from 233 KB to 302 KB of GIF at `maxWidth: 1600`. Measure before you keep it.
 - Record on one OS if committed clips must not churn, as with the stills.
 
 ## Where clips go
