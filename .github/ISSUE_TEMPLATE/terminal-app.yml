@@ -1,0 +1,68 @@
+name: Terminal app problem
+description: tty mode or a clip fails, hangs, leaves a process behind, or captures the wrong screen.
+labels: ["bug", "area: tty"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For `target.mode: 'tty'`, screenshots and clips. Terminal capture depends heavily on the platform and the pseudo terminal package, so those fields are required. If the image was written but its frame or encoding looks wrong, use the wrong output form instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what you expected
+      description: The shot or clip, what the screen or the command shows, and what you expected. A screenshot of the raw capture next to your real terminal helps.
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: The app
+      description: What the terminal app is and what it is built with. A link if it is public.
+      placeholder: "a Bun + OpenTUI dashboard, github.com/you/app"
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: The config
+      description: Your `showcase.config.*`, or the smallest one that shows the problem, with `target` (command, cols, rows, quitKey, inheritEnv), `ready`, and the failing shot's `keys` or clip `steps`. Replace anything private.
+      render: js
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: The command and its output
+      description: The command you ran and everything it printed, with `--verbose`.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: pty
+    attributes:
+      label: PTY package and version
+      description: From `npm ls @lydell/node-pty node-pty`.
+      placeholder: "@lydell/node-pty 1.2.0-beta.15"
+    validations:
+      required: true
+  - type: input
+    id: kit-version
+    attributes:
+      label: showcase-kit version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Node, how you ran the CLI, and OS
+      description: Terminal capture needs Node, not the Bun runtime. Say whether you used `npx`, `pnpm exec`, `bunx` or a script.
+      placeholder: "node 22.22 via pnpm exec, Windows 11 (ConPTY)"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send it
+      options:
+        - label: The app shows the same screen when I run the command myself in a terminal of the configured size (`target.cols` x `target.rows`).

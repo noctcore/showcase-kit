@@ -1,0 +1,60 @@
+name: Wrong or broken output
+description: "A file was written, but it is wrong: frame, portfolio, hero, README table, clip or icons."
+labels: ["wrong output"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The capture worked and a file came out, but it looks wrong or is broken: clipped, blurry, the wrong size, wrong colours, a gallery JSON or README table with wrong paths, a clip that stutters or will not play, an icon set a platform rejects. Attach the file if you can; an image is worth a paragraph here.
+  - type: dropdown
+    id: output
+    attributes:
+      label: Which output
+      options:
+        - framed README image (showcase frame)
+        - portfolio image, thumbnail or gallery JSON (showcase portfolio)
+        - hero banner (showcase hero)
+        - README table (showcase readme)
+        - clip, WebP, GIF or MP4 (showcase record)
+        - icons (showcase icons)
+        - raw capture
+    validations:
+      required: true
+  - type: input
+    id: file
+    attributes:
+      label: The file
+      description: Its path, and its size in pixels if it is an image.
+      placeholder: "assets/showcase/en/library.webp, 3168x2064"
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What is wrong with it
+      description: What you see, and what you expected. Attach the file, or a screenshot of it, by dragging it into this field.
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: The config
+      description: The relevant parts of your `showcase.config.*` (`frame`, `outputs`, `hero`, `terminal`, `clips`), or the command line for `showcase icons`.
+      render: js
+    validations:
+      required: true
+  - type: input
+    id: kit-version
+    attributes:
+      label: showcase-kit version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Node, OS, and where you view the file
+      description: For a clip or a README table, also where it looks wrong (GitHub, a browser, an image viewer).
+      placeholder: "node 22.22, macOS 15, GitHub README in Safari"
+    validations:
+      required: true

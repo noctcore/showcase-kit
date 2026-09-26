@@ -1,0 +1,47 @@
+name: Feature request
+description: Something the kit does not do yet.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start from the problem, not the config key. A request that shows the images you want and why the current outputs do not get you there is much easier to judge than a new option name.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to make
+      description: The images, clips or files you want, and where they go (a README, a portfolio, a store page).
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today
+      description: How close the kit gets, and the workaround you use, if any (a `setup` or `nav` function, a script around the programmatic API).
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: Optional. How it could look in a config or on the command line.
+      render: js
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - capture (web, Electron, Tauri)
+        - terminal apps and clips
+        - frames, portfolio, hero or README table
+        - icons
+        - the CLI or the config
+        - something new
+    validations:
+      required: true
+  - type: checkboxes
+    id: offer
+    attributes:
+      label: Implementation
+      options:
+        - label: I would like to implement this myself once the shape is agreed.
