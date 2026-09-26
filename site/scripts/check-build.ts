@@ -10,6 +10,7 @@
  * 5. No page contains the stub marker, unless ALLOW_STUBS=1 (lane builds
  *    only; CI never sets it).
  */
+import { checkChangelog } from './changelog/check';
 import { checkBuild } from './checks';
 import { CONTRACT_ANCHORS, DIST_DIR, PAGE_ROUTES, SITE_BASE, STUB_MARKER } from './site';
 
@@ -27,6 +28,8 @@ console.log(
     `${result.links} internal links and ${result.fragments} fragments checked, ${result.stubPages.length} stub pages` +
     (allowStubs && result.stubPages.length > 0 ? ' (allowed by ALLOW_STUBS=1)' : ''),
 );
+// The changelog page and feed (scripts/changelog/check.ts).
+result.failures.push(...checkChangelog(DIST_DIR));
 if (result.failures.length > 0) {
   console.error(`check-build: ${result.failures.length} failure(s)\n  ${result.failures.join('\n  ')}`);
   process.exit(1);
