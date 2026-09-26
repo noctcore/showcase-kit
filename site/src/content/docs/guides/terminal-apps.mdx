@@ -3,4 +3,385 @@ title: Terminal apps
 description: Capture TUIs and CLIs in a pseudo terminal.
 ---
 
-STUB(wave-2): this page will hold: how to run a terminal app in a pseudo terminal, drive it with keys and render its screen into the image pipeline.
+import { Aside, TabItem, Tabs } from '@astrojs/starlight/components';
+import TerminalThemes from '../../../components/TerminalThemes.astro';
+
+Set `target.mode: 'tty'` to capture a terminal app: a full-screen TUI, or a CLI that prints a
+screen and exits. The kit starts the app in a pseudo terminal of a fixed size, keeps its screen in
+a headless terminal emulator ([xterm.js](https://xtermjs.org)), and renders that screen (not the
+byte stream) with a bundled [JetBrains Mono](https://www.jetbrains.com/lp/mono/) into a PNG, in
+its own Chromium.
+
+That PNG is the terminal area, so everything after capture works exactly as for a web app:
+[frames](/showcase-kit/guides/frames/), the [README table](/showcase-kit/guides/readme-table/),
+the [portfolio](/showcase-kit/guides/portfolio/) and the [hero banner](/showcase-kit/guides/hero/).
+The `window` frame style reads as a terminal window. A tty config can also record animated
+[clips](/showcase-kit/guides/clips/).
+
+## Install
+
+Next to the kit and Playwright, install a pseudo terminal package:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add -D @noctcore/showcase-kit playwright @lydell/node-pty
+    npx playwright install chromium
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm i -D @noctcore/showcase-kit playwright @lydell/node-pty
+    npx playwright install chromium
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add -d @noctcore/showcase-kit playwright @lydell/node-pty
+    bunx playwright install chromium
+    ```
+  </TabItem>
+</Tabs>
+
+`@lydell/node-pty` is an optional peer dependency: prebuilt for Windows, macOS and Linux (x64 and
+arm64), with no install scripts. The official `node-pty` works too when it is installed instead;
+the kit tries `@lydell/node-pty` first, then `node-pty`. Neither is loaded until a tty config runs,
+so web-only projects never need one. Without either, a tty run stops with the install command.
+
+### Run the CLI with Node
+
+Run the CLI with Node: `npx showcase`, `pnpm exec showcase`, or `bunx showcase` (which runs the
+`showcase` bin with Node). Under the Bun runtime itself (`bun --bun` or `bunx --bun`), the pseudo
+terminal package kills the app at once, so tty mode refuses to start there and says
+`run with node`. The check runs before any browser or app starts.
+
+Your app itself can be a Bun app: the kit only needs Node for its own process.
+`command: ['bun', 'run', 'src/index.tsx']` is fine.
+
+## A complete config
+
+```js
+// showcase.config.mjs
+import { defineConfig } from '@noctcore/showcase-kit';
+
+export default defineConfig({
+  name: 'Rumi',
+  target: {
+    mode: 'tty',
+    command: ['bun', 'run', 'src/index.tsx'],
+    // Fixture data and a frozen clock, so every run shows the same screen.
+    env: { RUMI_MOCK: '1', RUMI_SHOWCASE: '1' },
+    cols: 120,
+    rows: 32,
+  },
+  ready: /resources \(\d+\)/,
+  deviceScaleFactor: 2,
+  terminal: { theme: 'dark', font: { size: 15 } },
+  shots: [
+    { id: 'resources', title: 'Resources', caption: 'Every resource on one screen.' },
+    { id: 'servers', title: 'Servers', keys: '{Tab}', waitFor: /servers \(\d+\)/ },
+    { id: 'logs', title: 'Logs', keys: ['{Tab}', 'l'], waitFor: 'logs', delayMs: 200 },
+    {
+      id: 'deploy',
+      title: 'Deploy',
+      nav: async tty => {
+        await tty.press('L');
+        await tty.waitForText('Deploying');
+      },
+    },
+  ],
+  frame: { style: 'window', theme: 'dark', title: '{name}' },
+});
+```
+
+`ready` is text on screen, a substring or a RegExp, that shows once the app has drawn its first
+finished screen. The shots run top to bottom in one app process, so `servers` starts from
+`resources` and `logs` starts from `servers`.
+
+### Start from `showcase init --tty`
+
+```sh
+npx showcase init --tty
+```
+
+This writes a starter `showcase.config.mjs` (`--ts` for `showcase.config.ts`) filled in from your
+`package.json`:
+
+- `name` is the package name in title case, without its scope.
+- `command` is `['node', '<bin>']` when the package has a `bin` (the first one when there are
+  several); otherwise your `start` script, then your `dev` script, run with the package manager your
+  lockfile shows (`pnpm start`, `bun run start`, `yarn start` or `npm run start`); otherwise
+  `'node index.js'`.
+- `cols: 120`, `rows: 32`, `deviceScaleFactor: 2`, one `home` shot, a dark `window` frame and the
+  default outputs, with commented examples for `env`, `ready` and a `keys` shot.
+
+`init` refuses to overwrite an existing config unless you pass `--force`, and even then it will not
+write a config next to one with another name (delete the old one first). See the
+[CLI reference](/showcase-kit/reference/cli/#init).
+
+## `target` in tty mode
+
+Every key is listed with its default and limits in the
+[config reference](/showcase-kit/reference/config/#target). What each one is for:
+
+**`command`** (required) starts the app. A string runs through the shell (`/bin/sh -c` on macOS and
+Linux, `cmd.exe /d /s /c` on Windows), like `start` in the other modes. An array
+`['node', 'dist/cli.js']` is spawned directly, with no shell, so its arguments arrive exactly as
+written (on Windows, see the [shim note](#windows) below).
+
+**`cwd`** is the working directory, relative to the config root (the config's folder unless you set
+`root`). Default: the config root.
+
+**`env`** adds environment variables: an object, or a function of the language for apps that take
+their language from an env var:
+
+```js
+env: ({ lang }) => ({ MYAPP_MOCK: '1', MYAPP_LANG: lang }),
+```
+
+**`inheritEnv`** decides which of your own environment variables the app gets. See
+[The app's environment](#the-apps-environment).
+
+**`cols`** and **`rows`** fix the terminal size. Default 120 by 32. They are never read from your own
+terminal, so a capture looks the same whatever window you run it in.
+
+**`quitKey`** is sent when the kit is done with the app, before it kills the process tree. Default
+`'q'`. It is parsed like `keys`, so `'{C-c}'` works. `false` skips it and just kills.
+
+**`inputDelayMs`** is a grace period after `ready`, before `setup` and the first key. Default 300.
+Keys sent before an app has switched its terminal to raw mode are lost, and many apps switch only
+after their first draw.
+
+**`readyTimeoutMs`** bounds the wait for `ready`. Default 30000.
+
+In tty mode `viewport`, `colorScheme` and `css` are config errors: the image size comes from `cols`,
+`rows`, the font size and the padding, and the look from the [`terminal`](#the-terminal-block) block.
+So are `timeouts.readyMs` (use `target.readyTimeoutMs`) and `timeouts.networkIdleMs`. The web
+target keys (`url`, `start`, `reuseExisting`, `cdpUrl`, `pageMatch`) are errors too, and the tty
+keys are errors in url and cdp mode.
+
+### The app's environment
+
+The app always gets a pinned terminal environment:
+
+| Variable | Value |
+| --- | --- |
+| `TERM` | `xterm-256color` |
+| `COLORTERM` | `truecolor` |
+| `FORCE_COLOR` | `3` |
+| `TZ` | `UTC` |
+| `LANG`, `LC_ALL` | `en_US.UTF-8` (set on every OS, read only on macOS and Linux) |
+
+It never inherits `NO_COLOR`, `CI`, `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `WT_SESSION`, `COLUMNS`
+or `LINES`, which would make it act as if it ran in CI or in another terminal. `env` is applied last,
+so it can override any of the above, including those.
+
+By default (`inheritEnv: true`) the app also inherits the rest of your environment, tokens and home
+paths included, and whatever it prints ends up in a committed image.
+
+<Aside type="caution" title="Keep secrets off the screen">
+  If the app can show its environment, config paths or credentials (a status line with the user
+  name, an error that dumps a token), set `inheritEnv: false` and pass what it needs through `env`,
+  or list the names to keep: `inheritEnv: ['HOME', 'XDG_CONFIG_HOME']`.
+</Aside>
+
+With `inheritEnv: false` (or `[]`), the app still gets what a program needs to start:
+
+- on macOS and Linux, `PATH`;
+- on Windows, `PATH`, `PATHEXT` (to find `.cmd` shims), `SystemRoot` (Node aborts at startup
+  without it) and `ComSpec` (to run command strings and shims).
+
+They are not secrets, but they may reveal paths such as your user folder. Nothing else is needed for
+Node or Bun apps: without `HOME` or `USERPROFILE` they still find the home folder, and without
+`TEMP`, `TMP` or `TMPDIR` they use the system temp folder (`/tmp`, `C:\Windows\Temp`). A command
+string that uses `~`, or a tool that reads `$HOME` for its config (git, XDG apps), needs
+`inheritEnv: ['HOME']`.
+
+Names in the list match case-insensitively on Windows only. The CI and terminal hints above stay out
+even when listed: set them in `env` if the app needs one.
+
+## Shots in tty mode
+
+A tty shot has the same `id`, `title`, `caption`, `alt` and `delayMs` as a web shot. To get somewhere
+it has `keys`, or a `nav` function that gets the terminal session instead of a page; its `waitFor` is
+text on screen instead of a selector; and `restart` starts the app afresh. The table with defaults is
+in the [config reference](/showcase-kit/reference/config/#shots).
+
+### How a run goes
+
+One app process runs per language, and the shots run in order in it, so each shot starts where the
+last one left off. For each language the kit:
+
+1. starts the app and waits for `ready` (without `ready`, for any text at all), up to
+   `target.readyTimeoutMs`;
+2. waits `inputDelayMs`, then runs `setup` once, with `{ tty, lang, mode: 'tty', config }`;
+3. per shot: presses the `keys` (or runs `nav`), waits for `waitFor`, waits `delayMs`, and renders
+   the screen to the raw PNG;
+4. closes the app: sends `quitKey`, waits up to 1.5 s for it to quit, then kills its whole process
+   tree by PID.
+
+Without `waitFor`, the kit gives the app up to one second to redraw after the keys (it moves on as
+soon as the screen changes); set `waitFor` for anything slower. `timeouts.shotMs` (default 15000)
+bounds each `waitFor`.
+
+Without `ready`, the kit only waits for the app to draw anything, then the `inputDelayMs` grace,
+which may catch an app halfway through its first screen. Set `ready` to text the finished screen
+shows.
+
+A failed shot fails alone: the next shot runs in the same app, the other files are still written,
+and the run fails at the end with every failure listed. Each error shows the screen the app was on.
+
+`restart: true` closes the app and starts a fresh one (running `setup` again) before that shot, for a
+screen you can only reach from a clean start.
+
+### `keys`
+
+A string, or an array of strings that are sent one after another. Plain text is typed a character at
+a time. Names in braces are keys:
+
+| Keys | Names |
+| --- | --- |
+| Editing | `{Enter}`, `{Tab}`, `{S-Tab}`, `{Esc}`, `{Space}`, `{Backspace}`, `{Insert}`, `{Delete}` |
+| Movement | `{Up}`, `{Down}`, `{Left}`, `{Right}`, `{Home}`, `{End}`, `{PageUp}`, `{PageDown}` |
+| Function | `{F1}` to `{F12}` |
+| Ctrl | `{C-x}` for Ctrl plus a letter or one of `@ [ \ ] ^ _ ? Space`: `{C-c}`, `{C-l}` |
+| Alt | `{A-x}` for Alt plus any character: `{A-x}`, `{A-1}` |
+| A literal `{` | `{{` |
+
+```js
+keys: 'jjj'                        // three presses of j
+keys: '{Tab}'
+keys: ['{Down}', '{Down}', '{Enter}']
+keys: '/deploy{Enter}'             // types /deploy, then Enter
+keys: '{C-c}'
+```
+
+Key names are not case-sensitive (`{enter}` works), but the `C-` and `A-` prefixes are upper case. An
+unknown name, or a `{` that is never closed, is an error that lists the known keys. The arrow keys,
+`{Home}` and `{End}` follow the app: once it turns on application cursor keys (most ncurses-style TUIs
+do), they send the sequences it expects. After a lone `{Esc}` the kit waits 50 ms before the next key,
+so the app does not read the pair as Alt plus that key.
+
+### `nav`
+
+For anything `keys` cannot say, give the shot your own steps instead: `nav: async tty => { ... }`.
+It receives the terminal session:
+
+| Method | Does |
+| --- | --- |
+| `press(keys)` | Presses keys, with the same syntax as `keys`. |
+| `type(text, { delayMs? })` | Types text as is (no `{Key}` names), at once or one character every `delayMs`. |
+| `waitForText(pattern, { timeoutMs? })` | Waits until a substring or RegExp is on screen. Default timeout 10000 ms. |
+| `screenText()` | The visible screen as text, one line per row. |
+| `sleep(ms)` | Pauses. |
+| `resize(cols, rows)` | Resizes the terminal. |
+
+Use `keys` or `nav`, not both: a shot with both is a config error. A `waitFor` on the shot still runs
+after `nav`, bounded by `timeouts.shotMs`, while `waitForText` inside `nav` uses its own `timeoutMs`.
+
+```js
+{
+  id: 'search',
+  title: 'Search',
+  nav: async tty => {
+    await tty.press('/');
+    await tty.type('billing', { delayMs: 40 });
+    await tty.waitForText(/\d+ results/);
+  },
+}
+```
+
+A `setup` function gets the same session as `tty`, once per app process, before the first shot.
+
+### Ctrl+C
+
+On Ctrl+C the kit closes every open app with its `quitKey` and kills its process tree, waiting at most
+five seconds; a second Ctrl+C kills at once. The process tree is always killed, but the quit key is
+best effort: the browser's own Ctrl+C handling can end the run before it is sent.
+
+## The `terminal` block
+
+`terminal` sets how the screen is drawn. Every key is optional; the list with limits is in the
+[config reference](/showcase-kit/reference/config/#terminal).
+
+```js
+terminal: {
+  theme: 'light',
+  font: { size: 14, fallbackFile: 'fonts/SymbolsNerdFontMono-Regular.ttf' },
+  lineHeight: 1.4,
+  padding: 16,
+  cursor: 'show',
+},
+```
+
+**`theme`** is `'dark'` (the default), `'light'`, or your own
+`{ background, foreground, cursor?, ansi }`, every color in `#rrggbb`, with exactly 16 `ansi` colors
+(the 8 normal ones, then the 8 bright ones). The built-in themes:
+
+<TerminalThemes />
+
+Colors the app sets by number above 15 (the 256-color cube and gray ramp) and 24-bit colors are drawn
+as the app set them; only the first 16 come from the theme. Bold text in one of the 8 normal colors is
+drawn in its bright variant, as most terminals do.
+
+**`font.file`** replaces the bundled JetBrains Mono with a `.woff2`, `.woff`, `.ttf` or `.otf` file,
+relative to the config. `boldFile`, `italicFile` and `boldItalicFile` set the other faces. A custom
+`file` never mixes with the bundled faces and the browser does not fake bold or italic, so set those
+three as well if the app uses bold or italic text.
+
+**`font.fallbackFile`** is a second font for glyphs the main one lacks, for example a symbols or Nerd
+Font for icons.
+
+**`font.size`** is in CSS pixels. Default 15.
+
+**`lineHeight`** is a multiple of the font size, rounded to whole pixels. Default 1.32.
+
+**`padding`** is the space in CSS pixels between the grid and the edge of the capture. Default 12.
+
+**`cursor`** is `'hide'` (the default) or `'show'`, which draws a block cursor where the app left it
+visible, never blinking.
+
+### The image size
+
+The raw capture is `cols` cells wide and `rows` cells high, plus `padding` on each side, times
+`deviceScaleFactor`. With the defaults a cell is 9 by 20 CSS pixels (the bundled font's advance is
+0.6 of the size, and 15 times 1.32 rounds to 20), so 120 by 32 at DPR 2 is 2208 by 1328 pixels.
+Cells are whole pixels wide, and ligatures and kerning are off, so columns line up exactly.
+
+Rendering never touches the network: the fonts are inlined into the page. The bundled font is
+JetBrains Mono 2.304 under the SIL Open Font License 1.1; the license ships with the package in
+`dist/fonts/OFL.txt`.
+
+## Platform notes
+
+### Windows
+
+The pseudo terminal is ConPTY. `LANG` has no effect there, so pin the locale inside the app.
+
+An array `command` whose program is a `.cmd` or `.bat` shim (`pnpm`, `npm`, and most tools installed
+through a Node package manager) cannot be spawned directly, so the kit runs it through `cmd.exe`,
+which cannot pass an argument that contains `"`, `%` or a line break. The kit refuses those with an
+error rather than pass something else. Run the program the shim starts directly (for example
+`['node', 'node_modules/my-cli/dist/cli.js', ...]`), or use a command string and quote it yourself.
+
+### macOS
+
+`@lydell/node-pty` ships its spawn helper already executable. With the official `node-pty` 1.1.0 a
+spawn can fail with `posix_spawnp failed`
+([node-pty issue #919](https://github.com/microsoft/node-pty/issues/919)) until its `spawn-helper`
+binary is made executable, so prefer `@lydell/node-pty`. Fonts rasterize differently from Windows
+and Linux; the cell grid stays the same.
+
+### Linux
+
+`@lydell/node-pty` has prebuilds for x64 and arm64 on glibc. Alpine (musl) is untested.
+
+### Bun
+
+Run the CLI with Node ([above](#run-the-cli-with-node)). The app you capture can still run on Bun.
+
+## Next
+
+- [Terminal determinism](/showcase-kit/guides/terminal-determinism/): what the kit pins for you, and
+  what your app should offer so two runs give the same pixels.
+- [Clips](/showcase-kit/guides/clips/): animated recordings of the same app.
