@@ -1,0 +1,31 @@
+---
+/** A responsive grid of gallery figures: `cols` across on wide screens, one on a phone. */
+interface Props {
+  cols?: number;
+}
+
+const { cols = 2 } = Astro.props;
+---
+
+<div class="gallery-grid not-content" style={`--gallery-cols: ${String(cols)}`}>
+  <slot />
+</div>
+
+<style>
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    margin-block: 1.25rem;
+    align-items: start;
+  }
+  /* The grid's gap spaces its figures. */
+  .gallery-grid > :global(figure) {
+    margin: 0;
+  }
+  @media (min-width: 40rem) {
+    .gallery-grid {
+      grid-template-columns: repeat(var(--gallery-cols), minmax(0, 1fr));
+    }
+  }
+</style>
