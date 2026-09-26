@@ -1,6 +1,154 @@
 ---
 title: Getting started
-description: Install showcase-kit, write a config and produce your first framed images.
+description: Install the kit and Playwright's Chromium, write a starter config, and produce your first framed README images.
 ---
 
-STUB(wave-2): this page will hold: installation, requirements and a short quick start from `showcase init` to framed images.
+import { Aside, FileTree, LinkCard, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+This page takes a web app from nothing to framed README images and a table to paste into the README.
+Electron, Tauri and terminal apps use the same commands with a different `target`; their guides are
+linked at the end.
+
+## Prerequisites
+
+- **Node 22 or newer.** A `showcase.config.ts` needs Node 22.18 or newer (the kit imports it with
+  Node's built-in type stripping); a `showcase.config.mjs` works on any Node 22.
+- **Playwright 1.50 or newer and its Chromium.** Playwright is a peer dependency, so the kit uses the
+  same Playwright, and the same downloaded browser, as your end to end tests if you have them. To skip
+  the download, set `browser: { channel: 'chrome' }` (or `'msedge'`) in the config and the kit launches
+  the installed browser instead.
+- **Terminal apps only:** the optional peer `@lydell/node-pty`. Web projects never load it. See
+  [Terminal apps](/showcase-kit/guides/terminal-apps/).
+
+## Install
+
+<Tabs syncKey="pkg">
+  <TabItem label="npm">
+    ```sh
+    npm install --save-dev @noctcore/showcase-kit playwright
+    npx playwright install chromium
+    ```
+  </TabItem>
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add -D @noctcore/showcase-kit playwright
+    pnpm exec playwright install chromium
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add -d @noctcore/showcase-kit playwright
+    bunx playwright install chromium
+    ```
+  </TabItem>
+</Tabs>
+
+The CLI is called `showcase`. The commands below use `npx showcase`; `pnpm exec showcase` and
+`bunx showcase` run the same thing (`bunx` runs it with Node).
+
+## Your first images
+
+<Steps>
+
+1. **Write a starter config.** From the directory that holds your app's `package.json`:
+
+   ```sh
+   npx showcase init
+   ```
+
+   This writes `showcase.config.mjs` (pass `--ts` for `showcase.config.ts`, or `--tty` to start from a
+   terminal app config). It takes the app name from `package.json` and the start command from its
+   `dev:web`, `dev` or `start` script, run with the package manager whose lockfile it finds. It refuses
+   to overwrite an existing config unless you pass `--force`.
+
+2. **Point the target at your app and list the views.** The starter captures one view, `home`, at
+   `http://localhost:5173`. Change `url` to where your dev server listens, set `ready` to a selector
+   that only exists once the app has booted, and add a shot for each view worth showing:
+
+   ```js title="showcase.config.mjs" {7,10,13-14}
+   import { defineConfig } from '@noctcore/showcase-kit';
+
+   export default defineConfig({
+     name: 'My App',
+     target: {
+       mode: 'url',
+       url: 'http://localhost:3000',
+       start: 'pnpm dev',
+     },
+     ready: '[data-testid="app-ready"]',
+     // viewport, deviceScaleFactor, colorScheme, langs, frame, outputs: as init wrote them
+     shots: [
+       { id: 'home', title: 'Home', caption: 'The home screen.', nav: '/' },
+       { id: 'settings', title: 'Settings', nav: '/settings', waitFor: 'form' },
+     ],
+   });
+   ```
+
+   `nav` is how the kit gets to a view: a path to visit, a selector to click, or a function. The
+   [web apps guide](/showcase-kit/guides/web-apps/) covers every form, and the config is checked before
+   anything runs, so a typo in a key name is an error, not a silent default.
+
+3. **Run everything.**
+
+   ```sh
+   npx showcase all
+   ```
+
+   The kit runs `start` (or reuses the app if `url` already answers), waits for `ready`, captures each
+   shot, frames the captures, exports the portfolio images if `outputs.portfolio` is set, and stops
+   the dev server it started. A failed shot does not stop the others: they are still captured, then
+   the run lists every failure, skips the later steps and exits with code 1.
+
+4. **Print the README table.**
+
+   ```sh
+   npx showcase readme
+   ```
+
+   It prints an HTML table of the framed images with their captions. Paste it into your README, or
+   redirect it to a file: the table goes to standard output and warnings to standard error.
+
+</Steps>
+
+## Where the files land
+
+With the starter's `outputs`, one language and the two shots above:
+
+<FileTree>
+- showcase.config.mjs
+- showcase-out/ add this to .gitignore
+  - raw/
+    - en/
+      - home.png raw capture, 2880x1800
+      - settings.png
+- assets/
+  - showcase/ commit these
+    - en/
+      - home.webp framed, 3168x2168
+      - settings.webp
+</FileTree>
+
+The raw captures are the viewport (1440x900) times the device scale factor (2). The framed images add
+the title bar and the padding around the window; [Frames](/showcase-kit/guides/frames/) explains the
+size and how to cap it with `maxWidth`. Relative paths in the config resolve against the config file's
+directory.
+
+<Aside title="Commands that need earlier output">
+  `frame`, `portfolio` and `hero` read the raw captures and stop with "Run `showcase capture` first"
+  when one is missing. `readme` only warns about images that do not exist yet. `all` runs capture
+  first, so it only needs the app.
+</Aside>
+
+## Next steps
+
+<CardGrid>
+  <LinkCard title="Web apps" description="Start commands, ready selectors, every nav form, languages and deterministic captures." href="/showcase-kit/guides/web-apps/" />
+  <LinkCard title="Electron" description="Attach to a running Electron app over the DevTools Protocol." href="/showcase-kit/guides/electron/" />
+  <LinkCard title="Tauri" description="Capture the web build, or WebView2 on Windows." href="/showcase-kit/guides/tauri/" />
+  <LinkCard title="Terminal apps" description="TUIs and CLIs in a pseudo terminal, rendered into the same outputs." href="/showcase-kit/guides/terminal-apps/" />
+  <LinkCard title="Frames" description="Window styles, backgrounds, formats and image sizes." href="/showcase-kit/guides/frames/" />
+  <LinkCard title="Portfolio" description="Exact-size images and a gallery JSON for a portfolio site." href="/showcase-kit/guides/portfolio/" />
+</CardGrid>
+
+Every key is in the [config reference](/showcase-kit/reference/config/), and every command and option
+in the [CLI reference](/showcase-kit/reference/cli/).

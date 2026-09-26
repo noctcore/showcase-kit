@@ -1,6 +1,131 @@
 ---
 title: Portfolio
-description: Export exact-size images and a gallery manifest for a portfolio site.
+description: Export exact-size portfolio images with the framed window contained, a thumbnail, and a gallery JSON a portfolio site can import.
 ---
 
-STUB(wave-2): this page will hold: how the portfolio export works: 16:9 images, the thumbnail and `showcase.gallery.json`.
+import { Aside, FileTree } from '@astrojs/starlight/components';
+
+`outputs.portfolio` exports one image per shot at an exact size (1920x1080 by default), with the framed
+window scaled to fit and never cropped, plus a `thumbnail` copy and a `showcase.gallery.json` a
+portfolio site can import. `showcase portfolio` writes them, and `showcase all` does too once
+`outputs.portfolio` is set.
+
+## A minimal export
+
+```js title="showcase.config.mjs"
+export default defineConfig({
+  name: 'Shiranami',
+  // target, shots ...
+  outputs: {
+    portfolio: { dir: '../portfolio/public/projects/{slug}', thumbnail: 'library' },
+  },
+});
+```
+
+`dir` is the only required key. It is relative to the config's directory and takes the `{slug}` token
+(the config's `slug`, which defaults to `name` lowercased with dashes). Every key is in the
+[config reference](/showcase-kit/reference/config/#outputs).
+
+## What it writes
+
+<FileTree>
+- portfolio/public/projects/shiranami/
+  - library.webp one per shot, exactly `size`
+  - settings.webp
+  - thumbnail.webp a copy of the `thumbnail` shot
+  - showcase.gallery.json
+</FileTree>
+
+- **Size.** Every image is exactly `size` pixels (`[1920, 1080]` by default, 16 to 8192 per side), and
+  the kit checks it. The window is scaled to fit inside `size` minus `padding` (default 96 output
+  pixels on every side) with its aspect ratio kept, and the frame background fills the rest. Nothing is
+  ever cropped, so a 16:9 `object-cover` tile on the portfolio shows the whole window.
+- **Look.** The same `frame` as the README images: style, theme, title, background, radius and shadow.
+  The title bar and corners scale with the window.
+- **Format.** `format` is `'webp'` (default, at `quality` 90) or `'png'`, and sets the extension of
+  every file, the thumbnail included.
+- **Thumbnail.** `thumbnail` names the shot copied to `thumbnail.<format>`; it defaults to the first shot.
+  Because of that file, no shot may have the id `thumbnail` while `outputs.portfolio` is set.
+- **Language.** One language is exported: `lang`, which defaults to the first of `langs`. `--langs` does
+  not apply to this command.
+
+The portfolio images render from the raw captures, not from the README images. A config that only
+feeds a portfolio can set `outputs.readme: false` (see [Frames](/showcase-kit/guides/frames/)).
+
+## The gallery JSON
+
+`showcase.gallery.json` lists the exported images in config order, one `GalleryItem` each:
+
+```ts
+interface GalleryItem {
+  src: string; // `${publicPath}/${id}.${format}`
+  alt: string; // the shot's alt, default "<name>: <title>"
+  caption: string; // the shot's caption, or its title
+}
+```
+
+```json title="showcase.gallery.json"
+[
+  {
+    "src": "/projects/shiranami/library.webp",
+    "alt": "Shiranami: Library",
+    "caption": "Browse and play from your own folders."
+  }
+]
+```
+
+`publicPath` (default `/projects/{slug}`) is the URL prefix for `src`: where the portfolio site serves
+`dir` from. A trailing slash on it is dropped.
+
+The kit exports the type too, so a TypeScript portfolio can check the file against it:
+`import type { GalleryItem } from '@noctcore/showcase-kit'`.
+
+### Where the JSON goes: `gallery`
+
+By default the JSON is written into `dir`. When `dir` is a web root, such as Next's `public/`, the site
+would serve the JSON as a public file too. `gallery` moves it or turns it off:
+
+```js
+portfolio: {
+  dir: '../portfolio/public/projects/{slug}',
+  gallery: '../portfolio/src/data/{slug}.gallery.json', // relative to the config, must end in .json
+  // or: gallery: false, to skip it
+},
+```
+
+A `gallery` path is relative to the config's directory (or `root`) and takes the `{slug}` token.
+
+## The portfolio recipe
+
+With the portfolio repository next to the app's:
+
+```js title="app/showcase.config.mjs"
+outputs: {
+  portfolio: { dir: '../portfolio/public/projects/{slug}', size: [1920, 1080], thumbnail: 'library' },
+},
+```
+
+`showcase portfolio` (or `all`) writes the images into the portfolio's `public/`, and the entries have
+the `{ src, alt, caption }` shape of a gallery item, so the portfolio can import the JSON directly:
+
+```ts title="portfolio/src/data/projects.ts"
+import gallery from '../../public/projects/shiranami/showcase.gallery.json';
+
+export const shiranami: Project = {
+  // ...
+  image: '/projects/shiranami/thumbnail.webp',
+  gallery,
+};
+```
+
+<Aside type="tip" title="Exporting some shots">
+  `showcase portfolio --only library` re-exports just that shot. The gallery JSON still lists every
+  shot whose image is already in `dir`, in config order, so an earlier export stays listed and a
+  missing file never is.
+</Aside>
+
+## Related
+
+- [Frames](/showcase-kit/guides/frames/): the look the portfolio images share.
+- [Gallery](/showcase-kit/gallery/): real outputs the kit produced from a fixture app.
+- [CLI reference](/showcase-kit/reference/cli/#portfolio): `showcase portfolio`.

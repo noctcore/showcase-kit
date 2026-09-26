@@ -1,6 +1,70 @@
 ---
 title: Hero banner
-description: Render a README banner with a logo, a tagline and tilted shots.
+description: Render a banner for the top of a README, and a GitHub social preview, from your logo, name, tagline and up to three framed shots.
 ---
 
-STUB(wave-2): this page will hold: how to configure and render the hero banner.
+import { Aside } from '@astrojs/starlight/components';
+
+`showcase hero` composes a banner from the raw captures: your logo, name and tagline on the left, and
+one to three framed shots stacked and tilted on the right. The default size, 1280x640, is GitHub's
+social preview size, so the same file works at the top of the README and as the repository's preview
+image. The `hero` block configures it; every key is optional.
+
+## A minimal banner
+
+```js title="showcase.config.mjs"
+export default defineConfig({
+  name: 'Shiranami',
+  // target, shots ...
+  hero: {
+    tagline: 'A music player for your own library.',
+    logo: 'assets/logo.svg',
+    shots: ['library', 'player', 'settings'],
+  },
+});
+```
+
+```sh
+npx showcase all    # the raw captures the hero reads
+npx showcase hero   # writes assets/showcase/hero.webp
+```
+
+`all` does not render the hero; it is its own command. Every key is in the
+[config reference](/showcase-kit/reference/config/#hero).
+
+## Composition
+
+- **Text.** The logo (fitted into a 96 px square at the default height), then `name`, then `tagline`,
+  vertically centered on the left.
+- **Windows.** `shots` lists one to three shot ids, back to front, and defaults to the first three
+  shots. Each window is half the banner's width, tilted a few degrees, and framed with your `frame`
+  settings (style, theme, title, radius, shadow). The positions are fractions of the canvas, so a
+  different `size` keeps the composition.
+- **Background.** `background` takes the same forms as `frame.background` and defaults to it.
+- **Text color.** `theme` defaults to `frame.theme`: `'dark'` gives light text, `'light'` gives dark
+  text. Match it to the background, not the app.
+
+The banner is rendered at twice its size and scaled down to exactly `size`, for sharper text and edges
+on the tilted windows.
+
+## Logo, language and output
+
+- `logo` is a PNG, SVG, WebP or JPEG file, relative to the config's directory. A missing file or another
+  type fails when the hero renders.
+- `lang` picks which language's captures to use; it defaults to the first of `langs` and must be one of
+  them.
+- `output` (default `assets/showcase/hero.webp`) must end in `.webp` or `.png` and takes the tokens
+  `{lang}` and `{slug}`. `quality` (default 90) applies to WebP.
+- `size` (default `[1280, 640]`) is the exact output size, 320 to 8192 pixels per side.
+
+<Aside type="tip" title="Use it on GitHub">
+  Put an `<img>` of `assets/showcase/hero.webp` at the top of the README. GitHub's social
+  preview upload takes PNG, JPG or GIF under 1 MB, not WebP: set `output: 'assets/showcase/hero.png'`
+  if you want one file for both.
+</Aside>
+
+## Related
+
+- [Frames](/showcase-kit/guides/frames/): the window look the hero reuses.
+- [README table](/showcase-kit/guides/readme-table/): the images under the banner.
+- [CLI reference](/showcase-kit/reference/cli/#hero): `showcase hero`.
