@@ -19,9 +19,27 @@ export default {
   // The app reads navigator.language, and each language gets a browser context with that locale.
   langs: ['en', 'pl'],
   shots: [
-    { id: 'tonight', title: 'Tonight', caption: 'Plan the night: conditions, targets and a sky chart.', nav: '[data-view="tonight"]' },
-    { id: 'log', title: 'Log', caption: 'Every session, with seeing and notes.', nav: '[data-view="log"]' },
-    { id: 'gear', title: 'Gear', caption: 'The kit that goes in the car.', nav: '[data-view="gear"]' },
+    {
+      id: 'tonight',
+      title: 'Tonight',
+      caption: 'Plan the night: conditions, targets and a sky chart.',
+      alt: "Nightjar's Tonight view: four condition cards, a table of six targets with altitude bars, and a sky chart.",
+      nav: '[data-view="tonight"]',
+    },
+    {
+      id: 'log',
+      title: 'Log',
+      caption: 'Every session, with seeing and notes.',
+      alt: "Nightjar's Log view: session totals and a table of eight observations with seeing dots, star ratings and notes.",
+      nav: '[data-view="log"]',
+    },
+    {
+      id: 'gear',
+      title: 'Gear',
+      caption: 'The kit that goes in the car.',
+      alt: "Nightjar's Gear view: six equipment cards with their specs, and a packing checklist.",
+      nav: '[data-view="gear"]',
+    },
   ],
   frame: {
     style: 'window',

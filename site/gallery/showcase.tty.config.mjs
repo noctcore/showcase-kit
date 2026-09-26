@@ -15,13 +15,21 @@ export default {
   deviceScaleFactor: 2,
   terminal: { theme: 'dark', font: { size: 15 } },
   shots: [
-    { id: 'queue', title: 'Imaging queue', caption: 'The imaging queue, one target selected.', keys: 'j', waitFor: 'M27  Dumbbell' },
+    {
+      id: 'queue',
+      title: 'Imaging queue',
+      caption: 'The imaging queue, one target selected.',
+      alt: 'A terminal showing the nightjar imaging queue: six targets with their progress, M27 selected, and its details with an altitude graph.',
+      keys: 'j',
+      waitFor: 'M27  Dumbbell',
+    },
   ],
   clips: [
     {
       id: 'tour',
       title: 'Queue tour',
       caption: 'Moving down the queue, then over to the session log.',
+      alt: 'An animation of the nightjar queue: the selection moves down three targets, then the view switches to the session log.',
       steps: [
         { sleep: 700 },
         { keys: 'j' },
@@ -35,7 +43,7 @@ export default {
       ],
       tailMs: 1800,
       durationMs: 10000,
-      formats: ['webp'],
+      // formats defaults to WebP and GIF.
     },
   ],
   frame: {
@@ -45,7 +53,7 @@ export default {
     // A solid background keeps a lossless clip small; a gradient does not compress.
     background: '#141a3a',
     padding: 48,
-    maxWidth: 1600,
+    // No maxWidth: downscaling blends pixels, and this clip came out three times larger with maxWidth: 1600.
   },
   outputs: {
     raw: 'showcase-out/raw-tty/{lang}/{id}.png',
