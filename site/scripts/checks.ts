@@ -56,17 +56,72 @@ function decodeFragment(fragment: string): string {
   }
 }
 
+function isSpace(char: string | undefined): boolean {
+  return char === ' ' || char === '\n' || char === '\t' || char === '\r' || char === '\f';
+}
+
+/**
+ * The attributes of every start tag in a page, in document order. Only real
+ * tags are read: text is escaped in the emitted HTML (inline code shows
+ * `&lt;img src="..."&gt;`), so an HTML example in a doc is not taken for a link
+ * or an id. The bodies of `<script>` and `<style>` are skipped for the same
+ * reason. A linear scan rather than a regex, so no page can make it backtrack.
+ */
+export function attributesOf(html: string): Array<[name: string, value: string]> {
+  const attrs: Array<[string, string]> = [];
+  let i = 0;
+  while ((i = html.indexOf('<', i)) !== -1) {
+    i++;
+    if (!/[A-Za-z]/.test(html[i] ?? '')) continue;
+    const nameStart = i;
+    while (i < html.length && !isSpace(html[i]) && html[i] !== '>' && html[i] !== '/') i++;
+    const tag = html.slice(nameStart, i).toLowerCase();
+    while (i < html.length && html[i] !== '>') {
+      if (isSpace(html[i]) || html[i] === '/') {
+        i++;
+        continue;
+      }
+      const start = i;
+      while (i < html.length && !isSpace(html[i]) && html[i] !== '>' && html[i] !== '/' && html[i] !== '=') i++;
+      const name = html.slice(start, i).toLowerCase();
+      while (isSpace(html[i])) i++;
+      if (html[i] !== '=') continue;
+      i++;
+      while (isSpace(html[i])) i++;
+      const quote = html[i];
+      let value: string;
+      if (quote === '"' || quote === "'") {
+        const end = html.indexOf(quote, i + 1);
+        if (end === -1) return attrs;
+        value = html.slice(i + 1, end);
+        i = end + 1;
+      } else {
+        const valueStart = i;
+        while (i < html.length && !isSpace(html[i]) && html[i] !== '>') i++;
+        value = html.slice(valueStart, i);
+      }
+      if (name) attrs.push([name, decodeEntities(value)]);
+    }
+    if (tag === 'script' || tag === 'style') {
+      const close = html.indexOf(`</${tag}`, i);
+      if (close === -1) break;
+      i = close;
+    }
+  }
+  return attrs;
+}
+
 /** Every `id` in a page. */
 export function idsOf(html: string): Set<string> {
-  return new Set([...html.matchAll(/\sid="([^"]*)"/g)].map((m) => decodeEntities(m[1]!)));
+  return new Set(attributesOf(html).flatMap(([name, value]) => (name === 'id' ? [value] : [])));
 }
 
 /** Every URL a page points at through `href`, `src` or `srcset`. */
 export function refsOf(html: string): string[] {
   const refs: string[] = [];
-  for (const match of html.matchAll(/\s(href|src|srcset)="([^"]*)"/g)) {
-    const value = decodeEntities(match[2]!);
-    if (match[1] === 'srcset') {
+  for (const [name, value] of attributesOf(html)) {
+    if (name !== 'href' && name !== 'src' && name !== 'srcset') continue;
+    if (name === 'srcset') {
       for (const candidate of value.split(',')) {
         const url = candidate.trim().split(/\s+/)[0];
         if (url) refs.push(url);

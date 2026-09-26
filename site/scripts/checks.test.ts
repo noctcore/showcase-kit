@@ -144,6 +144,22 @@ describe('parsing', () => {
     ]);
   });
 
+  test('an HTML example in inline code is neither a link nor an id', () => {
+    const html =
+      '<p><code>&lt;img src="assets/x.webp"&gt;</code> and <code>&lt;h2 id="fake"&gt;</code></p><a href="/real/">x</a><h2 id="real">R</h2>';
+    expect(refsOf(html)).toEqual(['/real/']);
+    expect([...idsOf(html)]).toEqual(['real']);
+  });
+
+  test('a > inside a quoted value does not end the tag, and single quotes are read', () => {
+    expect(refsOf(`<a title="a > b" href="/x/">x</a><img alt='1 > 0' src='/y.png'>`)).toEqual(['/x/', '/y.png']);
+  });
+
+  test('script and style bodies are skipped, their own tags are not', () => {
+    const html = `<script src="/a.js"></script><script>const s = '<a href="rel/">';</script><style>a { background: url("x.png") } b[id="y"] {}</style><link href="/s.css">`;
+    expect(refsOf(html)).toEqual(['/a.js', '/s.css']);
+  });
+
   test('idsOf reads every id and ignores data-id', () => {
     expect([...idsOf('<h2 id="a"></h2><div data-id="b"></div><span id="c&amp;d"></span>')]).toEqual(['a', 'c&d']);
   });
