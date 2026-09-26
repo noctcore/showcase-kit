@@ -149,7 +149,7 @@ function cmdQuote(arg: string): string {
         'nor a line break. Run the program the shim starts directly, or use a command string and quote it yourself.',
     );
   }
-  return /^[\w\-./\\:@+]+$/.test(arg) ? arg : `"${arg.replace(/(\\+)$/, '$1$1')}"`;
+  return /^[\w\-./\\:@+~]+$/.test(arg) ? arg : `"${arg.replace(/(\\+)$/, '$1$1')}"`;
 }
 
 /**
