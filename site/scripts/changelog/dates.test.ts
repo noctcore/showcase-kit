@@ -51,6 +51,8 @@ beforeAll(() => {
   commitChangelog(repo, '# p\n\n## 0.2.0\n\n## 0.1.1\n\n## 0.1.0\n', '2026-02-03T01:30:00+02:00');
   commitChangelog(repo, '# p\n\n## 0.1.1\n\n## 0.1.0\n', '2026-02-05T12:00:00+00:00');
   commitChangelog(repo, '# p\n\n## 0.2.0\n\nedited\n\n## 0.1.1\n\n## 0.1.0\n', '2026-02-09T12:00:00+00:00');
+  // A heading that "## 9.9.9" would match if its dots were regex wildcards.
+  commitChangelog(repo, '# p\n\n## 9x9x9\n\n## 0.2.0\n\nedited\n\n## 0.1.1\n\n## 0.1.0\n', '2026-02-10T12:00:00+00:00');
 });
 
 afterAll(() => {
@@ -94,8 +96,8 @@ describe('releaseDates', () => {
   });
 
   test('regex characters in a version are literal', () => {
-    // "0x2x0" would match "0.2.0" if the dots were not escaped.
-    expect(() => dates(['0x2x0'])).toThrow(/No release date for 0x2x0/);
+    // Unescaped, "^## 9.9.9$" would match the "## 9x9x9" heading and date 9.9.9.
+    expect(() => dates(['9.9.9'])).toThrow(/No release date for 9\.9\.9/);
   });
 
   test('a real shallow clone throws, naming the versions and how to fix it', () => {
