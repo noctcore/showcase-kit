@@ -11,6 +11,7 @@ import { replaceAlerts, toAside, type Alert } from './alerts';
 import type { ChangelogModel, DatedRelease } from './model';
 import type { BumpType, Entry, Link } from './parse';
 import { nextBump, type PendingChangeset } from './pending';
+import { escapeXml } from './xml';
 
 export const GROUP_TITLES: Readonly<Record<BumpType, string>> = {
   major: 'Major changes',
@@ -40,12 +41,20 @@ export const compareUrl = (repo: string, from: string, to: string) =>
   `https://github.com/${repo}/compare/${encodeURIComponent(from)}...${encodeURIComponent(to)}`;
 
 const link = (text: string, url: string) => `[${text}](${url})`;
+/** An HTML link, for markup Markdown cannot carry: a class, or a link inside an HTML block. */
+const htmlLink = (html: string, url: string, className?: string) =>
+  `<a${className ? ` class="${className}"` : ''} href="${escapeXml(url)}">${html}</a>`;
+
+/** A commit link as the feed shows it: the short hash as code. */
+const commitCode = (commit: Link) => link(`\`${commit.label}\``, commit.url);
+/** A commit link as the changelog page shows it: the theme's quiet .nc-sha. */
+const commitSha = (commit: Link) => htmlLink(escapeXml(commit.label), commit.url, 'nc-sha');
 
 /** The first line of an entry: links, thanks for anyone but the maintainer, the summary. */
-function entryPrefix(entry: Entry, maintainer: string): string {
+function entryPrefix(entry: Entry, maintainer: string, commitLink: (commit: Link) => string): string {
   const parts: string[] = [];
   if (entry.pr) parts.push(link(entry.pr.label, entry.pr.url));
-  if (entry.commit) parts.push(link(`\`${entry.commit.label}\``, entry.commit.url));
+  if (entry.commit) parts.push(commitLink(entry.commit));
   const thanked = entry.authors.filter((author: Link) => author.label !== maintainer);
   if (thanked.length > 0) parts.push(`Thanks ${thanked.map((a) => link(`@${a.label}`, a.url)).join(', ')}!`);
   return parts.map((part) => `${part} `).join('');
@@ -53,15 +62,16 @@ function entryPrefix(entry: Entry, maintainer: string): string {
 
 /**
  * One entry as a Markdown list item, alerts turned into whatever `alert`
- * renders. Follow-on lines are indented two spaces to stay in the item.
+ * renders and the commit link into whatever `commitLink` renders (the short
+ * hash as code by default). Follow-on lines are indented two spaces to stay in the item.
  */
 export function entryMarkdown(
   entry: Entry,
-  options: { maintainer: string; where: string; alert: (alert: Alert) => string[] },
+  options: { maintainer: string; where: string; alert: (alert: Alert) => string[]; commitLink?: (commit: Link) => string },
 ): string {
   const body = replaceAlerts(entry.body, options.alert, options.where);
   const [first = '', ...rest] = body.split('\n');
-  return [`- ${entryPrefix(entry, options.maintainer)}${first}`, ...rest.map((line) => (line === '' ? '' : `  ${line}`))].join(
+  return [`- ${entryPrefix(entry, options.maintainer, options.commitLink ?? commitCode)}${first}`, ...rest.map((line) => (line === '' ? '' : `  ${line}`))].join(
     '\n',
   );
 }
@@ -77,25 +87,28 @@ function groupsMarkdown(
     '',
     GROUP_LEGENDS[group.type],
     '',
-    ...group.entries.flatMap((entry) => [entryMarkdown(entry, { maintainer, where, alert: toAside }), '']),
+    ...group.entries.flatMap((entry) => [entryMarkdown(entry, { maintainer, where, alert: toAside, commitLink: commitSha }), '']),
   ]);
 }
 
-/** Date, npm, tag and compare links under a version heading. */
+/**
+ * Date, npm, tag and compare links under a version heading, as one line (the
+ * theme's .nc-release-meta). An HTML block, so its links are HTML too.
+ */
 function metaLine(model: ChangelogModel, release: DatedRelease, previous: DatedRelease | undefined): string {
   const parts = [
-    `Released <time datetime="${release.date.timestamp}">${release.date.day}</time>`,
-    link('npm', npmVersionUrl(model.packageName, release.version)),
+    `<span>Released <time datetime="${release.date.timestamp}">${release.date.day}</time></span>`,
+    htmlLink('npm', npmVersionUrl(model.packageName, release.version)),
   ];
   const { tag } = release.date;
   if (tag) {
-    parts.push(link(`tag \`${tag}\``, tagUrl(model.repo, tag)));
+    parts.push(htmlLink(`tag <code>${escapeXml(tag)}</code>`, tagUrl(model.repo, tag)));
     const from = previous?.date.tag;
-    if (from) parts.push(link(`changes since ${previous.version}`, compareUrl(model.repo, from, tag)));
+    if (from) parts.push(htmlLink(`changes since ${previous.version}`, compareUrl(model.repo, from, tag)));
   } else {
-    parts.push('not tagged yet');
+    parts.push('<span>not tagged yet</span>');
   }
-  return parts.join(' · ');
+  return `<p class="nc-release-meta">${parts.join('')}</p>`;
 }
 
 function unreleasedMarkdown(pending: readonly PendingChangeset[], maintainer: string): string[] {

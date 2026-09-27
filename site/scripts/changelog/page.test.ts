@@ -31,17 +31,19 @@ describe('renderChangelogPage', () => {
     expect(headings).toEqual(['## 1.0.0 {#v1.0.0}', '## 0.9.0 {#v0.9.0}']);
   });
 
-  test('the meta line has the date, npm, the real tag and a compare link across tag formats', () => {
+  test('the meta line is one .nc-release-meta line: the date, npm, the real tag and a compare link across tag formats', () => {
     expect(page).toContain(
-      'Released <time datetime="2026-03-02T08:00:00Z">2026-03-02</time> · ' +
-        '[npm](https://www.npmjs.com/package/@scope/pkg/v/1.0.0) · ' +
-        '[tag `v1.0.0`](https://github.com/o/r/releases/tag/v1.0.0) · ' +
-        '[changes since 0.9.0](https://github.com/o/r/compare/%40scope%2Fpkg%400.9.0...v1.0.0)',
+      '## 1.0.0 {#v1.0.0}\n\n<p class="nc-release-meta">' +
+        '<span>Released <time datetime="2026-03-02T08:00:00Z">2026-03-02</time></span>' +
+        '<a href="https://www.npmjs.com/package/@scope/pkg/v/1.0.0">npm</a>' +
+        '<a href="https://github.com/o/r/releases/tag/v1.0.0">tag <code>v1.0.0</code></a>' +
+        '<a href="https://github.com/o/r/compare/%40scope%2Fpkg%400.9.0...v1.0.0">changes since 0.9.0</a></p>\n',
     );
     // The oldest release has nothing to compare with.
     expect(page).toContain(
-      'Released <time datetime="2026-02-01T23:59:59Z">2026-02-01</time> · [npm](https://www.npmjs.com/package/@scope/pkg/v/0.9.0) · ' +
-        '[tag `@scope/pkg@0.9.0`](https://github.com/o/r/releases/tag/%40scope%2Fpkg%400.9.0)\n',
+      '<p class="nc-release-meta"><span>Released <time datetime="2026-02-01T23:59:59Z">2026-02-01</time></span>' +
+        '<a href="https://www.npmjs.com/package/@scope/pkg/v/0.9.0">npm</a>' +
+        '<a href="https://github.com/o/r/releases/tag/%40scope%2Fpkg%400.9.0">tag <code>@scope/pkg@0.9.0</code></a></p>\n',
     );
   });
 
@@ -49,7 +51,7 @@ describe('renderChangelogPage', () => {
     const model = fixtureModel();
     delete model.releases[0]!.date.tag;
     const untagged = renderChangelogPage(model);
-    expect(untagged).toContain('[npm](https://www.npmjs.com/package/@scope/pkg/v/1.0.0) · not tagged yet\n');
+    expect(untagged).toContain('<a href="https://www.npmjs.com/package/@scope/pkg/v/1.0.0">npm</a><span>not tagged yet</span></p>\n');
     expect(untagged).not.toContain('/compare/');
   });
 
@@ -62,7 +64,7 @@ describe('renderChangelogPage', () => {
   test('entries keep their links, thank everyone but the maintainer and keep follow-on lines in the item', () => {
     expect(page).toContain(
       [
-        '- [#12](https://github.com/o/r/pull/12) [`abc1234`](https://github.com/o/r/commit/abc1234def) Thanks [@guest](https://github.com/guest)! Drops `old()`.',
+        '- [#12](https://github.com/o/r/pull/12) <a class="nc-sha" href="https://github.com/o/r/commit/abc1234def">abc1234</a> Thanks [@guest](https://github.com/guest)! Drops `old()`.',
         '',
         '  Second paragraph with `a | b` and `` a`b `` and a table-like `x|y|z`.',
         '',
@@ -73,8 +75,12 @@ describe('renderChangelogPage', () => {
         '  :::',
       ].join('\n'),
     );
-    expect(page).toContain('- [`0123abc`](https://github.com/o/r/commit/0123abc999) A maintainer fix.\n\n  :::tip[Tip]\n');
-    expect(page).toContain('- [`def5678`](https://github.com/o/r/commit/def5678abc) A fix with a link but no author.\n');
+    expect(page).toContain(
+      '- <a class="nc-sha" href="https://github.com/o/r/commit/0123abc999">0123abc</a> A maintainer fix.\n\n  :::tip[Tip]\n',
+    );
+    expect(page).toContain(
+      '- <a class="nc-sha" href="https://github.com/o/r/commit/def5678abc">def5678</a> A fix with a link but no author.\n',
+    );
     expect(page).toContain('- First release, written by hand.\n');
     expect(page).not.toContain('@maint');
   });
