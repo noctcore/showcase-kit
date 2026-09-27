@@ -49,6 +49,7 @@ export const STUB_MARKER = 'STUB(wave-2)';
  * points at a page, without a fragment.
  */
 export const CONTRACT_ANCHORS: Readonly<Record<string, readonly string[]>> = {
+  'gallery/': ['hero-banner', 'hero-layouts', 'frame-styles-and-backgrounds', 'readme-layouts'],
   'reference/config/': ['top-level', 'target', 'shots', 'frame', 'outputs', 'hero', 'terminal', 'clips'],
   'reference/cli/': ['options', 'capture', 'frame', 'portfolio', 'readme', 'record', 'all', 'hero', 'icons', 'init'],
 };
