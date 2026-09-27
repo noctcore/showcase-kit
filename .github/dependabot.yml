@@ -53,3 +53,26 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+
+  # The docs site: its own package and bun.lock under site/, not a workspace
+  # (a root `workspaces` field would make changesets stop versioning the
+  # published package). `@astrojs/markdown-satteri` and `satteri` are pinned
+  # exactly to the versions astro resolves, so they move in one pull request
+  # with astro and Starlight; Dependabot puts a package in the first group that
+  # matches, so that group comes first. Majors still arrive alone.
+  - package-ecosystem: bun
+    directory: /site
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      astro:
+        patterns: ['astro', '@astrojs/*', 'satteri']
+        update-types: [minor, patch]
+      site:
+        patterns: ['*']
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore
+      include: scope
