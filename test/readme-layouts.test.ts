@@ -30,17 +30,21 @@ describe('readme layouts', () => {
     expect(readmeSnippet(config)).toMatch(/^<table>\n {2}<tr>\n {4}<td width="50%"><img /);
   });
 
-  it('rows: image and text side by side, alternating, the caption only when it adds to the title', () => {
+  it('rows: image and text side by side, alternating, one table each, the caption only when it adds to the title', () => {
     vi.spyOn(log, 'warn').mockImplementation(() => {});
     expect(snippet('rows')).toBe(`<table>
   <tr>
     <td width="60%"><img src="assets/showcase/en/queue.webp" alt="Rumi: Queue" /></td>
     <td width="40%"><h3>Queue</h3><p>The queue &#38; its details.</p></td>
   </tr>
+</table>
+<table>
   <tr>
     <td width="40%"><h3>Log</h3></td>
     <td width="60%"><img src="assets/showcase/en/log.webp" alt="Rumi: Log" /></td>
   </tr>
+</table>
+<table>
   <tr>
     <td width="60%"><a href="assets/showcase/en/video.mp4">Rumi: Video (MP4)</a></td>
     <td width="40%"><h3>Video</h3></td>

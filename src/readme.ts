@@ -12,7 +12,7 @@ import { clipPath, selectClips, splitIds } from './record.js';
  * How `showcase readme` lays out the images. Every layout uses only HTML that GitHub keeps in a README.
  *
  * - `table`: a table, a row of images and a row of `<sub>` captions under it, `cols` per row.
- * - `rows`: one row per image, the image on one side and its title and caption on the other, alternating sides.
+ * - `rows`: one small table per image, the image on one side and its title and caption on the other, alternating sides.
  * - `featured`: the first image full width with its caption, then the others in a table, `cols` per row.
  * - `details`: one collapsible `<details>` per image, the caption as its summary; the first starts open.
  * - `list`: every image full width, one under the other, each with its caption.
@@ -138,16 +138,13 @@ function table(cells: Cell[], cols: number): string[] {
 // `<details>`, `<summary>`, `<p align>`, `<h3>`, `<sub>`, `<br>`. Each layout is built from those.
 const LAYOUTS: Record<ReadmeLayout, (cells: Cell[], cols: number) => string[]> = {
   table,
-  rows: cells => {
-    const lines = ['<table>'];
-    cells.forEach((cell, index) => {
+  // One table per row: in a single table the columns are shared, so alternating 60% and 40% cells would fight.
+  rows: cells =>
+    cells.flatMap((cell, index) => {
       const image = `    <td width="60%">${cell.media}</td>`;
       const text = `    <td width="40%"><h3>${cell.title}</h3>${cell.caption === cell.title ? '' : `<p>${cell.caption}</p>`}</td>`;
-      lines.push('  <tr>', ...(index % 2 === 0 ? [image, text] : [text, image]), '  </tr>');
-    });
-    lines.push('</table>');
-    return lines;
-  },
+      return ['<table>', '  <tr>', ...(index % 2 === 0 ? [image, text] : [text, image]), '  </tr>', '</table>'];
+    }),
   featured: (cells, cols) => {
     const [first, ...rest] = cells;
     if (!first) return [];
