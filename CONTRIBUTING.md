@@ -59,6 +59,21 @@ CI (`.github/workflows/ci.yml`, on `ubuntu-24.04` and `windows-latest`) runs the
 `bun install --frozen-lockfile`, `bunx playwright install --with-deps chromium`, `bun run typecheck`
 and `bun run test`, which does the build.
 
+The docs site under `site/` is its own package with its own `bun.lock`, not a workspace (a root
+`workspaces` field would make changesets stop versioning the published package). It reads the built
+`dist/`, so run it after the root install and build:
+
+```sh
+bun install --frozen-lockfile --cwd site
+bun run --cwd site test        # link checker, changelog parser, reference drift tests
+bun run --cwd site typecheck
+bun run docs:build             # generate the changelog and reference, build, check every link and anchor
+bun run docs:dev               # the site on a local dev server
+```
+
+`.github/workflows/docs.yml` runs the same on pull requests that touch `site/`, `src/`, `CHANGELOG.md`,
+`.changeset/` or the package files, and deploys `main` to GitHub Pages.
+
 - **`build`** writes `dist/` with tsup and copies `src/tty/fonts` to `dist/fonts`, where the
   terminal renderer looks for JetBrains Mono. Most of its time is the declaration build.
 - **`typecheck`** does not need `dist/`: the tests import from `../src`.
@@ -115,6 +130,7 @@ CLI (`src/cli.ts`), both built by tsup into `dist/`.
 | `test/*.test.ts` | Vitest suites, one or more per module |
 | `test/helpers.ts` | Temp dirs, free ports, the in-process fixture server, the fixture config |
 | `test/fixtures/` | The fixture web app (`app/index.html`, served by `static-server.mjs`, or by `serve.mjs` as a `target.start` command), the fixture TUI (`tui.mjs`), a busy counter for clips (`counter.mjs`), and a CLI that prints and exits (`print-exit.mjs`) |
+| `site/` | The docs site (Astro and Starlight) at https://noctcore.github.io/showcase-kit/: hand-written guides in `site/src/content/docs/guides/`, the config, CLI and API reference generated from `src/` on every build (`site/scripts/reference/`), the changelog page and Atom feed generated from `CHANGELOG.md` (`site/scripts/changelog/`), and the gallery of real outputs (`site/gallery/`, regenerated with `bun run docs:gallery`) |
 
 ## Adding or changing a config key
 
