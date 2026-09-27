@@ -256,7 +256,9 @@ What each bump has meant here (`CHANGELOG.md` and `git log -- .changeset`):
 
 Releases are two-phase and automatic (`.github/workflows/release.yml`): changesets merged to `main`
 open a "Version Packages" pull request, and merging that publishes to npm with provenance through
-trusted publishing. You never bump the version or edit `CHANGELOG.md` yourself.
+trusted publishing. You never bump the version yourself, and you never rewrite an entry in
+`CHANGELOG.md`. The one edit it takes by hand is an alert block that calls out a change needing action
+from users; `.changeset/README.md` says when and where.
 
 ## Commits and pull requests
 
