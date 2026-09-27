@@ -10,7 +10,7 @@ import { log } from '../log.js';
 import { outputPath } from '../paths.js';
 import { killTreeSync } from '../process.js';
 import { assertNodeRuntime, openTtySession, renderTtyScreen } from './index.js';
-import type { OpenTtySession, RenderTtyScreen, TtySession } from './types.js';
+import type { OpenTtySession, RenderTtyScreen, TtyScreen, TtySession } from './types.js';
 
 /** The engine calls capture needs. A parameter so tests can drive the flow without a PTY. */
 export interface TtyEngine {
@@ -26,6 +26,21 @@ export interface TtyCaptureResult {
 
 /** Without `waitFor`, how long to wait for keys or `nav` to change the screen before taking it anyway. */
 const CHANGE_WAIT_MS = 1_000;
+/**
+ * How long the screen must stay unchanged before a shot is taken. One write of a frame can reach the kit in more
+ * than one read (a macOS pty hands it over 1024 bytes at a time), so the text a shot waits for can be on screen
+ * before the rest of its frame is. The reads of one write arrive well under a millisecond apart, so 100 ms bridges
+ * them even on a loaded machine, and it is about all a shot of a finished screen costs.
+ */
+const SETTLE_MS = 100;
+/** How often to look at the screen while it settles: a quarter of `SETTLE_MS`, so a change is seen promptly. */
+const SETTLE_POLL_MS = 25;
+/**
+ * The longest a shot waits for the screen to settle. A spinner or a clock never stops changing, and every shot of
+ * such an app costs this much, so it is short; a frozen mode in the app (see the terminal determinism guide) avoids it.
+ */
+const SETTLE_CAP_MS = 1_000;
+const DETERMINISM_GUIDE = 'https://noctcore.github.io/showcase-kit/guides/terminal-determinism/';
 /** How long a signal waits for open sessions to quit before exiting anyway. */
 const SIGNAL_CLOSE_MS = 5_000;
 
@@ -151,6 +166,34 @@ async function waitForChange(session: TtySession, before: string, timeoutMs: num
   while (Date.now() < deadline && session.screen().key === before) await session.sleep(25);
 }
 
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
+
+/** The screen with everything the app printed so far parsed into it: a wait with no time left flushes, then checks. */
+async function flushedScreen(session: TtySession): Promise<TtyScreen> {
+  await session.waitForText('', { timeoutMs: 0 }).catch(() => {});
+  return session.screen();
+}
+
+/**
+ * Wait until the screen has not changed for `SETTLE_MS`, so a shot never shows a frame the app is still drawing.
+ * It compares screens, not output, so an app that redraws the same frame on a timer settles at once. Gives up at
+ * `timeoutMs` and returns the screen as it is then, with `settled: false`.
+ */
+async function waitForSettle(session: TtySession, timeoutMs: number): Promise<{ screen: TtyScreen; settled: boolean }> {
+  const deadline = Date.now() + timeoutMs;
+  let screen = await flushedScreen(session);
+  let since = Date.now();
+  for (;;) {
+    const now = Date.now();
+    if (now - since >= SETTLE_MS) return { screen, settled: true };
+    if (now >= deadline) return { screen, settled: false };
+    await sleep(Math.min(SETTLE_POLL_MS, deadline - now));
+    const next = await flushedScreen(session);
+    if (next.key !== screen.key) since = Date.now();
+    screen = next;
+  }
+}
+
 export async function startSession(
   config: ResolvedTtyConfig,
   lang: string,
@@ -201,6 +244,7 @@ async function shoot(
   lang: string,
   engine: TtyEngine,
 ): Promise<CapturedFile> {
+  const started = Date.now();
   const before = session.screen().key;
   if (shot.keys !== undefined) await session.press(shot.keys);
   else if (shot.nav) await shot.nav(session);
@@ -215,8 +259,18 @@ async function shoot(
     await waitForChange(session, before, CHANGE_WAIT_MS);
   }
   if (shot.delayMs > 0) await session.sleep(shot.delayMs);
+  // Every shot, including the first one after `ready` and one after a restart, waits for the app to finish drawing.
+  const budget = Math.min(SETTLE_CAP_MS, started + config.timeouts.shotMs - Date.now());
+  const { screen, settled } = await waitForSettle(session, budget);
+  if (!settled) {
+    log.warn(
+      `  ${lang}/${shot.id}: the screen did not stay still for ${String(SETTLE_MS)}ms within ` +
+        `${String(Math.max(0, budget))}ms, so the shot may show it mid-change. Freeze spinners and clocks in the app ` +
+        `for captures: ${DETERMINISM_GUIDE}`,
+    );
+  }
 
-  const png = await engine.renderTtyScreen(page, session.screen(), config.terminal, config.deviceScaleFactor);
+  const png = await engine.renderTtyScreen(page, screen, config.terminal, config.deviceScaleFactor);
   const path = outputPath(config, config.outputs.raw, lang, shot.id);
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, png);
