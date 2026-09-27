@@ -49,6 +49,8 @@ export const DEFAULT_CDP_URL = 'http://127.0.0.1:9222';
 export const GALLERY_FILE = 'showcase.gallery.json';
 
 const DEFAULT_BACKGROUND: ResolvedBackground = { type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 };
+const DEFAULT_DOT = 'rgba(255,255,255,0.14)';
+const BACKGROUND_TYPES = ['solid', 'gradient', 'transparent', 'mesh', 'dots', 'noise'] as const;
 
 function resolveWebTarget(issues: Issues, value: unknown, rootDir: string): ResolvedWebConfig['target'] {
   if (!isObj(value)) {
@@ -145,8 +147,39 @@ function resolveBackground(
       checkKeys(issues, path, value, ['type']);
       return { type: 'transparent' };
     }
+    if (value.type === 'mesh') {
+      checkKeys(issues, path, value, ['type', 'colors']);
+      const { colors } = value;
+      if (!Array.isArray(colors) || colors.length < 2 || colors.length > 5) {
+        issues.add(`${path}.colors`, `must be an array of two to five CSS colors, got ${describe(colors)}`);
+        return fallback;
+      }
+      return { type: 'mesh', colors: colors.map((entry, index) => color(issues, `${path}.colors[${String(index)}]`, entry)) };
+    }
+    if (value.type === 'dots') {
+      checkKeys(issues, path, value, ['type', 'color', 'dot', 'spacing']);
+      return {
+        type: 'dots',
+        color: color(issues, `${path}.color`, value.color),
+        dot: value.dot === undefined ? DEFAULT_DOT : color(issues, `${path}.dot`, value.dot),
+        spacing: num(issues, `${path}.spacing`, value.spacing, 24, { min: 8, max: 96 }),
+      };
+    }
+    if (value.type === 'noise') {
+      checkKeys(issues, path, value, ['type', 'from', 'to', 'angle', 'amount']);
+      return {
+        type: 'noise',
+        from: color(issues, `${path}.from`, value.from),
+        to: color(issues, `${path}.to`, value.to),
+        angle: num(issues, `${path}.angle`, value.angle, 135, { min: -360, max: 360 }),
+        amount: num(issues, `${path}.amount`, value.amount, 0.2, { min: 0, max: 1 }),
+      };
+    }
   }
-  issues.add(path, `must be a color string or { type: "solid" | "gradient" | "transparent" }, got ${describe(value)}`);
+  issues.add(
+    path,
+    `must be a color string or { type: ${BACKGROUND_TYPES.map(type => `"${type}"`).join(' | ')} }, got ${describe(value)}`,
+  );
   return fallback;
 }
 

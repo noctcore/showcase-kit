@@ -305,7 +305,45 @@ export type Background =
       angle?: number;
     }
   /** No background: the space around the window stays transparent. */
-  | { type: 'transparent' };
+  | { type: 'transparent' }
+  /** A mesh gradient: the first color underneath, each other color glowing from its own corner. */
+  | {
+      type: 'mesh';
+      /** Two to five CSS colors: the base, then the top left, top right, bottom right and bottom left glows. */
+      colors: string[];
+    }
+  /** A subtle grid of dots on one CSS color. */
+  | {
+      type: 'dots';
+      /** The color under the dots. */
+      color: string;
+      /**
+       * The dot color. Pick a dark one on a light `color`.
+       * @default `'rgba(255,255,255,0.14)'`
+       */
+      dot?: string;
+      /**
+       * Distance between dots in CSS pixels, 8 to 96.
+       * @default `24`
+       */
+      spacing?: number;
+    }
+  /** A linear gradient with a film grain on top, the same on every run. */
+  | {
+      type: 'noise';
+      from: string;
+      to: string;
+      /**
+       * Angle in degrees, -360 to 360.
+       * @default `135`
+       */
+      angle?: number;
+      /**
+       * How strong the grain is, 0 to 1.
+       * @default `0.2`
+       */
+      amount?: number;
+    };
 
 /** The window chrome around a capture. */
 export type FrameStyle = 'window' | 'minimal' | 'none';
@@ -627,7 +665,10 @@ export type ResolvedShot = ResolvedWebShot | ResolvedTtyShot;
 export type ResolvedBackground =
   | { type: 'solid'; color: string }
   | { type: 'gradient'; from: string; to: string; angle: number }
-  | { type: 'transparent' };
+  | { type: 'transparent' }
+  | { type: 'mesh'; colors: string[] }
+  | { type: 'dots'; color: string; dot: string; spacing: number }
+  | { type: 'noise'; from: string; to: string; angle: number; amount: number };
 
 /** `frame` with every default filled in. */
 export interface ResolvedFrame {

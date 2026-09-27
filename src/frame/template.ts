@@ -53,6 +53,22 @@ export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, char => `&#${String(char.charCodeAt(0))};`);
 }
 
+/** Where each mesh color after the first glows from: top left, top right, bottom right, bottom left. */
+const MESH_CORNERS = ['0% 0%', '100% 0%', '100% 100%', '0% 100%'];
+
+/**
+ * A tile of grey film grain. `feTurbulence` with a fixed seed draws the same pixels on every run. The SVG uses double
+ * quotes only, which `encodeURIComponent` escapes, so the URL is safe inside `url('...')` in a style attribute.
+ */
+function grain(amount: number): string {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240">' +
+    '<filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="7" stitchTiles="stitch"/>' +
+    '<feColorMatrix type="saturate" values="0"/></filter>' +
+    `<rect width="100%" height="100%" filter="url(#n)" opacity="${String(amount)}"/></svg>`;
+  return `url('data:image/svg+xml,${encodeURIComponent(svg)}') 0 0 / 240px 240px`;
+}
+
 export function backgroundCss(background: ResolvedBackground): string {
   switch (background.type) {
     case 'solid':
@@ -61,10 +77,22 @@ export function backgroundCss(background: ResolvedBackground): string {
       return `linear-gradient(${String(background.angle)}deg, ${background.from}, ${background.to})`;
     case 'transparent':
       return 'transparent';
+    case 'mesh': {
+      const [base, ...glows] = background.colors;
+      const layers = glows.map((glow, index) => `radial-gradient(at ${MESH_CORNERS[index] ?? '50% 50%'}, ${glow} 0%, transparent 62%)`);
+      return [...layers, base].join(', ');
+    }
+    case 'dots': {
+      const tile = px(background.spacing);
+      return `radial-gradient(circle, ${background.dot} 1.25px, transparent 1.75px) 0 0 / ${tile} ${tile}, ${background.color}`;
+    }
+    case 'noise':
+      return `${grain(background.amount)}, linear-gradient(${String(background.angle)}deg, ${background.from}, ${background.to})`;
   }
 }
 
 const px = (value: number): string => `${String(Math.round(value * 1000) / 1000)}px`;
+
 
 /**
  * One framed window as self-contained markup (inline styles only), so a page can hold several at different
