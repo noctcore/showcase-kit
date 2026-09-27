@@ -42,6 +42,11 @@ export function select(config: ResolvedConfig, only?: string[], langs?: string[]
   };
 }
 
+/** A string `nav` is visited when it is an http(s) URL or a path starting with one `/`; anything else is clicked. */
+export function isGotoNav(nav: string): boolean {
+  return /^https?:\/\//.test(nav) || (nav.startsWith('/') && !nav.startsWith('//'));
+}
+
 /**
  * Where a `goto` nav goes in url mode. A nav that starts with `/` (or `\`, or either after leading spaces or control
  * characters, as the url parser reads it) resolves like a relative link from the app's base directory: the target url's path, with or without a trailing slash, except that a last segment with a dot

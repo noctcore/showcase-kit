@@ -14,6 +14,8 @@ import {
   WEB_ONLY_KEYS,
 } from './tty.js';
 import type {
+  HeroLayout,
+  Mode,
   ResolvedBackground,
   ResolvedConfig,
   ResolvedFrame,
@@ -49,6 +51,13 @@ export const DEFAULT_CDP_URL = 'http://127.0.0.1:9222';
 export const GALLERY_FILE = 'showcase.gallery.json';
 
 const DEFAULT_BACKGROUND: ResolvedBackground = { type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 };
+const DEFAULT_DOT = 'rgba(255,255,255,0.14)';
+const BACKGROUND_TYPES = ['solid', 'gradient', 'transparent', 'mesh', 'dots', 'noise'] as const;
+export const FRAME_STYLES = ['window', 'minimal', 'none', 'browser', 'windows', 'terminal'] as const;
+export const HERO_LAYOUTS = ['stack', 'spotlight', 'split', 'row', 'mosaic', 'centered'] as const;
+/** The most shots each hero layout shows; it shows the first ones when `hero.shots` is not set. */
+export const HERO_MAX_SHOTS: Record<HeroLayout, number> = { stack: 3, spotlight: 1, split: 1, row: 4, mosaic: 4, centered: 1 };
+const ADDRESS_TOKENS = ['url', 'name', 'title', 'id', 'lang'];
 
 function resolveWebTarget(issues: Issues, value: unknown, rootDir: string): ResolvedWebConfig['target'] {
   if (!isObj(value)) {
@@ -145,28 +154,78 @@ function resolveBackground(
       checkKeys(issues, path, value, ['type']);
       return { type: 'transparent' };
     }
+    if (value.type === 'mesh') {
+      checkKeys(issues, path, value, ['type', 'colors']);
+      const { colors } = value;
+      if (!Array.isArray(colors) || colors.length < 2 || colors.length > 5) {
+        issues.add(`${path}.colors`, `must be an array of two to five CSS colors, got ${describe(colors)}`);
+        return fallback;
+      }
+      return { type: 'mesh', colors: colors.map((entry, index) => color(issues, `${path}.colors[${String(index)}]`, entry)) };
+    }
+    if (value.type === 'dots') {
+      checkKeys(issues, path, value, ['type', 'color', 'dot', 'spacing']);
+      return {
+        type: 'dots',
+        color: color(issues, `${path}.color`, value.color),
+        dot: value.dot === undefined ? DEFAULT_DOT : color(issues, `${path}.dot`, value.dot),
+        spacing: num(issues, `${path}.spacing`, value.spacing, 24, { min: 8, max: 96 }),
+      };
+    }
+    if (value.type === 'noise') {
+      checkKeys(issues, path, value, ['type', 'from', 'to', 'angle', 'amount']);
+      return {
+        type: 'noise',
+        from: color(issues, `${path}.from`, value.from),
+        to: color(issues, `${path}.to`, value.to),
+        angle: num(issues, `${path}.angle`, value.angle, 135, { min: -360, max: 360 }),
+        amount: num(issues, `${path}.amount`, value.amount, 0.2, { min: 0, max: 1 }),
+      };
+    }
   }
-  issues.add(path, `must be a color string or { type: "solid" | "gradient" | "transparent" }, got ${describe(value)}`);
+  issues.add(
+    path,
+    `must be a color string or { type: ${BACKGROUND_TYPES.map(type => `"${type}"`).join(' | ')} }, got ${describe(value)}`,
+  );
   return fallback;
 }
 
-function resolveFrame(issues: Issues, value: unknown): ResolvedFrame {
+function resolveFrame(issues: Issues, value: unknown, mode: Mode): ResolvedFrame {
   const frame = value === undefined ? {} : value;
   if (!isObj(frame)) {
     issues.add('frame', `must be an object, got ${describe(frame)}`);
-    return resolveFrame(issues, {});
+    return resolveFrame(issues, {}, mode);
   }
-  checkKeys(issues, 'frame', frame, ['style', 'theme', 'title', 'background', 'padding', 'radius', 'shadow', 'quality', 'maxWidth']);
+  checkKeys(issues, 'frame', frame, [
+    'style',
+    'theme',
+    'title',
+    'address',
+    'background',
+    'padding',
+    'radius',
+    'shadow',
+    'quality',
+    'maxWidth',
+  ]);
   let title: string | false = '{name}';
   if (frame.title === false) {
     title = false;
   } else if (frame.title !== undefined) {
     title = str(issues, 'frame.title', frame.title) ?? '{name}';
   }
+  const style = oneOf(issues, 'frame.style', frame.style, FRAME_STYLES, 'window');
+  const address = pathTemplate(issues, 'frame.address', frame.address, '{url}', { allowed: ADDRESS_TOKENS, required: [] });
+  if (style === 'browser' && mode === 'tty') {
+    issues.add('frame.style', '"browser" needs a page with an address; a terminal app has none (use "terminal" or "window")');
+  } else if (style === 'browser' && mode === 'cdp' && address.includes('{url}')) {
+    issues.add('frame.address', 'cannot use {url} in cdp mode, where the page is not known when framing: write the address');
+  }
   return {
-    style: oneOf(issues, 'frame.style', frame.style, ['window', 'minimal', 'none'] as const, 'window'),
+    style,
     theme: oneOf(issues, 'frame.theme', frame.theme, ['light', 'dark'] as const, 'dark'),
     title,
+    address,
     background: resolveBackground(issues, frame.background),
     padding: num(issues, 'frame.padding', frame.padding, 72, { min: 0, integer: true }),
     radius: num(issues, 'frame.radius', frame.radius, 14, { min: 0, integer: true }),
@@ -269,14 +328,27 @@ function resolveHero(
     issues.add('hero', `must be an object, got ${describe(hero)}`);
     return resolveHero(issues, {}, { shots, langs, frame });
   }
-  checkKeys(issues, 'hero', hero, ['tagline', 'logo', 'shots', 'lang', 'output', 'size', 'background', 'theme', 'quality']);
+  checkKeys(issues, 'hero', hero, [
+    'layout',
+    'tagline',
+    'logo',
+    'shots',
+    'lang',
+    'output',
+    'size',
+    'background',
+    'theme',
+    'quality',
+  ]);
 
-  let heroShots = shots.slice(0, 3).map(shot => shot.id);
+  const layout = oneOf(issues, 'hero.layout', hero.layout, HERO_LAYOUTS, 'stack');
+  const max = HERO_MAX_SHOTS[layout];
+  let heroShots = shots.slice(0, max).map(shot => shot.id);
   if (hero.shots !== undefined) {
     const valid =
       Array.isArray(hero.shots) &&
       hero.shots.length >= 1 &&
-      hero.shots.length <= 3 &&
+      hero.shots.length <= max &&
       hero.shots.every(id => typeof id === 'string');
     if (valid) {
       heroShots = hero.shots as string[];
@@ -284,7 +356,9 @@ function resolveHero(
         if (!shots.some(shot => shot.id === id)) issues.add('hero.shots', `"${id}" is not a shot id`);
       }
     } else {
-      issues.add('hero.shots', `must be an array of one to three shot ids, got ${describe(hero.shots)}`);
+      const count = max === 1 ? 'one shot id' : `one to ${NUMBER_WORDS[max] ?? String(max)} shot ids`;
+      const why = layout === 'stack' ? '' : ` (layout "${layout}")`;
+      issues.add('hero.shots', `must be an array of ${count}${why}, got ${describe(hero.shots)}`);
     }
   }
   let size: [number, number] = [1280, 640];
@@ -300,6 +374,7 @@ function resolveHero(
   if (hero.lang !== undefined && !langs.includes(lang)) issues.add('hero.lang', `"${lang}" is not in langs`);
 
   return {
+    layout,
     tagline: str(issues, 'hero.tagline', hero.tagline),
     logo: str(issues, 'hero.logo', hero.logo),
     shots: heroShots,
@@ -315,6 +390,8 @@ function resolveHero(
     quality: num(issues, 'hero.quality', hero.quality, 90, { min: 1, max: 100, integer: true }),
   };
 }
+
+const NUMBER_WORDS: Record<number, string> = { 3: 'three', 4: 'four' };
 
 function slugify(name: string): string {
   return name
@@ -421,7 +498,8 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
     issues.add('timeouts', `must be an object, got ${describe(timeouts)}`);
   }
 
-  const frame = resolveFrame(issues, input.frame);
+  const mode: Mode = tty ? 'tty' : isObj(input.target) && input.target.mode === 'cdp' ? 'cdp' : 'url';
+  const frame = resolveFrame(issues, input.frame, mode);
   const common = {
     name,
     slug,

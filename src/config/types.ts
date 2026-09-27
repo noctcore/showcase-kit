@@ -305,15 +305,59 @@ export type Background =
       angle?: number;
     }
   /** No background: the space around the window stays transparent. */
-  | { type: 'transparent' };
+  | { type: 'transparent' }
+  /** A mesh gradient: the first color underneath, each other color glowing from its own corner. */
+  | {
+      type: 'mesh';
+      /** Two to five CSS colors: the base, then the top left, top right, bottom right and bottom left glows. */
+      colors: string[];
+    }
+  /** A subtle grid of dots on one CSS color. */
+  | {
+      type: 'dots';
+      /** The color under the dots. */
+      color: string;
+      /**
+       * The dot color. Pick a dark one on a light `color`.
+       * @default `'rgba(255,255,255,0.14)'`
+       */
+      dot?: string;
+      /**
+       * Distance between dots in CSS pixels, 8 to 96.
+       * @default `24`
+       */
+      spacing?: number;
+    }
+  /** A linear gradient with a film grain on top, the same on every run. */
+  | {
+      type: 'noise';
+      from: string;
+      to: string;
+      /**
+       * Angle in degrees, -360 to 360.
+       * @default `135`
+       */
+      angle?: number;
+      /**
+       * How strong the grain is, 0 to 1.
+       * @default `0.2`
+       */
+      amount?: number;
+    };
 
-/** The window chrome around a capture. */
-export type FrameStyle = 'window' | 'minimal' | 'none';
+/**
+ * The window chrome around a capture. `window` reads as macOS, `windows` as Windows 11, `browser` as a browser
+ * with an address bar, and `terminal` as a terminal emulator.
+ */
+export type FrameStyle = 'window' | 'minimal' | 'none' | 'browser' | 'windows' | 'terminal';
 
 /** How a capture is framed for the README, the portfolio, the hero and clips. */
 export interface FrameOptions {
   /**
-   * `window`: title bar with traffic lights. `minimal`: thin bar. `none`: just the rounded screenshot.
+   * `window`: title bar with traffic lights. `minimal`: thin bar. `none`: just the rounded screenshot. `browser`: a
+   * browser toolbar with the `address` in its address bar (url and cdp mode). `windows`: a Windows title bar, the
+   * title on the left and the caption buttons on the right. `terminal`: a terminal emulator's bar, a tab with the
+   * title in a monospace font; in tty mode it takes the terminal's background, so bar and screen read as one.
    * @default `'window'`
    */
   style?: FrameStyle;
@@ -327,6 +371,13 @@ export interface FrameOptions {
    * @default `'{name}'`
    */
   title?: string | false;
+  /**
+   * Address bar text for `style: 'browser'`. Tokens: `{url}`, `{name}`, `{title}`, `{id}`, `{lang}`. `{url}` is the
+   * page the shot visits without `http://` or `https://`: the target url, resolved with the shot's `nav` when that is
+   * a path or URL. In cdp mode the page is not known when framing, so write the text without `{url}`.
+   * @default `'{url}'`
+   */
+  address?: string;
   /**
    * What the window sits on.
    * @default `{ type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 }`
@@ -425,15 +476,32 @@ export interface Outputs {
   clips?: string;
 }
 
+/**
+ * How the hero banner is composed.
+ *
+ * - `stack`: text on the left, one to three windows stacked and tilted on the right.
+ * - `spotlight`: text on the left, one large straight window running off the right and bottom edges.
+ * - `split`: text on the left, one window turned in perspective on the right.
+ * - `row`: text centered at the top, one to four windows side by side under it.
+ * - `mosaic`: text on the left, a tilted wall of one to four windows, repeated, filling the right.
+ * - `centered`: text first, centered, with one window rising from the bottom edge.
+ */
+export type HeroLayout = 'stack' | 'spotlight' | 'split' | 'row' | 'mosaic' | 'centered';
+
 /** The README banner that `showcase hero` renders. */
 export interface HeroOptions {
+  /**
+   * How the banner is composed: `stack`, `spotlight`, `split`, `row`, `mosaic` or `centered`.
+   * @default `'stack'`
+   */
+  layout?: HeroLayout;
   /** Line under the name. */
   tagline?: string;
   /** Logo image (PNG, SVG, WebP or JPEG), relative to the config root. */
   logo?: string;
   /**
-   * One to three shot ids to stack, back to front.
-   * @default the first three shots
+   * Shot ids to show, back to front: one to three for `stack`, one to four for `row` and `mosaic`, one for the others.
+   * @default as many of the first shots as the layout shows
    */
   shots?: string[];
   /**
@@ -530,7 +598,7 @@ export interface CommonConfig {
   frame?: FrameOptions;
   /** Where the files go. */
   outputs?: Outputs;
-  /** Banner image for the top of a README: logo, name, tagline and a stack of framed shots. */
+  /** Banner image for the top of a README: logo, name, tagline and framed shots, in one of several layouts. */
   hero?: HeroOptions;
   /** The Chromium that captures web apps, renders terminal screens and draws frames. */
   browser?: BrowserOptions;
@@ -627,13 +695,17 @@ export type ResolvedShot = ResolvedWebShot | ResolvedTtyShot;
 export type ResolvedBackground =
   | { type: 'solid'; color: string }
   | { type: 'gradient'; from: string; to: string; angle: number }
-  | { type: 'transparent' };
+  | { type: 'transparent' }
+  | { type: 'mesh'; colors: string[] }
+  | { type: 'dots'; color: string; dot: string; spacing: number }
+  | { type: 'noise'; from: string; to: string; angle: number; amount: number };
 
 /** `frame` with every default filled in. */
 export interface ResolvedFrame {
   style: FrameStyle;
   theme: 'light' | 'dark';
   title: string | false;
+  address: string;
   background: ResolvedBackground;
   padding: number;
   radius: number;
@@ -658,6 +730,7 @@ export interface ResolvedPortfolio {
 
 /** `hero` with every default filled in. */
 export interface ResolvedHero {
+  layout: HeroLayout;
   tagline: string | undefined;
   logo: string | undefined;
   shots: string[];

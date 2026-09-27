@@ -4,7 +4,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { launchBrowser } from './browser.js';
 import type { ResolvedConfig, ResolvedPortfolio } from './config/types.js';
 import { ShowcaseError } from './errors.js';
-import { frameTitle, logWritten, readRaw, renderFrame, writeImage } from './frame/render.js';
+import { frameAddress, frameTitle, logWritten, readRaw, renderFrame, writeImage } from './frame/render.js';
 import { containLayout } from './frame/template.js';
 import { log } from './log.js';
 import { select } from './paths.js';
@@ -69,6 +69,7 @@ export async function exportPortfolio(config: ResolvedConfig, options: { only?: 
         raw,
         layout,
         title: frameTitle(config, shot, lang),
+        address: frameAddress(config, shot, lang),
         deviceScaleFactor: 1,
       });
       const path = join(dir, `${shot.id}.${extension}`);

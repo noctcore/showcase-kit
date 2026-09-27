@@ -7,7 +7,7 @@ import { isTtyConfig } from './config/resolve.js';
 import type { CdpTarget, ResolvedConfig, ResolvedWebConfig, ResolvedWebShot, UrlTarget } from './config/types.js';
 import { ShowcaseError } from './errors.js';
 import { log } from './log.js';
-import { navUrl, outputPath, select } from './paths.js';
+import { isGotoNav, navUrl, outputPath, select } from './paths.js';
 import { answers, startCommand, waitForUrl, type StartedProcess } from './process.js';
 import { trimTrailing } from './text.js';
 
@@ -307,7 +307,7 @@ async function navigate(session: Session, page: Page, shot: ResolvedWebShot): Pr
   let goto: string | undefined;
   let click: string | undefined;
   if (typeof nav === 'string') {
-    if (/^https?:\/\//.test(nav) || (nav.startsWith('/') && !nav.startsWith('//'))) goto = nav;
+    if (isGotoNav(nav)) goto = nav;
     else click = nav;
   } else if ('goto' in nav) {
     goto = nav.goto;

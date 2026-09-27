@@ -13,7 +13,7 @@ import { generateIcons, ICON_PRESETS, type IconPreset } from './icons.js';
 import { init } from './init.js';
 import { log } from './log.js';
 import { exportPortfolio } from './portfolio.js';
-import { readmeSnippet } from './readme.js';
+import { readmeSnippet, type ReadmeLayout } from './readme.js';
 import { record, splitIds } from './record.js';
 
 const HELP = `showcase: capture, frame and export showcase images of your app
@@ -38,6 +38,8 @@ Options:
                         readme, record, all)
       --langs <codes>   Comma-separated languages (capture, frame, record, all)
       --lang <code>     Language for readme (default: the first in langs)
+      --layout <name>   Layout for readme: table, rows, featured, details or list
+                        (default table)
       --cols <n>        Images per row for readme (default 2)
       --base <dir>      Directory the README is in, for relative image paths (readme)
       --source <png>    Square source image, 1024px or larger (icons)
@@ -75,6 +77,7 @@ async function main(argv: string[]): Promise<void> {
       only: { type: 'string' },
       langs: { type: 'string' },
       lang: { type: 'string' },
+      layout: { type: 'string' },
       cols: { type: 'string' },
       base: { type: 'string' },
       source: { type: 'string' },
@@ -137,7 +140,8 @@ async function main(argv: string[]): Promise<void> {
     },
     readme: async config => {
       const cols = values.cols === undefined ? undefined : Number(values.cols);
-      console.log(readmeSnippet(config, { lang: values.lang, cols, base: values.base, only: list(values.only) }));
+      const layout = values.layout as ReadmeLayout | undefined;
+      console.log(readmeSnippet(config, { lang: values.lang, layout, cols, base: values.base, only: list(values.only) }));
     },
     all: async config => {
       const { shots: only, clips } = splitIds(config, list(values.only));

@@ -1,6 +1,6 @@
 ---
 title: Frames
-description: Turn raw captures into README images inside a window frame, on a solid, gradient or transparent background, as WebP or PNG.
+description: Turn raw captures into README images inside a window, browser or terminal frame, on a solid, gradient, mesh, dotted, grainy or transparent background, as WebP or PNG.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -37,9 +37,37 @@ config reference under [`frame`](/showcase-kit/reference/config/#frame) and
 | `'window'` (default) | 40 px, with the three traffic lights and the title centered. |
 | `'minimal'` | A thin 28 px bar with the title, no lights. |
 | `'none'` | No bar and no title: just the rounded screenshot. |
+| `'browser'` | A 44 px browser toolbar: traffic lights, back, forward and reload, and an address bar showing `address`. |
+| `'windows'` | A 32 px Windows title bar: the title on the left, minimize, maximize and close on the right. |
+| `'terminal'` | A 34 px terminal bar: traffic lights and a tab with a prompt icon and the title in a monospace font. |
 
 `theme` (`'dark'` by default, or `'light'`) sets the title bar's colors. Pick the one that matches the
 app, so the bar reads as part of the window.
+
+### The browser address bar
+
+`address` is the text in the `browser` style's address bar, `'{url}'` by default. `{url}` is the page
+the shot visits, without `http://` or `https://`: the target url, resolved with the shot's `nav` when
+that is a path or a URL. A shot reached by a click keeps the target url, so most apps will want their
+own text, such as their public address:
+
+```js
+frame: {
+  style: 'browser',
+  address: 'nightjar.app/{id}',
+},
+```
+
+`address` also takes `{name}`, `{title}`, `{id}` and `{lang}`. The style has no title text, so `title`
+does not show. In cdp mode the page is not known when the frame is drawn, so an `address` with `{url}`
+is an error there; write the address instead. A terminal app has no address, so tty mode refuses the
+`browser` style and suggests `terminal` or `window`.
+
+### The terminal style
+
+`terminal` works for web apps and terminal apps. In tty mode its bar takes the terminal theme's
+background and drops the line under the bar, so the bar and the screen read as one terminal window. In
+url and cdp mode the bar is a dark (or light) grey.
 
 `title` is the title bar text, `'{name}'` by default. It takes the tokens `{name}` (the config's
 `name`), `{title}` (the shot's title), `{id}` and `{lang}`, so `title: '{name}: {title}'` gives
@@ -47,20 +75,33 @@ app, so the bar reads as part of the window.
 
 ## Backgrounds
 
-`background` takes four forms:
+`background` takes these forms:
 
 ```js
 background: '#1e1b4b', // any CSS color: a hex, a name, rgb(), hsl(), oklch(), color-mix() ...
 background: { type: 'solid', color: '#1e1b4b' },
 background: { type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 }, // angle defaults to 135
 background: { type: 'transparent' },
+background: { type: 'mesh', colors: ['#0b1026', '#6d28d9', '#0e7490', '#1e3a8a', '#be185d'] },
+background: { type: 'dots', color: '#0d1224', dot: 'rgba(255,255,255,0.14)', spacing: 24 },
+background: { type: 'noise', from: '#2a1f6b', to: '#0b3b4c', angle: 135, amount: 0.2 },
 ```
+
+- **mesh** takes two to five colors: the first is the base, and the others glow from the top left, top
+  right, bottom right and bottom left corners, in that order.
+- **dots** draws a grid of small dots on `color`. `dot` is the dot color (a faint white by default: pick
+  a dark one on a light `color`) and `spacing` the distance between dots, 8 to 96 CSS pixels (default 24).
+- **noise** is a gradient like `gradient`, with a film grain on top. `amount` (0 to 1, default 0.2) sets
+  how strong the grain is. The grain comes from a fixed seed, so it is the same on every run.
+
+The hero's `background` takes the same forms.
 
 Colors are checked when the config loads: only color syntax is accepted, so `url()` and other CSS
 functions are rejected. A transparent background keeps the alpha channel in both WebP and PNG, so the
 shadow falls on whatever page the image sits on.
 
-The default is the teal to indigo gradient above.
+The default is the teal to indigo gradient above. For [clips](/showcase-kit/guides/clips/), a solid
+background keeps the file small: gradients, meshes, dots and grain do not compress.
 
 ## Spacing, corners and shadow
 

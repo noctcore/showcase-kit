@@ -3,10 +3,11 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, extname, relative } from 'node:path';
 import type { Browser } from 'playwright';
 import sharp from 'sharp';
+import { isTtyConfig } from '../config/resolve.js';
 import type { ResolvedConfig, ResolvedShot } from '../config/types.js';
 import { ShowcaseError } from '../errors.js';
 import { log } from '../log.js';
-import { outputPath } from '../paths.js';
+import { isGotoNav, navUrl, outputPath } from '../paths.js';
 import { fillTemplate } from '../template.js';
 import { frameHtml, readmeLayout, type FrameLayout } from './template.js';
 
@@ -42,11 +43,44 @@ export function frameTitle(config: ResolvedConfig, shot: ResolvedShot, lang: str
   return fillTemplate(config.frame.title, { name: config.name, title: shot.title, id: shot.id, lang });
 }
 
+/**
+ * The address bar text of the `browser` style, undefined for the others. `{url}` is the page the shot visits: the
+ * target url, resolved with the shot's `nav` when that is a path or a URL (a click can go anywhere, so it keeps the
+ * target url), without its scheme.
+ */
+export function frameAddress(config: ResolvedConfig, shot: ResolvedShot, lang: string): string | undefined {
+  if (config.frame.style !== 'browser') return undefined;
+  let url = '';
+  if (config.target.mode === 'url') {
+    const nav = 'nav' in shot ? shot.nav : undefined;
+    const target = typeof nav === 'object' && 'goto' in nav ? nav.goto : typeof nav === 'string' && isGotoNav(nav) ? nav : undefined;
+    url = target === undefined ? config.target.url : navUrl(target, config.target.url);
+  }
+  return fillTemplate(config.frame.address, {
+    url: url.replace(/^https?:\/\//, ''),
+    name: config.name,
+    title: shot.title,
+    id: shot.id,
+    lang,
+  });
+}
+
+/** The bar color of the `terminal` style in tty mode: the terminal's background, so bar and screen read as one. */
+export function frameBarColor(config: ResolvedConfig): string | undefined {
+  return config.frame.style === 'terminal' && isTtyConfig(config) ? config.terminal.theme.background : undefined;
+}
+
 /** Render one framed image to a PNG buffer at `layout.canvas * deviceScaleFactor` pixels. */
 export async function renderFrame(
   browser: Browser,
   config: ResolvedConfig,
-  { raw, layout, title, deviceScaleFactor }: { raw: RawImage; layout: FrameLayout; title: string | undefined; deviceScaleFactor: number },
+  {
+    raw,
+    layout,
+    title,
+    address,
+    deviceScaleFactor,
+  }: { raw: RawImage; layout: FrameLayout; title: string | undefined; address?: string | undefined; deviceScaleFactor: number },
 ): Promise<Buffer> {
   const context = await browser.newContext({
     viewport: { width: Math.round(layout.canvas.width), height: Math.round(layout.canvas.height) },
@@ -55,7 +89,8 @@ export async function renderFrame(
   try {
     const page = await context.newPage();
     const imageSrc = `data:image/png;base64,${raw.data.toString('base64')}`;
-    await page.setContent(frameHtml({ frame: config.frame, layout, imageSrc, title }), { waitUntil: 'load' });
+    const html = frameHtml({ frame: config.frame, layout, imageSrc, title, address, barColor: frameBarColor(config) });
+    await page.setContent(html, { waitUntil: 'load' });
     await page.evaluate(async () => {
       await document.fonts.ready;
       await Promise.all([...document.images].map(image => image.decode()));
@@ -134,7 +169,8 @@ export async function renderFrameHole(
   });
   try {
     const page = await context.newPage();
-    await page.setContent(frameHtml({ frame: config.frame, layout, imageSrc: undefined, title }), { waitUntil: 'load' });
+    const html = frameHtml({ frame: config.frame, layout, imageSrc: undefined, title, barColor: frameBarColor(config) });
+    await page.setContent(html, { waitUntil: 'load' });
     // Measured in the page, so the hole always matches the layout the template really produced.
     const hole = await page.evaluate(async () => {
       await document.fonts.ready;
