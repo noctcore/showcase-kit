@@ -3,6 +3,7 @@ import type { IBufferCell, IBufferLine, Terminal } from '@xterm/headless';
 import { ShowcaseError } from '../errors.js';
 import { log } from '../log.js';
 import { killTreeSync } from '../process.js';
+import { trimTrailing } from '../text.js';
 import { parseKeys } from './keys.js';
 import { loadPty, spawnPty, type PtyProcess } from './pty.js';
 import type { OpenTtySession, TtyScreen, TtySession } from './types.js';
@@ -63,7 +64,7 @@ function attrs(cell: IBufferCell): number {
 
 /** A row as plain text. xterm only trims cells never written to; spaces the app printed are trimmed too. */
 function rowText(line: IBufferLine | undefined): string {
-  return (line?.translateToString(true) ?? '').replace(/ +$/, '');
+  return trimTrailing(line?.translateToString(true) ?? '', ' ');
 }
 
 /** Copy the visible screen of `term` into an immutable `TtyScreen`. */

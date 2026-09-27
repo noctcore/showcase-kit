@@ -9,6 +9,7 @@ import { ShowcaseError } from '../errors.js';
 import { log } from '../log.js';
 import { outputPath } from '../paths.js';
 import { killTreeSync } from '../process.js';
+import { trimTrailing } from '../text.js';
 import { assertNodeRuntime, openTtySession, renderTtyScreen } from './index.js';
 import type { OpenTtySession, RenderTtyScreen, TtyScreen, TtySession } from './types.js';
 
@@ -119,7 +120,7 @@ export function describePattern(pattern: string | RegExp): string {
 }
 
 function lastScreen(session: TtySession): string {
-  const text = session.screenText().replace(/\n+$/, '');
+  const text = trimTrailing(session.screenText(), '\n');
   return text ? `Last screen:\n${text.replace(/^/gm, '  | ')}` : 'The screen was empty.';
 }
 

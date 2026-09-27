@@ -1,5 +1,6 @@
 import type { Page } from 'playwright';
 import { ShowcaseError } from '../errors.js';
+import { trimTrailing } from '../text.js';
 import { Attr, DEFAULT_COLOR, TRUECOLOR, type Grid, type GridCell, type GridColor } from './session.js';
 import { BUNDLED_ADVANCE, checkTheme, FALLBACK_FAMILY, FONT_FAMILY, fontFaceCss, fontFaces } from './theme.js';
 import type { RenderTtyScreen, ResolvedTerminalOptions, TerminalTheme, TtyScreen } from './types.js';
@@ -93,7 +94,7 @@ export function gridHtml(grid: Grid, look: ResolvedTerminalOptions, metrics: Cel
       if (!run) return;
       // Trailing blanks without a background or a line draw nothing: leave them out.
       if (run.text.length === run.width && !/background|text-decoration/.test(run.style)) {
-        const text = run.text.replace(/ +$/, '');
+        const text = trimTrailing(run.text, ' ');
         run.width -= run.text.length - text.length;
         run.text = text;
       }

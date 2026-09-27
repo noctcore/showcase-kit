@@ -10,6 +10,7 @@ import { ShowcaseError } from './errors.js';
 import { composeInHole, renderFrameHole, type FrameHole } from './frame/render.js';
 import { log } from './log.js';
 import { fillTemplate } from './template.js';
+import { trimTrailing } from './text.js';
 import type { TtyEngine } from './tty/capture.js';
 import type { TtyScreen, TtySession } from './tty/types.js';
 
@@ -182,7 +183,7 @@ function matches(text: string, pattern: string | RegExp): boolean {
 }
 
 function screenNote(text: string): string {
-  const trimmed = text.replace(/\n+$/, '');
+  const trimmed = trimTrailing(text, '\n');
   return trimmed ? `Last screen:\n${trimmed.replace(/^/gm, '  | ')}` : 'The screen was empty.';
 }
 
