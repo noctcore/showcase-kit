@@ -76,13 +76,40 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Tables. At phone width a table's last column ("Meaning") gets squeezed to
-   a word per line. Give it a floor and let the table scroll sideways instead.
+   Tables. The guides' Markdown tables scroll sideways inside the column; at
+   phone width their last column ("Meaning") would get squeezed to a word per
+   line, so it gets a floor. The generated reference tables are .nc-ref
+   (components.css) and stack into entries instead.
 --------------------------------------------------------------------------- */
 
 @media (max-width: 40rem) {
-  .sl-markdown-content table td:last-child {
+  .sl-markdown-content table:not(.nc-ref) td:last-child {
     min-width: 16rem;
+  }
+}
+
+.reference-wrap {
+  overflow-x: auto;
+}
+
+/* components.css keeps an .nc-ref table's first and last columns on one line,
+   for a key and a column of badges. In the reference the last column is prose
+   (Meaning, Message) and a union type can be long: both wrap. */
+.sl-markdown-content .nc-ref td.reference-meaning,
+.sl-markdown-content .nc-ref td.reference-type {
+  white-space: normal;
+}
+
+/* Stacked, prose reads as a paragraph under its label, not as a chip beside it. */
+@media (max-width: 40rem) {
+  .sl-markdown-content .nc-ref td.reference-meaning {
+    display: block;
+    margin-inline-end: 0;
+  }
+
+  .sl-markdown-content .nc-ref td.reference-meaning[data-label]::before {
+    display: block;
+    margin-bottom: 0.2rem;
   }
 }
 
