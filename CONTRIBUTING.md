@@ -138,9 +138,10 @@ A key touches six places. Take `target.inheritEnv` (commit `91bf1f5`) as the mod
 all of them in one commit, and its changeset followed.
 
 1. **The type, with JSDoc.** Add the key to the user-facing interface in `src/config/types.ts`
-   (`TtyTarget` for `inheritEnv`) with a JSDoc comment that says what it does and its default, in the
-   same words you would use in the docs. Add it to the resolved type (`ResolvedTtyTarget`), where it
-   is no longer optional. If the terminal engine takes it too, add it to `src/tty/types.ts`.
+   (`TtyTarget` for `inheritEnv`) with a JSDoc comment that says what it does, and its default as an
+   `@default` tag. That comment is the text users read (see step 5). Add it to the resolved type
+   (`ResolvedTtyTarget`), where it is no longer optional. If the terminal engine takes it too, add it
+   to `src/tty/types.ts`.
 2. **Validation and the key lists.** Resolve it in the function for its section: `resolve.ts` for
    url and cdp mode and the shared keys, `tty.ts` for tty mode, `clips.ts` for clips. Use the helpers
    in `validate.ts`, or write a small function in the same style (`inheritEnv` in `tty.ts`): report a
@@ -156,8 +157,11 @@ all of them in one commit, and its changeset followed.
    whole resolved objects or count every issue a bad config produces, so they change with a new key.
    Then a test of the behaviour itself, next to the other tests of that module (`inheritEnv` added one
    to `tty-session.test.ts` that runs a real child and checks a variable does not reach it).
-5. **Docs.** The key tables in `README.md` list every key with its default. Update the row, or add
-   one, in the same words as the JSDoc.
+5. **Docs.** The config reference on the docs site is generated from the JSDoc in step 1 on every
+   build, so there is no table to edit by hand. The site's tests (`bun run --cwd site test`) fail when a
+   key the validator accepts is missing from the reference, or when a literal `@default` differs from
+   what `resolveConfig` fills in. If the key changes how something works, also update the guide that
+   explains it under `site/src/content/docs/guides/`.
 6. **A changeset** (see [Changesets](#changesets)).
 
 If every new project should see the key, `src/init.ts` writes the starter configs; most keys do not
