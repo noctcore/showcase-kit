@@ -1,5 +1,20 @@
 # @noctcore/showcase-kit
 
+## 0.3.0
+
+### Minor Changes
+
+- [#12](https://github.com/noctcore/showcase-kit/pull/12) [`dcbeac8`](https://github.com/noctcore/showcase-kit/commit/dcbeac868e2713422a5ea9e7f9249258599003b9) Thanks [@Shironex](https://github.com/Shironex)! - More looks for the hero, the frames and the README snippet. Every new option defaults to the look you have today, so an existing config renders the same images byte for byte.
+  
+  - **Hero layouts**: `hero.layout` picks the composition: `stack` (the default, as before), `spotlight` (one large straight window running off the edges), `split` (one window in perspective), `row` (up to four windows under centered text), `mosaic` (a tilted wall of windows) and `centered` (text first, one window rising from the bottom). `hero.shots` takes as many shots as the layout shows and defaults to that many of the first shots.
+  - **Frame styles**: `frame.style` also takes `browser` (a toolbar with an address bar, whose text is the new `frame.address`, `'{url}'` by default), `windows` (a Windows title bar) and `terminal` (a terminal tab; in tty mode the bar takes the terminal background). tty mode refuses `browser`, and cdp mode needs an `address` without `{url}`.
+  - **Backgrounds**: `frame.background` and `hero.background` also take `{ type: 'mesh', colors }`, `{ type: 'dots', color, dot, spacing }` and `{ type: 'noise', from, to, angle, amount }`, a gradient with a film grain that is the same on every run.
+  - **README layouts**: `showcase readme --layout <name>` prints `table` (the default, as before), `rows`, `featured`, `details` or `list`, all built from HTML that GitHub keeps in a README. `--cols` applies to `table` and `featured`. The library's `readmeSnippet` takes the same `layout` option.
+
+### Patch Changes
+
+- [#9](https://github.com/noctcore/showcase-kit/pull/9) [`cbe7e61`](https://github.com/noctcore/showcase-kit/commit/cbe7e61740e3475d1d3d04b98fb7328b349980cb) Thanks [@Shironex](https://github.com/Shironex)! - Terminal apps: a shot no longer catches a frame the app is still drawing. A terminal can hand one write over in pieces (a macOS pty passes 1024 bytes at a time), so the `waitFor` text could be on screen before the rest of its frame, and the shot came out cut off, with different bytes from run to run. Before every shot the kit now waits until the screen has not changed for 100 ms, which adds about 100 ms to each shot. An app that redraws the same frame on a timer settles at once. An app whose screen never stops changing (a clock, a spinner) is shot after at most 1 s, or sooner when the shot's `timeouts.shotMs` runs out, with a warning; give it a frozen mode for captures, as the terminal determinism guide describes. Trailing separators in a CDP url, `outputs.portfolio` and shim arguments are now trimmed in linear time, with the same results as before.
+
 ## 0.2.0
 
 ### Minor Changes
