@@ -47,7 +47,7 @@ target: {
   mode: 'url',
   url: 'http://localhost:15175',
   start: 'pnpm dev:web',
-  cwd: '../web', // default: the config's directory
+  cwd: '../web', // default: the config root (its folder unless you set root)
   env: { VITE_SHOWCASE: '1' }, // added to your environment
   readyTimeoutMs: 120000, // a slow first build
 },
