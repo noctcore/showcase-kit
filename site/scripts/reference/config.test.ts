@@ -61,9 +61,19 @@ const NORMALIZED: Record<string, (literal: unknown) => unknown> = {
   'terminal.theme': (literal) => (literal === 'dark' ? lib.DARK_THEME : lib.LIGHT_THEME),
 };
 
-/** Form fields with a default, and a value of that form without the field, to see the default filled in. */
+/**
+ * Form fields with a default, keyed by path and the form's `type` (two forms can share a field name), and a value of
+ * that form without the field, to see the default filled in.
+ */
+const GRADIENT = { type: 'gradient', from: '#000000', to: '#ffffff' };
+const NOISE = { type: 'noise', from: '#000000', to: '#ffffff' };
+const DOTS = { type: 'dots', color: '#000000' };
 const FORM_SAMPLES: Record<string, Record<string, unknown>> = {
-  'frame.background.angle': { type: 'gradient', from: '#000000', to: '#ffffff' },
+  'frame.background.angle in gradient': GRADIENT,
+  'frame.background.angle in noise': NOISE,
+  'frame.background.amount in noise': NOISE,
+  'frame.background.dot in dots': DOTS,
+  'frame.background.spacing in dots': DOTS,
 };
 
 /** Every default written as prose (it depends on other keys or on files), exactly. */
@@ -130,11 +140,12 @@ describe('(a) documented defaults', () => {
         for (const field of form.fields ?? []) {
           if (field.default?.kind !== 'literal') continue;
           const path = `${table.path}.${field.key}`;
-          const sample = FORM_SAMPLES[path];
-          expect({ path, sample: sample !== undefined }).toEqual({ path, sample: true });
+          const key = `${path} in ${/type: '(\w+)'/.exec(form.type)?.[1] ?? form.type}`;
+          const sample = FORM_SAMPLES[key];
+          expect({ key, sample: sample !== undefined }).toEqual({ key, sample: true });
           const config = setAt(fixture('url'), segmentsOf(table.path, table.array), sample);
           expect(valueAt(lib.resolveConfig(config, FIXTURE_ROOT), path)).toEqual(parseLiteral(field.default.text));
-          seen.push(path);
+          seen.push(key);
         }
       }
     }
