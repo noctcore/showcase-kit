@@ -55,9 +55,9 @@ bun run typecheck   # tsc --noEmit over src/, test/ and the two config files
 bun run test        # bun run build, then vitest run: every test file, one at a time
 ```
 
-CI (`.github/workflows/ci.yml`, on `ubuntu-24.04` and `windows-latest`) runs the same steps:
-`bun install --frozen-lockfile`, `bunx playwright install --with-deps chromium`, `bun run typecheck`
-and `bun run test`, which does the build.
+CI (`.github/workflows/ci.yml`, on `ubuntu-24.04`, `windows-latest` and `macos-latest`) runs the
+same steps: `bun install --frozen-lockfile`, `bunx playwright install --with-deps chromium`,
+`bun run typecheck` and `bun run test`, which does the build.
 
 The docs site under `site/` is its own package with its own `bun.lock`, not a workspace (a root
 `workspaces` field would make changesets stop versioning the published package). It reads the built
@@ -178,9 +178,9 @@ hold themselves to the same rule, on Linux, Windows and macOS:
   directory from `tempDir()`, under the OS temp directory.
 - **Fixtures have no clock and no randomness.** The fixture app and TUI draw fixed content; the TUI
   changes behaviour only through environment variables (`TUI_GRANDCHILD`, `TUI_IGNORE_QUIT`,
-  `TUI_APP_CURSOR`). A new fixture follows the same rule. The kit itself gives terminal apps
-  `TZ=UTC`, a fixed `TERM`, `COLORTERM`, `FORCE_COLOR`, `LANG` and `LC_ALL`, and strips `CI`,
-  `NO_COLOR` and other terminal hints (`ttyEnv` in `src/tty/pty.ts`).
+  `TUI_APP_CURSOR`, `TUI_SPLIT_MS`, `TUI_REDRAW_MS`). A new fixture follows the same rule. The kit
+  itself gives terminal apps `TZ=UTC`, a fixed `TERM`, `COLORTERM`, `FORCE_COLOR`, `LANG` and
+  `LC_ALL`, and strips `CI`, `NO_COLOR` and other terminal hints (`ttyEnv` in `src/tty/pty.ts`).
 - **No golden images.** Fonts rasterize differently on macOS than on Windows and Linux, so tests
   check image sizes computed from the layout (the comment next to each expected size shows the
   arithmetic), the colour of chosen pixels with a tolerance, file lists and screen text. They never
@@ -201,8 +201,7 @@ hold themselves to the same rule, on Linux, Windows and macOS:
 
 ## Platform notes
 
-CI runs on Linux and Windows. macOS is not in CI, so if your change touches the PTY, fonts, paths or
-process handling and you have a Mac, run the suite there too.
+CI runs on Linux, Windows and macOS.
 
 - **Paths.** Build paths with `node:path` (`join`, `resolve`), never with `/` in a string, and turn
   a path into an import URL with `pathToFileURL`. On Windows `\tools` is absolute but relative to the
@@ -270,8 +269,8 @@ for dependencies and packaging. For example `fix(tty): pass shim arguments with 
 like 8.3 short paths`. One logical change per commit.
 
 The pull request template asks for a changeset, the gates you actually ran, docs and JSDoc for a
-new or changed config key, and deterministic tests. CI runs `typecheck` and `test` on Linux and
-Windows on every pull request.
+new or changed config key, and deterministic tests. CI runs `typecheck` and `test` on Linux,
+Windows and macOS on every pull request.
 
 ## Reporting
 
