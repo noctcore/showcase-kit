@@ -215,14 +215,20 @@ last one left off. For each language the kit:
 1. starts the app and waits for `ready` (without `ready`, for any text at all), up to
    `target.readyTimeoutMs`;
 2. waits `inputDelayMs`, then runs `setup` once, with `{ tty, lang, mode: 'tty', config }`;
-3. per shot: presses the `keys` (or runs `nav`), waits for `waitFor`, waits `delayMs`, and renders
-   the screen to the raw PNG;
+3. per shot: presses the `keys` (or runs `nav`), waits for `waitFor`, waits `delayMs`, waits for
+   the screen to stop changing, and renders the screen to the raw PNG;
 4. closes the app: sends `quitKey`, waits up to 1.5 s for it to quit, then kills its whole process
    tree by PID.
 
 Without `waitFor`, the kit gives the app up to one second to redraw after the keys (it moves on as
 soon as the screen changes); set `waitFor` for anything slower. `timeouts.shotMs` (default 15000)
 bounds each `waitFor`.
+
+Before it renders, the kit waits until the screen has not changed for 100 ms, so a shot never shows
+a frame the app is still drawing (a terminal can hand one write over in pieces). That adds about
+100 ms to a shot. For an app whose screen never stops changing, the wait gives up after 1 s (sooner
+if the shot's `timeouts.shotMs` runs out), takes the screen as it is and warns: freeze the app for
+captures, see [Terminal determinism](/showcase-kit/guides/terminal-determinism/).
 
 Without `ready`, the kit only waits for the app to draw anything, then the `inputDelayMs` grace,
 which may catch an app halfway through its first screen. Set `ready` to text the finished screen

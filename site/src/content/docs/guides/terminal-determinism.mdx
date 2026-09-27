@@ -22,9 +22,11 @@ images must not churn.
    `FORCE_COLOR=3`), `TZ=UTC`, `LANG` and `LC_ALL` set to `en_US.UTF-8`, and no CI or terminal
    program hints (`CI`, `NO_COLOR`, `TERM_PROGRAM`, `WT_SESSION` and the like are removed). The full
    list is in [Terminal apps](/showcase-kit/guides/terminal-apps/).
-3. **It settles on screen content, not on output silence.** It waits for the `ready` and `waitFor`
-   text, then a fixed grace. Waiting for the app to go quiet would never end for an app with a clock
-   or a spinner.
+3. **It waits for a finished screen.** It waits for the `ready` and `waitFor` text, then, before
+   every shot, for the screen to stay unchanged for 100 ms, so a frame the terminal hands over in
+   pieces is never shot half drawn. It compares screens, not output, so an app that redraws the same
+   frame on a timer settles at once. A screen that never stops changing (a clock, a spinner) is shot
+   after at most 1 s, with a warning.
 4. **A grace period after `ready`** (`target.inputDelayMs`, default 300 ms) before the first key, so
    keys are not lost while the app is still switching its terminal to raw mode.
 5. **A fixed look.** A bundled font, a whole-pixel cell width, a fixed line height, a fixed theme and
