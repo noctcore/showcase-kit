@@ -56,10 +56,12 @@ const facts = [
     display: block;
     line-height: 0;
   }
+  /* The frame radius of the theme's figures (.nc-frame), so the gallery, the
+     splash banner and a window-frame figure share one corner. */
   .gallery-figure img {
     width: 100%;
     height: auto;
-    border-radius: 0.5rem;
+    border-radius: calc(var(--nc-radius) * 1.25);
   }
   figcaption {
     display: flex;

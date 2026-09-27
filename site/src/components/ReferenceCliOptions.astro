@@ -23,7 +23,7 @@ function flag(option: CliOption): string {
 ---
 
 <div class="reference-wrap">
-  <table class="reference-table">
+  <table class="nc-ref">
     <thead>
       <tr>
         <th scope="col">Option</th>
@@ -35,11 +35,11 @@ function flag(option: CliOption): string {
       {
         options.map((option) => (
           <tr>
-            <td class="reference-flag">
+            <td class="reference-flag" data-label="Option">
               <code>{flag(option)}</code>
             </td>
             {!command && (
-              <td>
+              <td data-label="Applies to">
                 {option.exits
                   ? 'any command line: prints, then exits without running a command'
                   : option.global
@@ -52,7 +52,9 @@ function flag(option: CliOption): string {
                       ))}
               </td>
             )}
-            <td>{option.description}</td>
+            <td class="reference-meaning" data-label="Meaning">
+              {option.description}
+            </td>
           </tr>
         ))
       }
@@ -61,16 +63,6 @@ function flag(option: CliOption): string {
 </div>
 
 <style>
-  .reference-wrap {
-    overflow-x: auto;
-  }
-
-  .reference-table {
-    display: table;
-    width: 100%;
-    font-size: var(--sl-text-sm);
-  }
-
   .reference-flag code {
     white-space: nowrap;
   }

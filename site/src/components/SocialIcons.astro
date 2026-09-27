@@ -1,0 +1,15 @@
+---
+/**
+ * The version pill before the header's social icons. The version is the root
+ * package's, read at build time, so the pill always names the release this
+ * build documents. It links to the changelog.
+ */
+import Default from '@astrojs/starlight/components/SocialIcons.astro';
+
+import pkg from '../../../package.json';
+
+const changelog = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/changelog/`;
+---
+
+<a class="nc-version" href={changelog}>v{pkg.version}<span class="sr-only">, see the changelog</span></a>
+<Default />

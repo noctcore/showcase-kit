@@ -27,7 +27,7 @@ for (const error of modeErrors) {
 <div class="reference-wrap">
   {
     Astro.props.show === 'templates' ? (
-      <table class="reference-table">
+      <table class="nc-ref">
         <thead>
           <tr>
             <th scope="col">Key</th>
@@ -39,14 +39,14 @@ for (const error of modeErrors) {
         <tbody>
           {templates.map((template) => (
             <tr>
-              <td>
+              <td data-label="Key">
                 <ReferenceKeyLink path={template.path} />
               </td>
-              <td>
+              <td data-label="Tokens">
                 <code>{tokens(template.validated ? template.allowed : template.docTokens)}</code>
                 {!template.validated && ' (filled when the image is drawn; not checked by the validator)'}
               </td>
-              <td>
+              <td data-label="Must contain">
                 {template.required.length > 0 ? <code>{tokens(template.required)}</code> : 'nothing'}
                 {template.requiredMultiLang.length > template.required.length && (
                   <>
@@ -57,7 +57,7 @@ for (const error of modeErrors) {
                   </>
                 )}
               </td>
-              <td>
+              <td data-label="Must end in">
                 {template.extensions.length > 0
                   ? template.extensions.map((ext, i) => (
                       <>
@@ -72,7 +72,7 @@ for (const error of modeErrors) {
         </tbody>
       </table>
     ) : (
-      <table class="reference-table">
+      <table class="nc-ref">
         <thead>
           <tr>
             <th scope="col">Key</th>
@@ -83,11 +83,13 @@ for (const error of modeErrors) {
         <tbody>
           {refusals.map((refusal) => (
             <tr>
-              <td>
+              <td data-label="Key">
                 <ReferenceKeyLink path={refusal.path} />
               </td>
-              <td>{refusal.in.join(' and ')} mode</td>
-              <td>{refusal.message}</td>
+              <td data-label="Refused in">{refusal.in.join(' and ')} mode</td>
+              <td class="reference-meaning" data-label="Message">
+                {refusal.message}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -96,14 +98,3 @@ for (const error of modeErrors) {
   }
 </div>
 
-<style>
-  .reference-wrap {
-    overflow-x: auto;
-  }
-
-  .reference-table {
-    display: table;
-    width: 100%;
-    font-size: var(--sl-text-sm);
-  }
-</style>
