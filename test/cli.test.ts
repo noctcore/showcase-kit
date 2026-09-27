@@ -114,6 +114,17 @@ describe('showcase CLI', () => {
   </tr>
 </table>
 `);
+
+    const list = await run(['readme', '--layout', 'list', '--only', 'about'], dir);
+    expect(list.code).toBe(0);
+    expect(list.stdout).toBe(`<p align="center">
+  <img width="100%" src="assets/showcase/en/about.webp" alt="Fixture App: About" />
+  <br /><sub>About page</sub>
+</p>
+`);
+    const wrong = await run(['readme', '--layout', 'grid'], dir);
+    expect(wrong.code).toBe(1);
+    expect(wrong.stderr).toContain('--layout must be one of table, rows, featured, details, list, got grid');
   });
 
   it('captures only what --only and --langs select', async () => {
