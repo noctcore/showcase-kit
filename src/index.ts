@@ -9,7 +9,7 @@ export { hero, heroHtml } from './hero.js';
 export { encodeIcns, encodeIco, generateIcons, ICON_PRESETS, type IconPreset } from './icons.js';
 export { init, starterConfig } from './init.js';
 export { exportPortfolio, GALLERY_FILE, type GalleryItem, type PortfolioResult } from './portfolio.js';
-export { readmeSnippet, type ReadmeOptions } from './readme.js';
+export { readmeSnippet, type ReadmeLayout, type ReadmeOptions } from './readme.js';
 export { record, type RecordedClip, type RecordedFile, type RecordOptions } from './record.js';
 export type * from './config/types.js';
 export type * from './tty/types.js';
