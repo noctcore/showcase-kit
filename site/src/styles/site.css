@@ -186,3 +186,19 @@
 .site-footer-note {
   margin-top: 1.5rem;
 }
+
+/* ---------------------------------------------------------------------------
+   Section headings. Starlight wraps each Markdown h2 in .sl-heading-wrapper
+   and sets the heading inline, so the preset's hairline over an h2 only spans
+   the heading's text. The wrapper carries it instead, across the column.
+--------------------------------------------------------------------------- */
+
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--sl-color-hairline-light);
+}
+
+.sl-markdown-content .sl-heading-wrapper.level-h2 > h2 {
+  padding-top: 0;
+  border-top: 0;
+}
