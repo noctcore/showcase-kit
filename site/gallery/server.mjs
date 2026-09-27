@@ -29,7 +29,14 @@ if (!Number.isInteger(port) || port <= 0) {
 /** The file for a request path, or undefined when there is none (or the path leaves app/). */
 function fileFor(pathname) {
   if (EXTRA[pathname]) return EXTRA[pathname];
-  const path = normalize(join(APP, decodeURIComponent(pathname)));
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    // A malformed escape such as `/%E0%A4%A` is a bad request, not a reason to stop the server mid-capture.
+    return undefined;
+  }
+  const path = normalize(join(APP, decoded));
   if (path !== APP && !path.startsWith(APP + sep)) return undefined;
   const file = existsSync(path) && statSync(path).isDirectory() ? join(path, 'index.html') : path;
   return existsSync(file) ? file : undefined;
