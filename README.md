@@ -29,8 +29,8 @@ From one config it produces:
 ## Layouts
 
 The [gallery](https://noctcore.github.io/showcase-kit/gallery/) shows every hero layout, frame style, background and
-README layout, each with the config that made it. A few of them below, for Nightjar, the made-up app the gallery
-captures (not the kit's own UI). The table is what `showcase readme` printed for them.
+README layout, each with the config that made it. Below are four of them, rendered for Nightjar, a made-up app the
+gallery captures (not the kit's own UI). `showcase readme` printed the table itself.
 
 <table>
   <tr>
@@ -67,7 +67,7 @@ apps also need `@lydell/node-pty`.
 npx showcase init     # writes showcase.config.mjs (--ts for TypeScript, --tty for a terminal app)
 # edit the target and the shots
 npx showcase all      # capture, frame, and export the portfolio images
-npx showcase readme   # print the README table
+npx showcase readme   # print the README snippet (--layout for the others)
 ```
 
 A minimal config for a web app:
