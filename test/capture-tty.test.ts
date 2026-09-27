@@ -9,6 +9,7 @@ import type { ResolvedTtyConfig, TtyConfig } from '../src/config/types.js';
 import { ShowcaseError } from '../src/errors.js';
 import { log } from '../src/log.js';
 import { captureTty, type TtyEngine } from '../src/tty/capture.js';
+import { openTtySession, renderTtyScreen } from '../src/tty/index.js';
 import type { Keys, TtyScreen, TtySession, TtySessionOptions } from '../src/tty/types.js';
 import { capture } from '../src/capture.js';
 import { frame } from '../src/frame/index.js';
@@ -450,6 +451,82 @@ describe('capture, tty mode, real terminal', () => {
 
     const again = await capture(config);
     expect(again.files.map(file => readFileSync(file.path).toString('base64'))).toEqual(bytes);
+  });
+
+  /** The real engine, keeping the text of every screen it renders. */
+  function textEngine(): { engine: TtyEngine; texts: string[] } {
+    const texts: string[] = [];
+    const engine: TtyEngine = {
+      openTtySession,
+      renderTtyScreen: async (page, screen, look, deviceScaleFactor) => {
+        texts.push(screen.text);
+        return renderTtyScreen(page, screen, look, deviceScaleFactor);
+      },
+    };
+    return { engine, texts };
+  }
+
+  it('waits for a frame that arrives in two parts before any kind of shot', async () => {
+    const warn = vi.spyOn(log, 'warn');
+    // The text each shot waits for is in the first part; the bottom rows follow 70 ms later, longer than the kit
+    // takes to see the first part and shorter than the 100 ms the screen must stay still.
+    const config = fixtureTty(tempDir(), {
+      target: { mode: 'tty', command: [process.execPath, TUI], cols: 80, rows: 24, inputDelayMs: 0, env: { TUI_SPLIT_MS: '70' } },
+      shots: [
+        { id: 'first' },
+        { id: 'details', keys: '{Tab}', waitFor: 'name: api-gateway' },
+        { id: 'back', keys: '{Tab}' },
+        { id: 'fresh', restart: true },
+      ],
+    });
+    const { engine, texts } = textEngine();
+    const { files, failures } = await captureTty(config, config.shots, config.langs, engine);
+    expect(failures).toEqual([]);
+    expect(files.map(file => file.id)).toEqual(['first', 'details', 'back', 'fresh']);
+    expect(texts.map(text => text.split('\n').at(-1))).toEqual(Array(4).fill(' ↑/↓ move  tab switch  q quit'));
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('settles at once on an app that redraws the same frame on a timer', async () => {
+    const warn = vi.spyOn(log, 'warn');
+    const config = fixtureTty(tempDir(), {
+      target: { mode: 'tty', command: [process.execPath, TUI], cols: 80, rows: 24, env: { TUI_REDRAW_MS: '20' } },
+      shots: [{ id: 'services' }, { id: 'details', keys: '{Tab}', waitFor: 'name: api-gateway' }],
+    });
+    const { files, failures } = await captureTty(config, config.shots, config.langs, textEngine().engine);
+    expect(failures).toEqual([]);
+    expect(files.map(file => file.id)).toEqual(['services', 'details']);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('takes the shot of an app that never stops drawing when the settle wait runs out, and says so', async () => {
+    const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const counter = (shotMs?: number): ResolvedTtyConfig =>
+      fixtureTty(tempDir(), {
+        target: { mode: 'tty', command: [process.execPath, join(FIXTURES, 'counter.mjs')], cols: 40, rows: 8 },
+        ready: 'counter',
+        timeouts: shotMs === undefined ? undefined : { shotMs },
+        shots: [{ id: 'busy' }],
+      });
+    // By default the wait is capped at one second, far below the 15 s timeouts.shotMs.
+    const capped = counter();
+    const first = await captureTty(capped, capped.shots, capped.langs, textEngine().engine);
+    expect(first.failures).toEqual([]);
+    expect(first.files.map(file => file.id)).toEqual(['busy']);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls[0]?.[0]).toMatch(/^ {2}en\/busy: the screen did not stay still for 100ms within 1000ms, /);
+    expect(warn.mock.calls[0]?.[0]).toContain('https://noctcore.github.io/showcase-kit/guides/terminal-determinism/');
+
+    // A shorter shotMs bounds it too.
+    warn.mockClear();
+    const short = counter(300);
+    const second = await captureTty(short, short.shots, short.langs, textEngine().engine);
+    expect(second.failures).toEqual([]);
+    expect(second.files.map(file => file.id)).toEqual(['busy']);
+    expect(warn).toHaveBeenCalledOnce();
+    const within = Number(/within (\d+)ms/.exec(String(warn.mock.calls[0]?.[0]))?.[1]);
+    expect(within).toBeGreaterThan(0);
+    expect(within).toBeLessThanOrEqual(300);
   });
 
   it('scales with deviceScaleFactor, restarts on request, and leaves no process behind', async () => {

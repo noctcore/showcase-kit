@@ -1,6 +1,7 @@
 import { existsSync, statSync } from 'node:fs';
 import { delimiter, extname, isAbsolute, join } from 'node:path';
 import { ShowcaseError } from '../errors.js';
+import { trailingRunStart } from '../text.js';
 
 /** The part of the node-pty API the engine uses. `@lydell/node-pty` and `node-pty` both provide it. */
 export interface PtyProcess {
@@ -149,7 +150,7 @@ function cmdQuote(arg: string): string {
         'nor a line break. Run the program the shim starts directly, or use a command string and quote it yourself.',
     );
   }
-  return /^[\w\-./\\:@+~]+$/.test(arg) ? arg : `"${arg.replace(/(\\+)$/, '$1$1')}"`;
+  return /^[\w\-./\\:@+~]+$/.test(arg) ? arg : `"${arg}${arg.slice(trailingRunStart(arg, '\\'))}"`;
 }
 
 /**

@@ -9,6 +9,7 @@ import { ShowcaseError } from './errors.js';
 import { log } from './log.js';
 import { navUrl, outputPath, select } from './paths.js';
 import { answers, startCommand, waitForUrl, type StartedProcess } from './process.js';
+import { trimTrailing } from './text.js';
 
 export interface CaptureOptions {
   /** Shot ids to capture. Default: all. */
@@ -106,7 +107,7 @@ async function startTarget(config: ResolvedWebConfig): Promise<StartedProcess | 
 /** The HTTP endpoint that tells whether a CDP server is up, or undefined for a bare ws:// URL. */
 function cdpVersionUrl(target: CdpTarget): string | undefined {
   const url = target.cdpUrl ?? '';
-  return /^https?:/.test(url) ? `${url.replace(/\/+$/, '')}/json/version` : undefined;
+  return /^https?:/.test(url) ? `${trimTrailing(url, '/')}/json/version` : undefined;
 }
 
 async function captureUrl(

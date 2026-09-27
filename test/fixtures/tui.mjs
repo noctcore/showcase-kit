@@ -5,12 +5,16 @@
 // check the exact bytes a key sent.
 //
 // Env: TUI_GRANDCHILD=1 starts a sleeping grandchild and shows its PID; TUI_IGNORE_QUIT=1 ignores q and Ctrl+C;
-// TUI_APP_CURSOR=1 turns on application cursor keys (arrows then arrive as ESC O A).
+// TUI_APP_CURSOR=1 turns on application cursor keys (arrows then arrive as ESC O A); TUI_SPLIT_MS=<ms> writes each
+// frame in two parts, the bottom three rows <ms> later, like one write a pty delivers in two reads;
+// TUI_REDRAW_MS=<ms> redraws the same frame every <ms>, like an app that renders on a timer.
 import { spawn } from 'node:child_process';
 
 const out = process.stdout;
 const items = ['api-gateway', 'billing-worker', 'postgres-main', 'redis-cache', 'web-frontend', 'cron-jobs'];
 const appCursor = process.env.TUI_APP_CURSOR === '1';
+const splitMs = Number(process.env.TUI_SPLIT_MS ?? 0);
+const redrawMs = Number(process.env.TUI_REDRAW_MS ?? 0);
 let selected = 0;
 let screen = 'services';
 let lastKey = '';
@@ -66,10 +70,13 @@ function draw() {
     s += move(4, 4) + `name: ${items[selected]}`;
     s += move(5, 4) + esc('38;5;208m') + 'orange 256' + esc('0m') + ' ' + esc('38;2;255;0;128m') + 'pink truecolor' + esc('0m');
   }
-  s += move(rows - 2, 1) + `size ${cols}x${rows}` + (grandchild ? `  grandchild ${grandchild.pid}` : '');
-  s += move(rows - 1, 1) + `last key: ${visible(lastKey)}`;
-  s += move(rows, 1) + esc('48;2;30;34;48m') + ' ↑/↓ move  tab switch  q quit '.padEnd(cols) + esc('0m');
-  out.write(s);
+  let bottom = move(rows - 2, 1) + `size ${cols}x${rows}` + (grandchild ? `  grandchild ${grandchild.pid}` : '');
+  bottom += move(rows - 1, 1) + `last key: ${visible(lastKey)}`;
+  bottom += move(rows, 1) + esc('48;2;30;34;48m') + ' ↑/↓ move  tab switch  q quit '.padEnd(cols) + esc('0m');
+  if (splitMs > 0) {
+    out.write(s);
+    setTimeout(() => out.write(bottom), splitMs);
+  } else out.write(s + bottom);
 }
 
 function quit() {
@@ -107,3 +114,4 @@ out.on('resize', draw);
 
 out.write(esc('?1049h') + (appCursor ? esc('?1h') : ''));
 draw();
+if (redrawMs > 0) setInterval(draw, redrawMs);

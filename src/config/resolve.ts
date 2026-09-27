@@ -1,5 +1,6 @@
 import { isAbsolute, resolve } from 'node:path';
 import { ConfigError } from '../errors.js';
+import { trimTrailing } from '../text.js';
 import { resolveTerminalOptions } from '../tty/theme.js';
 import { DEFAULT_CLIPS, resolveClips, WEB_CLIPS_MESSAGE } from './clips.js';
 import {
@@ -235,7 +236,7 @@ function resolvePortfolio(
     required: [],
   });
 
-  const defaultGallery = `${dir.replace(/[\\/]+$/, '')}/${GALLERY_FILE}`;
+  const defaultGallery = `${trimTrailing(dir, '\\/')}/${GALLERY_FILE}`;
   const gallery =
     value.gallery === false
       ? false
@@ -252,7 +253,7 @@ function resolvePortfolio(
     quality: num(issues, `${path}.quality`, value.quality, 90, { min: 1, max: 100, integer: true }),
     thumbnail,
     lang,
-    publicPath: publicPath.replace(/\/+$/, ''),
+    publicPath: trimTrailing(publicPath, '/'),
     padding: num(issues, `${path}.padding`, value.padding, 96, { min: 0, integer: true }),
     gallery,
   };

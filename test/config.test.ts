@@ -53,6 +53,17 @@ describe('resolveConfig', () => {
     });
   });
 
+  it('drops trailing separators from the portfolio dir and publicPath', () => {
+    const portfolio = (dir: string, publicPath: string) =>
+      resolveConfig({ ...minimal, outputs: { portfolio: { dir, publicPath } } }, '/work/app').outputs.portfolio;
+    expect(portfolio('out/{slug}\\//', '/projects/{slug}//')).toMatchObject({
+      dir: 'out/{slug}\\//',
+      publicPath: '/projects/{slug}',
+      gallery: 'out/{slug}/showcase.gallery.json',
+    });
+    expect(portfolio('out', '/')).toMatchObject({ publicPath: '', gallery: 'out/showcase.gallery.json' });
+  });
+
   it('reports every problem in a bad config at once', () => {
     const issues = issuesOf({
       name: '',
