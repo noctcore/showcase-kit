@@ -1,0 +1,87 @@
+---
+title: showcase-kit
+description: Capture, frame and export showcase images of desktop and web apps for READMEs and portfolios.
+template: splash
+head:
+  - tag: title
+    content: showcase-kit
+hero:
+  tagline: One config file describes your app and the views worth showing. The showcase CLI captures them, frames them and exports README images, portfolio images and a banner, the same pixels every run.
+  actions:
+    - text: Get started
+      link: /showcase-kit/getting-started/
+      icon: right-arrow
+    - text: See the gallery
+      link: /showcase-kit/gallery/
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/noctcore/showcase-kit
+      icon: external
+      variant: minimal
+---
+
+import GuideOutputs from '../../components/GuideOutputs.astro';
+
+<figure class="splash-shot">
+  <a href="/showcase-kit/gallery/#hero-banner">
+    <img
+      src="/showcase-kit/gallery/hero.webp"
+      width="1280"
+      height="640"
+      alt="A 1280x640 banner for Nightjar, an observing planner: its crescent logo, name and tagline on the left, three framed app windows (Gear, Log, Tonight) stacked and tilted on the right."
+    />
+  </a>
+  <figcaption>
+    A hero banner the kit rendered from one config, for Nightjar, the fixture app behind the
+    <a href="/showcase-kit/gallery/">gallery</a>. Every image there is a file the kit wrote.
+  </figcaption>
+</figure>
+
+## Is this for you?
+
+**Yes, if** you keep screenshots of an app in a README or a portfolio and retake them by hand every
+time the UI changes. The kit drives the app with [Playwright](https://playwright.dev): a web app in
+headless Chromium (a dev server it starts for you, or a URL that is already up), an Electron app over
+the Chrome DevTools Protocol, or a terminal app (a TUI or a CLI) in a pseudo terminal. You need Node 22
+or newer and Playwright's Chromium.
+
+**Probably not, if** your app is a native desktop app that is neither a web view nor a terminal
+(Qt, SwiftUI, WinForms): there is nothing for the kit to attach to. Tauri on macOS and Linux has no
+DevTools Protocol either, so there you capture the app's web build instead
+([Tauri](/showcase-kit/guides/tauri/) explains the trade-off). The kit also cannot make a changing app
+look the same twice on its own: if every run shows new data, the images change with it until you give
+the app a fixture mode. And clips (animated recordings) are for terminal apps only in 0.2.0.
+
+## What one config produces
+
+<GuideOutputs />
+
+`showcase all` runs capture, frame, then the portfolio export when it is configured, then the clips when
+there are any. The README table, the hero banner and the icons are their own commands.
+
+## A minimal config
+
+```js title="showcase.config.mjs"
+import { defineConfig } from '@noctcore/showcase-kit';
+
+export default defineConfig({
+  name: 'My App',
+  target: { mode: 'url', url: 'http://localhost:5173', start: 'pnpm dev' },
+  ready: '#root > *',
+  shots: [
+    { id: 'dashboard', title: 'Dashboard', nav: '/' },
+    { id: 'reports', title: 'Reports', nav: '/reports', waitFor: '[data-testid="chart"]' },
+  ],
+});
+```
+
+`npx showcase all` starts `pnpm dev`, waits for the page, captures both views at 1440x900 and device
+scale factor 2, writes the framed images to `assets/showcase/en/`, and stops the dev server again.
+[Getting started](/showcase-kit/getting-started/) walks through it from the install.
+
+## How these docs are built
+
+The guides are written by hand, and what they say the kit does is checked against the library's source. The
+[reference](/showcase-kit/reference/config/) pages are generated from that source, and the
+[changelog](/showcase-kit/changelog/) is generated from the repository's `CHANGELOG.md`, so a release
+shows up here without anyone editing a page.

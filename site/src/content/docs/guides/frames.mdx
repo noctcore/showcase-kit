@@ -1,0 +1,126 @@
+---
+title: Frames
+description: Turn raw captures into README images inside a window frame, on a solid, gradient or transparent background, as WebP or PNG.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`showcase frame` puts each raw capture inside a window frame (a title bar, rounded corners, a soft
+shadow) on a background, and writes it to `outputs.readme`. `showcase all` runs it after the capture.
+The same look is used for the [portfolio images](/showcase-kit/guides/portfolio/), the
+[hero banner](/showcase-kit/guides/hero/) and terminal [clips](/showcase-kit/guides/clips/).
+
+## A minimal frame
+
+```js title="showcase.config.mjs"
+export default defineConfig({
+  // name, target, shots ...
+  frame: {
+    style: 'window',
+    theme: 'dark',
+    background: { type: 'gradient', from: '#0f766e', to: '#1e1b4b' },
+  },
+  outputs: {
+    readme: 'assets/showcase/{lang}/{id}.webp',
+  },
+});
+```
+
+Those are the defaults, so a config without `frame` or `outputs` looks the same. Every key is in the
+config reference under [`frame`](/showcase-kit/reference/config/#frame) and
+[`outputs`](/showcase-kit/reference/config/#outputs).
+
+## Styles and themes
+
+| `style` | Title bar |
+| --- | --- |
+| `'window'` (default) | 40 px, with the three traffic lights and the title centered. |
+| `'minimal'` | A thin 28 px bar with the title, no lights. |
+| `'none'` | No bar and no title: just the rounded screenshot. |
+
+`theme` (`'dark'` by default, or `'light'`) sets the title bar's colors. Pick the one that matches the
+app, so the bar reads as part of the window.
+
+`title` is the title bar text, `'{name}'` by default. It takes the tokens `{name}` (the config's
+`name`), `{title}` (the shot's title), `{id}` and `{lang}`, so `title: '{name}: {title}'` gives
+"My App: Settings". `title: false` hides it and keeps the bar.
+
+## Backgrounds
+
+`background` takes four forms:
+
+```js
+background: '#1e1b4b', // any CSS color: a hex, a name, rgb(), hsl(), oklch(), color-mix() ...
+background: { type: 'solid', color: '#1e1b4b' },
+background: { type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 }, // angle defaults to 135
+background: { type: 'transparent' },
+```
+
+Colors are checked when the config loads: only color syntax is accepted, so `url()` and other CSS
+functions are rejected. A transparent background keeps the alpha channel in both WebP and PNG, so the
+shadow falls on whatever page the image sits on.
+
+The default is the teal to indigo gradient above.
+
+## Spacing, corners and shadow
+
+- `padding` (default 72) is the space around the window, in CSS pixels.
+- `radius` (default 14) is the window's corner radius.
+- `shadow` (default true) draws a soft drop shadow under the window.
+
+For a bare screenshot with rounded corners and nothing else, combine
+`style: 'none'`, `background: { type: 'transparent' }`, `padding: 0` and `shadow: false`.
+
+## Formats and size
+
+The extension of `outputs.readme` picks the format: `.webp` (the default) or `.png`. WebP uses
+`quality` (default 90, 1 to 100); PNG is lossless.
+
+Frames render at the capture's device scale factor, so a framed image keeps every pixel of the capture.
+A 1440x900 capture at DPR 2 becomes a (1440 + 2 x 72) x (900 + 40 + 2 x 72) CSS pixel image, which is
+3168x2168 pixels. That is sharp on a high density screen and heavy in a README: set `maxWidth` to
+downscale anything wider (for example `maxWidth: 1800`). Narrower images are never enlarged.
+
+<Aside type="tip">
+  `maxWidth` only applies to README images and clips. Portfolio images have their own exact `size`,
+  and the hero has its own.
+</Aside>
+
+## Output paths
+
+`outputs.readme` is a path template. Its tokens are `{lang}`, `{id}` and `{slug}`:
+
+- `{id}` is required, so shots never overwrite each other;
+- `{lang}` is required once `langs` has more than one language;
+- the path must end in `.webp` or `.png`;
+- a relative path resolves against the config's directory (or `root`, if you set one).
+
+The raw captures follow the same rules at `outputs.raw` (default `showcase-out/raw/{lang}/{id}.png`),
+which must be a `.png`. Add `showcase-out/` to `.gitignore`, and commit the framed images.
+
+### Portfolio-only configs: `outputs.readme: false`
+
+The portfolio images and the hero render from the raw captures, not from the README images. A config
+that only feeds a portfolio can skip the README images:
+
+```js
+outputs: {
+  readme: false,
+  portfolio: { dir: '../portfolio/public/projects/{slug}' },
+},
+```
+
+`frame` then writes nothing and says so, `all` goes straight from capture to the portfolio export, and
+`readme` explains that there is nothing to list.
+
+## Running it
+
+`showcase frame` reads every raw capture first, so a missing one stops the run before a browser starts,
+with a hint to run `showcase capture`. `--only` and `--langs` limit it to some shots and languages, like
+`capture`.
+
+## Related
+
+- [README table](/showcase-kit/guides/readme-table/): list the framed images in your README.
+- [Portfolio](/showcase-kit/guides/portfolio/): the same frame at an exact size.
+- [CLI reference](/showcase-kit/reference/cli/#frame): `showcase frame`.

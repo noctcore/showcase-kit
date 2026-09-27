@@ -1,0 +1,113 @@
+---
+title: Electron
+description: Attach to a running Electron app over the Chrome DevTools Protocol and capture its window at a fixed size.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+In cdp mode the kit does not launch a browser: it connects to a Chromium based app that is already
+running with remote debugging on, picks one of its windows and captures it. Use it for Electron apps
+(and for Tauri's WebView2 on Windows, see [Tauri](/showcase-kit/guides/tauri/)). Shots, `ready`,
+`setup`, `waitFor` and `delayMs` work as in the [web apps guide](/showcase-kit/guides/web-apps/);
+this page covers what is different.
+
+## The Electron recipe
+
+<Steps>
+
+1. **Start Electron with remote debugging on.** Either yourself, in two terminals:
+
+   ```sh
+   pnpm dev:web                                        # terminal 1: the renderer dev server
+   pnpm exec electron . --remote-debugging-port=9222   # terminal 2
+   ```
+
+   or through `target.start`, as in the next step.
+
+2. **Point a cdp target at it.**
+
+   ```js title="showcase.config.mjs"
+   import { defineConfig } from '@noctcore/showcase-kit';
+
+   export default defineConfig({
+     name: 'ShiroAni',
+     target: {
+       mode: 'cdp',
+       cdpUrl: 'http://127.0.0.1:9222',
+       pageMatch: 'localhost:15174', // the renderer, not a devtools or splash window
+       start: 'pnpm --filter desktop exec electron . --remote-debugging-port=9222',
+       readyTimeoutMs: 120000,
+     },
+     ready: '[data-testid="app-ready"]',
+     langs: ['en', 'pl'],
+     setup: async ({ page, lang }) => {
+       await page.evaluate(value => localStorage.setItem('shiroani.language', value), lang);
+       await page.reload();
+     },
+     shots: [{ id: 'library', title: 'Library', nav: '[data-view="library"]' }],
+   });
+   ```
+
+3. **Run it.** `npx showcase all` attaches, captures, frames, and disconnects.
+
+</Steps>
+
+## The target
+
+- `cdpUrl` (default `http://127.0.0.1:9222`) is the app's remote debugging endpoint, `http(s)://` or
+  `ws(s)://`.
+- `pageMatch` picks the window to capture: a substring of the page URL, or a RegExp. Without it the
+  kit takes the first page that is not DevTools.
+- `start`, `cwd`, `env` and `readyTimeoutMs` work as in url mode, except that the kit waits for
+  `<cdpUrl>/json/version` to answer.
+
+The full list is in the [config reference](/showcase-kit/reference/config/#target).
+
+**Without `start`** the app must already be running: the kit checks `<cdpUrl>/json/version` and stops
+if it does not answer. **With `start`** the kit always runs the command: cdp mode has no
+`reuseExisting`, so leave `start` out when you launch the app yourself, or a second copy starts.
+A `ws://` or `wss://` `cdpUrl` is not polled at all; use the `http://` form with `start`, so the kit
+knows when the app is up.
+
+Once connected, the kit looks for a matching page until `timeouts.readyMs` (default 30000) runs out.
+If none matches, the error lists the URLs of every open page, which tells you what to put in
+`pageMatch`. A RegExp works too (`pageMatch: /localhost:\d+\/#\/main/`); its `g` and `y` flags are
+dropped so it matches every time.
+
+## What the kit does to your window
+
+Your app's window decides its own size, so the kit overrides it: it sets the page to `viewport` and
+`deviceScaleFactor` with `Emulation.setDeviceMetricsOverride`, emulates `colorScheme` and reduced
+motion, and captures with Chromium's own screenshot. The captures are the same size on every machine,
+whatever size the window is.
+
+Afterwards it clears the override and the emulated media, removes the styles it injected (after each
+shot), and disconnects. It never closes the app.
+
+<Aside type="note" title="One thing it cannot undo">
+  Animations that the kit finished or reset for the shutter stay that way. If a spinner or a looping
+  animation looks stuck after a capture, reload the window (Ctrl+R in Electron dev builds).
+</Aside>
+
+## Languages and state
+
+In cdp mode there is one page and one profile, so there is no per-language browser context and no
+locale switch: `setup` is where each language gets switched. `setup` runs once per language, after
+`ready`, with `{ page, context, lang, mode: 'cdp', config }`, and the kit waits for `ready` again after
+it.
+
+The app keeps whatever state it persists: the language you switched to, a collapsed sidebar, a
+dismissed dialog. Restore it yourself afterwards if that matters.
+
+## Paths in cdp mode
+
+A `nav` path resolves against the URL of the page being captured, as a link on that page would, so
+`'/settings'` visits the page's origin plus `/settings`. The base directory rule of url mode does not
+apply. For an app loaded from `file://` (a packaged Electron build), a path like `'/settings'` leaves
+the app's folder: click a selector instead, or use `{ goto: '#/settings' }` with a hash router.
+
+## Related
+
+- [Tauri](/showcase-kit/guides/tauri/): WebView2 over CDP on Windows, or the web build anywhere.
+- [Web apps](/showcase-kit/guides/web-apps/): shots, `nav`, `waitFor` and determinism.
+- [Frames](/showcase-kit/guides/frames/): framing the captures.

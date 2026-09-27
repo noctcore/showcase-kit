@@ -1,0 +1,49 @@
+---
+/**
+ * The files each `showcase icons` preset writes, read from the built library
+ * (`dist/`) at build time, so the table cannot drift from `ICON_PRESETS`.
+ */
+import { ICON_PRESETS, type IconPreset } from '../../../dist/index.js';
+
+type IconFile = (typeof ICON_PRESETS)[IconPreset][number];
+
+// The .icns entries are not exported; this is the label `generateIcons` prints
+// for them (src/icons.ts, ICNS_TYPES: 16, 32, 64, 128, 256, 512 and 1024 px).
+const ICNS = '16 to 512@2x';
+
+function contents(entry: IconFile): string {
+  if ('size' in entry) return `PNG, ${entry.size}x${entry.size}`;
+  if ('ico' in entry) return `ICO with ${entry.ico.join(', ')} px images`;
+  return `ICNS, ${ICNS}`;
+}
+
+const presets = Object.entries(ICON_PRESETS) as [IconPreset, IconFile[]][];
+---
+
+<table>
+  <thead>
+    <tr>
+      <th>Preset</th>
+      <th>File</th>
+      <th>Contents</th>
+    </tr>
+  </thead>
+  <tbody>
+    {
+      presets.map(([preset, files]) =>
+        files.map((entry, index) => (
+          <tr>
+            {/* One visible label per preset; the other rows name it for screen readers only. */}
+            <th scope="row">
+              {index === 0 ? <code>{preset}</code> : <span class="sr-only">{preset}</span>}
+            </th>
+            <td>
+              <code>{entry.file}</code>
+            </td>
+            <td>{contents(entry)}</td>
+          </tr>
+        )),
+      )
+    }
+  </tbody>
+</table>

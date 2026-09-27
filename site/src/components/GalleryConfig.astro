@@ -1,0 +1,23 @@
+---
+/**
+ * A gallery config as it is on disk (imported with `?raw`), whole or one
+ * block of it. The page cannot show a config other than the one that ran.
+ */
+import { Code } from '@astrojs/starlight/components';
+import { configSection } from './GallerySection';
+
+interface Props {
+  /** The file's text. */
+  code: string;
+  /** Its path, shown as the title. */
+  file: string;
+  /** A top-level key such as `hero`: show only that block. */
+  section?: string;
+}
+
+const { code, file, section } = Astro.props;
+const shown = section === undefined ? code : configSection(code, section);
+const title = section === undefined ? file : `${file} (the ${section} block)`;
+---
+
+<Code code={shown} lang="js" title={title} wrap />

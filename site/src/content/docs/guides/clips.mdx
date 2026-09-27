@@ -1,0 +1,234 @@
+---
+title: Clips
+description: Record short animated clips of a terminal app.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+A clip is a short animated recording of a [terminal app](/showcase-kit/guides/terminal-apps/),
+next to its still shots: a few keys pressed, a list scrolled, a command typed. `showcase record`
+writes the clips as animated WebP and GIF (MP4 on request), framed like the README images, and
+`showcase all` records them too once a config has `clips`.
+
+<Aside type="note" title="Terminal apps only, for now">
+  Clips work with `target.mode: 'tty'`. In url and cdp mode, `clips` and `outputs.clips` are config
+  errors (`web clips arrive in v0.3; clips only work with target.mode "tty" for now`), and
+  `showcase record` refuses to run.
+</Aside>
+
+## A first clip
+
+```js
+// showcase.config.mjs
+import { defineConfig } from '@noctcore/showcase-kit';
+
+export default defineConfig({
+  name: 'Rumi',
+  target: { mode: 'tty', command: ['bun', 'run', 'src/index.tsx'], env: { RUMI_MOCK: '1' } },
+  ready: /resources \(\d+\)/,
+  frame: { background: '#1e1b4b' },
+  shots: [{ id: 'resources', title: 'Resources' }],
+  clips: [
+    {
+      id: 'tour',
+      title: 'Tour',
+      caption: 'Moving through the resources, then the logs.',
+      steps: [
+        { sleep: 1000 },
+        { keys: 'jjj' },
+        { sleep: 800 },
+        { keys: '{Tab}' },
+        { waitFor: 'logs' },
+        { type: 'api', delayMs: 120 },
+      ],
+    },
+  ],
+});
+```
+
+```sh
+npx showcase record
+```
+
+With the default `outputs.clips`, that writes `assets/showcase/en/tour.webp` and
+`assets/showcase/en/tour.gif`.
+
+## How a clip runs
+
+Each clip starts a fresh app, so it is the same from a clean start every time. For each clip and
+each language the kit:
+
+1. starts the app and waits for `ready`, then the `target.inputDelayMs` grace, then runs `setup`;
+2. runs the steps while it records the screen;
+3. keeps recording for `tailMs` after the last step;
+4. closes the app with `quitKey`, then kills its process tree (also on a failure and on Ctrl+C).
+
+A failed clip fails alone, like a failed shot: the other clips are still written, then the run fails
+with every failure listed.
+
+## Steps
+
+`steps` is the timeline, a non-empty array. Each step does exactly one thing:
+
+| Step | Does |
+| --- | --- |
+| `{ keys }` | Presses keys, with the same syntax as a shot's [`keys`](/showcase-kit/guides/terminal-apps/): `'jjj'`, `'{Tab}'`, `['{Down}', '{Enter}']`. |
+| `{ type, delayMs? }` | Types text as is (no `{Key}` names): all at once, or one character every `delayMs`. |
+| `{ waitFor }` | Waits until the text (a substring or a RegExp) is on screen, for up to `timeouts.shotMs` (default 15000). |
+| `{ sleep }` | Pauses, in milliseconds. |
+
+A step with two kinds in it (`{ keys: 'j', sleep: 500 }`) is a config error: split it into two steps,
+in the order they should run.
+
+## The frame clock
+
+The kit samples the screen on its own clock, once per frame, `fps` times a second (default 10,
+from 1 to 50). The steps run in step with that clock, right after a sample:
+
+- A key's effect shows from the next frame on, as long as the app redraws within one frame (100 ms at
+  10 fps).
+- A `keys` or `type` step takes at least one frame.
+- A `sleep` is rounded to whole frames.
+- A slow `type` puts each character on the frame its `delayMs` falls on.
+- A `waitFor` looks at the recorded frames, so the frame it waits for is in the clip.
+
+Frames that did not change are merged into one longer frame, and each distinct screen is rendered
+once. That makes two things true:
+
+- **Idle time is cheap.** A tail or a pause on an unchanged screen is a single frame, whatever its
+  length or `fps`.
+- **Recordings repeat.** On one OS, two recordings of the same clip of an app with a frozen screen give
+  byte-identical files. Timing noise in the app can only move a change to a neighbouring frame; it
+  never changes the clip's length.
+
+Keep `fps` at 10 unless the app animates on purpose: a higher rate only adds frames when the screen
+changes that often. The limit is 50 because above it GIF frame delays drop under 20 ms, which
+browsers play as 100 ms.
+
+## How a clip ends
+
+The recording ends at whichever comes first:
+
+- **`tailMs` after the last step** (default 1500 ms), rounded to whole frames. A trailing `sleep`
+  runs out before the tail starts.
+- **`durationMs`** (default 60000 ms), an upper bound on the length. If steps were still left, the kit
+  warns and names how many.
+- **`maxFrames`** (default 300), an upper bound on the frames, counted after unchanged frames merge.
+  The kit warns, stops recording and writes what it has. Every distinct frame is held in memory until
+  the clip is encoded, so raise it with care.
+
+The app may exit during the tail, for example a CLI that prints and exits, or a last step that quits
+the app: the clip then ends on its last screen, held for the rest of the tail. A `waitFor` that the
+last screen already shows still passes after the exit, so a one-shot CLI can be recorded with
+`steps: [{ waitFor: 'done' }]`. Exiting while any other step is still to run fails the clip, with the
+last screen in the error.
+
+<Aside type="tip" title="Leave the quit key out of the steps">
+  Most TUIs clear the screen when they quit, so a clip whose last step is `{ keys: 'q' }` ends on an
+  empty terminal. The kit quits the app with `quitKey` after the tail anyway.
+</Aside>
+
+## Framing
+
+Clips are framed like the [README images](/showcase-kit/guides/frames/): the frame is rendered once
+per clip and every frame of the terminal is put into it, so a clip matches the stills next to it. In
+`frame.title`, `{title}` is the clip's `title` (default: its `id`). `frame.maxWidth` applies to clips
+too.
+
+## Formats
+
+`formats` takes any of `'webp'`, `'gif'` and `'mp4'`, each at most once. The default is
+`['webp', 'gif']`. WebP and GIF loop forever.
+
+| Format | Encoder | Notes |
+| --- | --- | --- |
+| WebP | sharp, lossless | Sharp text, full color, alpha. Small when the frame background is a solid color. |
+| GIF | sharp, 256 colors | Plays everywhere. Delays are whole hundredths of a second, rounded on a running total so the length holds, and never under 20 ms. |
+| MP4 | `ffmpeg` from PATH, H.264 (CRF 23), 30 fps | Smallest for busy clips. No alpha: a transparent frame background turns black. Odd sides are padded by a pixel. |
+
+GitHub READMEs show WebP and GIF with `<img>`. MP4 is opt-in: GitHub is not known to play a video from
+the repository inline, so the README table links to it, and a portfolio site can use `<video>`.
+
+### ffmpeg
+
+`ffmpeg` is needed only for `'mp4'`:
+
+- It is found on PATH without a shell: `ffmpeg` on macOS and Linux, `ffmpeg.exe` on Windows (a
+  `.cmd` wrapper does not count). Relative PATH entries (such as `.`) are skipped, so the binary never
+  depends on the working directory.
+- Install it with `winget install ffmpeg`, `brew install ffmpeg` or `apt install ffmpeg`.
+- When a clip you record asks for MP4 and there is no ffmpeg, `record` stops before it starts any app
+  or browser and says so. When none asks for MP4, it notes that MP4 was skipped.
+- An encode that takes over 5 minutes is stopped with an error that suggests fewer or smaller frames.
+- Ctrl+C while ffmpeg runs stops it and removes its temporary folder.
+
+### Sizes
+
+A 10 s clip of the kit's test TUI (120x32, 9 distinct screens, one key a second), framed, at DPR 2
+(2496x1696), measured on Windows:
+
+| Frame | WebP | GIF | MP4 |
+| --- | --- | --- | --- |
+| default gradient background | 375 KB | 361 KB | 262 KB |
+| solid `#1e1b4b` background | 91 KB | 219 KB | 208 KB |
+| `style: 'none'`, transparent, no padding or shadow | 80 KB | 148 KB | 184 KB |
+| default gradient, `maxWidth: 1200` | 245 KB | 159 KB | 102 KB |
+
+An app whose screen changes on every frame is the other end: the same 10 s with 100 distinct screens
+was 2.5 MB of WebP, 11.8 MB of GIF and 7.7 MB of MP4, and took about two minutes to render and encode.
+
+## Keeping clips small and repeatable
+
+- Freeze the app (see [Terminal determinism](/showcase-kit/guides/terminal-determinism/)): a spinner
+  or a clock makes every frame distinct, which multiplies the size and the time.
+- Use a solid `frame.background`: a gradient does not compress losslessly and is most of a quiet
+  clip's WebP.
+- Keep `fps` at 10 unless the app animates on purpose.
+- Keep clips short, with a `tailMs` just long enough to read the last screen, and set `durationMs`
+  as a guard.
+- For GIF, `deviceScaleFactor: 1` keeps files and encode times down. `frame.maxWidth` depends on the
+  background: it shrank the gradient clip in the table above, but scaling blends the terminal's sharp
+  pixel edges, so on a solid background it can make the files larger. The
+  [gallery](/showcase-kit/gallery/#terminal-shot-and-clip)'s clip grew from 121 KB to 351 KB of WebP
+  and from 233 KB to 302 KB of GIF at `maxWidth: 1600`. Measure before you keep it.
+- Record on one OS if committed clips must not churn, as with the stills.
+
+## Where clips go
+
+`outputs.clips` is the path template, relative to the config root. Default
+`assets/showcase/{lang}/{id}.{ext}`.
+
+- Tokens: `{lang}`, `{id}`, `{slug}` and `{ext}` (the format: `webp`, `gif` or `mp4`).
+- It must contain `{id}` and `{ext}`, and `{lang}` when the config has more than one language, or
+  files would overwrite each other. It must end in `.{ext}`.
+
+A clip's `id` (letters, digits, `-` and `_`) must not repeat a shot id: clips and shots share output
+folders. See the [config reference](/showcase-kit/reference/config/#outputs) for every output.
+
+## Commands
+
+**`showcase record`** records every clip in every language. `--only tour,intro` picks clips by id and
+`--langs en,de` picks languages; an unknown id or language is an error that lists the known ones.
+See the [CLI reference](/showcase-kit/reference/cli/#record).
+
+**`showcase all`** captures, frames and exports the portfolio, then records the clips when the config
+has any. Its `--only` takes shot ids and clip ids together: naming only clips skips the capture, and
+naming only shots skips the recording.
+
+**`showcase readme`** lists the clips after the shots in the [README table](/showcase-kit/guides/readme-table/),
+captioned with `caption` (default: the `title`):
+
+- an `<img>` of the clip's first image format in `formats` order (the WebP with the default
+  formats; list `['gif', 'webp']` to show the GIF instead), plus an `MP4` link in the caption when the
+  clip has an MP4;
+- only a link, for a clip whose formats are just `['mp4']`.
+
+With `outputs.readme: false` the table lists only the clips.
+
+## Every clip key
+
+`id`, `title`, `caption`, `alt`, `steps`, `fps`, `durationMs`, `maxFrames`, `tailMs` and `formats`,
+with types, defaults and limits, are in the [config reference](/showcase-kit/reference/config/#clips).
+From code, `record(await loadConfig(), { only, langs })` records and resolves with each clip's files,
+and `encodeAnimation(frames, { format })` encodes frames you made yourself: see the
+[programmatic API](/showcase-kit/reference/api/).

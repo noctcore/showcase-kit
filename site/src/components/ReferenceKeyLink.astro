@@ -1,0 +1,21 @@
+---
+/** A config key path, linked to the heading over the generated table that documents it. */
+import { configReference } from '../../scripts/reference/data';
+
+interface Props {
+  path: string;
+}
+
+const { path } = Astro.props;
+const anchor = configReference.tables.find((table) => table.rows.some((row) => row.path === path))?.anchor;
+---
+
+{
+  anchor ? (
+    <a href={`#${anchor}`}>
+      <code>{path}</code>
+    </a>
+  ) : (
+    <code>{path}</code>
+  )
+}

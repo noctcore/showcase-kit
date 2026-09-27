@@ -10,8 +10,14 @@ export type Keys = string | string[];
 
 /** A 16 color ANSI palette plus the default colors. */
 export interface TerminalTheme {
+  /** Background color, `#rrggbb`. */
   background: string;
+  /** Default text color, `#rrggbb`. */
   foreground: string;
+  /**
+   * Cursor color, `#rrggbb`.
+   * @default the `foreground` color
+   */
   cursor?: string;
   /** Exactly 16 colors: the 8 normal ANSI colors, then the 8 bright ones. */
   ansi: string[];
@@ -19,23 +25,55 @@ export interface TerminalTheme {
 
 /** How the terminal looks when rendered. Every field is optional in config. */
 export interface TerminalOptions {
+  /**
+   * Colors: `'dark'` (Tokyo Night), `'light'` (Tokyo Night Day) or your own palette.
+   * @default `'dark'`
+   */
   theme?: 'dark' | 'light' | TerminalTheme;
+  /** Font files and size. */
   font?: {
-    /** Font files (woff2, woff or ttf). Defaults to the bundled JetBrains Mono. */
+    /**
+     * Font file (woff2, woff, ttf or otf), relative to the config root.
+     * @default the bundled JetBrains Mono
+     */
     file?: string;
+    /**
+     * Bold face.
+     * @default the bundled JetBrains Mono Bold, unless `file` is set
+     */
     boldFile?: string;
+    /**
+     * Italic face.
+     * @default the bundled JetBrains Mono Italic, unless `file` is set
+     */
     italicFile?: string;
+    /**
+     * Bold italic face.
+     * @default the bundled JetBrains Mono Bold Italic, unless `file` is set
+     */
     boldItalicFile?: string;
     /** Extra font tried for glyphs the main font lacks, for example a symbols or Nerd Font. */
     fallbackFile?: string;
-    /** CSS pixels. Default 15. */
+    /**
+     * Font size in CSS pixels, 6 to 96.
+     * @default `15`
+     */
     size?: number;
   };
-  /** Line height as a multiple of the font size, rounded to whole pixels. Default 1.32. */
+  /**
+   * Line height as a multiple of the font size (1 to 3), rounded to whole pixels.
+   * @default `1.32`
+   */
   lineHeight?: number;
-  /** CSS pixels between the grid and the edge of the capture. Default 12. */
+  /**
+   * CSS pixels between the grid and the edge of the capture, 0 to 400.
+   * @default `12`
+   */
   padding?: number;
-  /** Default 'hide'. A shown cursor never blinks. */
+  /**
+   * Whether to draw the cursor. A shown cursor never blinks.
+   * @default `'hide'`
+   */
   cursor?: 'hide' | 'show';
 }
 

@@ -1,0 +1,68 @@
+---
+title: Icons
+description: Generate web, Electron or Tauri icon sets from one square image.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import IconPresetTable from '../../../components/IconPresetTable.astro';
+
+`showcase icons` turns one square image into the icon set a web app, an Electron app or a Tauri app
+expects. It needs no config file: it does not look for `showcase.config.*` at all, so you can run it
+in any folder.
+
+```sh
+npx showcase icons --source assets/mascot.png --preset electron --out apps/desktop/resources
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--source <file>` | The source image. Required. |
+| `--preset <name>` | `web`, `electron` or `tauri`. Required. |
+| `--out <dir>` | Where to write the files. Default `icons`. The folder is created if it is missing. |
+
+`--source` and `--out` are relative to the directory you run the command in. Existing files with
+the same names are overwritten. The full option list is in the
+[CLI reference](/showcase-kit/reference/cli/#icons).
+
+## The source image
+
+Use a square PNG, 1024x1024 or larger, ideally on a transparent background. Every size is scaled
+down with `contain` onto a transparent square, so nothing is cropped, and every PNG (standalone or
+inside an `.ico` or `.icns`) is full-color RGBA.
+
+The kit accepts other images but tells you when it has to compromise:
+
+- A source that is not square prints a warning and is padded with transparency to a square, per size.
+- A source smaller than 1024 px prints a warning: every size above the source's is upscaled and
+  looks soft.
+- A missing `--source` or `--preset` fails, a source that does not exist fails with
+  `Icon source not found`, and an unknown preset fails with the list of presets.
+
+## Presets
+
+Each preset writes exactly these files, and nothing else:
+
+<IconPresetTable />
+
+The `.ico` files hold PNG images (the format Windows Vista and later read). The `.icns` file holds
+PNG images too, with the same icon types Apple's `iconutil` writes.
+
+<Aside title="Tauri">
+  `pnpm tauri icon` produces Tauri's full platform set, including the Windows Store tiles. The `tauri`
+  preset covers what `bundle.icon` in `tauri.conf.json` usually lists.
+</Aside>
+
+## From code
+
+`generateIcons(source, preset, outDir)` does the same as the command and resolves with the files it
+wrote, in preset order:
+
+```ts
+import { generateIcons } from '@noctcore/showcase-kit';
+
+const written = await generateIcons('assets/mascot.png', 'web', 'public');
+// [{ file: 'favicon.ico', path: 'public/favicon.ico' }, ...]
+```
+
+`ICON_PRESETS` is exported too, if a build script needs the file list. See the
+[programmatic API](/showcase-kit/reference/api/).

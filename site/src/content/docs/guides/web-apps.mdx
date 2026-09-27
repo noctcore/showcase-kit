@@ -1,0 +1,195 @@
+---
+title: Web apps
+description: Capture a web app in the kit's own headless Chromium, from a dev server it starts or a URL that is already up, the same pixels every run.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+In url mode the kit launches its own headless Chromium, opens your app's URL and captures each shot.
+Use it for any web app you can reach over HTTP: a dev server, a preview build, or a site that is
+already deployed. It is also the portable route for [Tauri](/showcase-kit/guides/tauri/) apps.
+
+## A minimal config
+
+```js title="showcase.config.mjs"
+import { defineConfig } from '@noctcore/showcase-kit';
+
+export default defineConfig({
+  name: 'My App',
+  target: { mode: 'url', url: 'http://localhost:5173', start: 'pnpm dev' },
+  ready: '#root > *',
+  shots: [
+    { id: 'dashboard', title: 'Dashboard', nav: '/' },
+    { id: 'reports', title: 'Reports', nav: '/reports', waitFor: '[data-testid="chart"]' },
+  ],
+});
+```
+
+Every key on this page is listed with its type and default in the config reference, under
+[`target`](/showcase-kit/reference/config/#target), [top level](/showcase-kit/reference/config/#top-level)
+and [`shots`](/showcase-kit/reference/config/#shots).
+
+## Reaching the app
+
+`target.url` is the page the kit opens first. It must start with `http://` or `https://`.
+
+**Without `start`**, the app must already be running: the kit requests `url` once and stops with
+"is not answering" unless it gets a status below 400.
+
+**With `start`**, the kit first checks `url` the same way. If it already answers, the kit reuses that
+app and says so; set `reuseExisting: false` to always start a fresh one. Otherwise it runs `start`,
+polls `url` until it answers, and fails if `readyTimeoutMs` (default 60000) runs out or the command
+exits first. Either error includes the last lines the command printed; `--verbose` shows all of its
+output as it runs.
+
+```js
+target: {
+  mode: 'url',
+  url: 'http://localhost:15175',
+  start: 'pnpm dev:web',
+  cwd: '../web', // default: the config root (its folder unless you set root)
+  env: { VITE_SHOWCASE: '1' }, // added to your environment
+  readyTimeoutMs: 120000, // a slow first build
+},
+```
+
+`start` runs through the shell, so `pnpm`, `bun` and `npm` work on Windows too (they are `.cmd`
+shims there), and it runs in its own process tree. When the run ends, fails, or you press Ctrl+C, the
+kit kills that whole tree by PID (`taskkill /T` on Windows, the process group on macOS and Linux), so no
+dev server is left behind. An app you started yourself is never stopped.
+
+## Waiting for the app: `ready`
+
+`ready` is a selector that exists once the app has booted, such as `'#root > *'` or
+`'[data-testid="app-ready"]'`. The kit waits for it to be in the page (not necessarily visible):
+
+- after the first page load,
+- after `setup` has run,
+- after every `nav` that visits a URL.
+
+Each wait is bounded by `timeouts.readyMs` (default 30000), and so is the first page load. Without
+`ready` the kit only waits for the page's `load` event, which a single page app fires before it has
+rendered anything, so set it.
+
+## Shots and `nav`
+
+`shots` are captured in order, in one page per language, so a shot starts where the previous one left
+off. Each shot has an `id` (the file name, letters, digits, `-` and `_`), an optional `title` (used in
+the frame title and the default alt text `<name>: <title>`), `caption` and `alt`.
+
+`nav` says how to get to the view. Without it the kit captures the page as it is.
+
+| `nav` | What the kit does |
+| --- | --- |
+| `'[data-view="library"]'` | Clicks the first element that matches the selector. |
+| `'/settings'` | Visits a path: any string that starts with `/` (but not `//`). |
+| `'https://example.com/x'` | Visits the URL: any string that starts with `http://` or `https://`. |
+| `{ click: 'text=Library' }` | Clicks, said explicitly. Use it for a selector that starts with `/`. |
+| `{ goto: '#/settings' }` | Visits, said explicitly. Takes anything a link could hold (see below). |
+| `async page => { ... }` | Runs your function with the Playwright `Page`. |
+
+A click and a visit are each bounded by `timeouts.shotMs` (default 15000). After a visit the kit waits
+for `ready` again.
+
+### How a path resolves
+
+Since 0.2.0 a path resolves like a relative link from the app's base directory, which is the path of
+`target.url`:
+
+- with or without a trailing slash, the url's path is a directory: with `url: 'https://x.io/app/'` or
+  `'https://x.io/app'`, `'/docs/'` visits `https://x.io/app/docs/`, and `'/'` visits the url itself;
+- a last segment with a dot is a file and is dropped: with `url: 'http://localhost:5173/index.html'`,
+  `'/about'` visits `http://localhost:5173/about`;
+- a trailing slash always means a directory, so a dotted directory needs one: `https://x.io/v1.2/`;
+- the url's query and hash are not carried over.
+
+With a url at the origin root (`http://localhost:5173`), `'/about'` is simply
+`http://localhost:5173/about`.
+
+The rule applies to every `goto` whose value starts with a slash as the URL parser reads it: also a
+leading `\`, and either one after leading spaces. A protocol-relative `'//host/x'` gets it too, so it
+stays on the target origin (`https://x.io/app//host/x`) instead of visiting another host. Every other
+`goto` resolves as a link on `target.url` would:
+
+| `goto` with `url: 'http://h/app/index.html'` | Visits |
+| --- | --- |
+| `'#/settings'` | `http://h/app/index.html#/settings` |
+| `'?tab=2'` | `http://h/app/index.html?tab=2` |
+| `'docs/'` | `http://h/app/docs/` |
+| `'../x'` | `http://h/x` |
+
+<Aside type="caution" title="Upgrading from 0.1">
+  In 0.1 a path resolved against the origin. A config that repeated the base path to work around it
+  (`'/app/docs/'` with `url: 'https://x.io/app/'`) should drop the prefix.
+</Aside>
+
+## Settling before the shutter
+
+Per shot, after `nav`, the kit:
+
+1. waits for `waitFor`, a selector, to be visible (bounded by `timeouts.shotMs`);
+2. waits up to `timeouts.networkIdleMs` (default 3000) for the network to go quiet, and carries on
+   when it does not: dev servers with hot reload never go idle. `0` skips this wait;
+3. injects its determinism CSS and your `css`;
+4. waits for `document.fonts.ready` and two animation frames;
+5. waits `delayMs` (default 0), for anything the steps above cannot see, such as a chart that animates
+   in with JavaScript;
+6. takes the screenshot.
+
+Use `waitFor` for content that loads after the view appears, and `delayMs` only as a last resort.
+
+## Languages and `setup`
+
+`langs` (default `['en']`) lists the languages to capture. In url mode each language gets a fresh
+browser context with that locale, and every shot is captured once per language. Once more than one
+language is listed, output paths must contain `{lang}` so the files do not overwrite each other.
+
+`setup` runs once per language, after `ready`, with `{ page, context, lang, mode, config }`. Use it to
+switch the app's language, seed fixture data or dismiss a first-run dialog. Setup often reloads the
+page, so afterwards the kit waits for the `load` event and for `ready` again.
+
+```js
+langs: ['en', 'pl'],
+setup: async ({ page, lang }) => {
+  await page.evaluate(value => localStorage.setItem('app.language', value), lang);
+  await page.reload();
+},
+```
+
+## Look: viewport, color scheme and `css`
+
+- `viewport` (default `{ width: 1440, height: 900 }`) is the CSS pixel size of every capture, and
+  `deviceScaleFactor` (default 2) multiplies it: the defaults give 2880x1800 PNGs.
+- `colorScheme` (default `'dark'`) is what `prefers-color-scheme` reports: `'light'`, `'dark'` or
+  `'no-preference'`.
+- `css` is injected before each shot, for example to hide a dev overlay:
+  `css: 'vite-error-overlay, #tanstack-devtools { display: none !important; }'`.
+- `browser` sets the Chromium the kit launches: `channel` (`'chrome'`, `'msedge'`),
+  `executablePath`, `headless` (default true) and `args`.
+
+## Deterministic captures
+
+Two runs of the same app state produce the same pixels. The kit does its part on every shot:
+
+- the browser context asks for reduced motion;
+- CSS transitions are set to zero and the text caret is made transparent;
+- at the shutter, finite animations are finished and infinite ones are reset (Playwright's
+  `animations: 'disabled'`), and the caret is hidden;
+- fonts are loaded and two frames have painted before the screenshot.
+
+Your part is the data. If the app needs a backend you do not want to run for screenshots, or shows
+data that changes (dates, counters, avatars from an API), give it a fixture mode that serves stable
+demo data, for example a `?showcase=1` query or a `localStorage` flag seeded in `setup`. Stable data is
+what makes two runs produce the same images, and committed images stop churning.
+
+## When a shot fails
+
+A failed shot does not stop the others: the kit captures the rest, then fails with a list of every
+shot that went wrong and why. `--only home,settings` captures just those shots and `--langs en` just
+that language; an id or language the config does not know is an error rather than a silent no-op.
+
+## Related
+
+- [Electron](/showcase-kit/guides/electron/): the same shots, attached to a running app over CDP.
+- [Frames](/showcase-kit/guides/frames/): what happens to the captures next.
+- [CLI reference](/showcase-kit/reference/cli/#capture): `showcase capture` and its options.

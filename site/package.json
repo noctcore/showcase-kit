@@ -1,0 +1,28 @@
+{
+  "name": "@noctcore/showcase-kit-docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "bun scripts/sync.ts",
+    "dev": "bun run sync && ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "docs:build": "bun run sync && ASTRO_TELEMETRY_DISABLED=1 astro build && bun scripts/check-build.ts",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+    "typecheck": "bun run sync && ASTRO_TELEMETRY_DISABLED=1 astro sync && tsc --noEmit",
+    "test": "bun test scripts",
+    "gallery": "bun scripts/gallery.ts"
+  },
+  "dependencies": {
+    "@astrojs/markdown-satteri": "0.4.1",
+    "@astrojs/starlight": "^0.42.2",
+    "@fontsource-variable/jetbrains-mono": "5.3.0",
+    "@fontsource-variable/space-grotesk": "5.3.0",
+    "astro": "^7.3.3",
+    "satteri": "0.10.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "sharp": "0.35.4",
+    "typescript": "^5.9.3"
+  }
+}

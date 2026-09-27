@@ -1,0 +1,110 @@
+{
+  "hero.webp": {
+    "bytes": 38638,
+    "sha256": "1ac72c062745b94cc101df28a17a102eb2d6e0a52e997f3f358de83171976984",
+    "width": 1280,
+    "height": 640
+  },
+  "icons/apple-touch-icon.png": {
+    "bytes": 10290,
+    "sha256": "e857aac3dfa0a7de544d736bc0d4513260456d82060b35632ca58b2527ed42ca",
+    "width": 180,
+    "height": 180
+  },
+  "icons/favicon.ico": {
+    "bytes": 4498,
+    "sha256": "95fc95f69b5661fa30ddd970dcd8b0ad38d55367309aa1f15383ee2f4b60d974"
+  },
+  "icons/icon-192.png": {
+    "bytes": 10925,
+    "sha256": "9feca4fee2eb1be5d39361bb050cdf4f477423ca3407341376fe743e572d736e",
+    "width": 192,
+    "height": 192
+  },
+  "icons/icon-512.png": {
+    "bytes": 29462,
+    "sha256": "91805b9be20f10392098737717021d6519a1eb955d88959c39fee7d95f24553e",
+    "width": 512,
+    "height": 512
+  },
+  "portfolio/gear.webp": {
+    "bytes": 39490,
+    "sha256": "06265706035004f4b97fc384c0a298fbebaad0f4fbae62b228c0a5e3d130fc13",
+    "width": 1600,
+    "height": 900
+  },
+  "portfolio/log.webp": {
+    "bytes": 42032,
+    "sha256": "d953f2a626bc2a67c73989a1b31b0e8152478c4563c8bdb2e6db8cb73b4139c6",
+    "width": 1600,
+    "height": 900
+  },
+  "portfolio/thumbnail.webp": {
+    "bytes": 38900,
+    "sha256": "79f629de327992c66086d6456ce9a4a5ce2d79e371d2cfe982f34e066ed1debb",
+    "width": 1600,
+    "height": 900
+  },
+  "portfolio/tonight.webp": {
+    "bytes": 38900,
+    "sha256": "79f629de327992c66086d6456ce9a4a5ce2d79e371d2cfe982f34e066ed1debb",
+    "width": 1600,
+    "height": 900
+  },
+  "readme/en/gear.webp": {
+    "bytes": 54828,
+    "sha256": "bc5a8b3e9af8bcb8e4c7c0128a8ad2f06429004a85cf507cdad67e90804465c5",
+    "width": 1600,
+    "height": 1009
+  },
+  "readme/en/log.webp": {
+    "bytes": 58702,
+    "sha256": "8c93c8a680611fe19c574aa4f7b01edde37bcf453d8e1e80682e439af69b5d58",
+    "width": 1600,
+    "height": 1009
+  },
+  "readme/en/tonight.webp": {
+    "bytes": 55302,
+    "sha256": "73cf3b3daafa3f6d0f43262f18cbd94c422b24943c5d423d01dab94acf7ed65d",
+    "width": 1600,
+    "height": 1009
+  },
+  "readme/pl/gear.webp": {
+    "bytes": 59296,
+    "sha256": "d4ea7d834e40b0bb1831258b257cbe1ddf6fac0c84a304d92aa0af4912e3850f",
+    "width": 1600,
+    "height": 1009
+  },
+  "readme/pl/log.webp": {
+    "bytes": 63292,
+    "sha256": "9b60a9a8d3677fa9e87667765e4c7243105744a683c972e003df69e8bf130b39",
+    "width": 1600,
+    "height": 1009
+  },
+  "readme/pl/tonight.webp": {
+    "bytes": 62444,
+    "sha256": "0824efd55440968bf04877f3382f96b9947f14fc62534eebcf0dbbe0d66122a5",
+    "width": 1600,
+    "height": 1009
+  },
+  "terminal/queue.webp": {
+    "bytes": 81926,
+    "sha256": "1b998dffa385a04f87b87590fc00af7cb91fe77a8072299b3a9400cd9a6d8804",
+    "width": 2040,
+    "height": 1200
+  },
+  "terminal/tour.gif": {
+    "bytes": 239044,
+    "sha256": "c0079f2701321eeb98446c8b8ebe299e34e4bf85bc4f3794120d7313bf9c75ba",
+    "width": 2040,
+    "height": 1200,
+    "frames": 5
+  },
+  "terminal/tour.webp": {
+    "bytes": 124148,
+    "sha256": "ea2e4405aa231ffc01e3948877a3d78dba6ec2a9eebfc42963855e5a1345f593",
+    "width": 2040,
+    "height": 1200,
+    "frames": 5
+  }
+}

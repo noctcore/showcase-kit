@@ -1,0 +1,103 @@
+---
+/**
+ * The two built-in terminal themes, read from the built library (`dist/`) at
+ * build time, so the colors shown are the colors the renderer uses.
+ */
+import { DARK_THEME, LIGHT_THEME, type TerminalTheme } from '../../../dist/index.js';
+
+// The palettes' names are only in comments in src/tty/theme.ts.
+const themes: { key: string; name: string; theme: TerminalTheme }[] = [
+  { key: 'dark', name: 'Tokyo Night', theme: DARK_THEME },
+  { key: 'light', name: 'Tokyo Night Day', theme: LIGHT_THEME },
+];
+
+const ANSI_NAMES = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+const ansiName = (index: number): string =>
+  `${index < 8 ? '' : 'bright '}${ANSI_NAMES[index % 8] ?? ''} (${index})`;
+---
+
+<div class="terminal-themes not-content">
+  {
+    themes.map(({ key, name, theme }) => (
+      <figure class="terminal-theme">
+        <div class="terminal-theme-sample" style={`background:${theme.background};color:${theme.foreground}`}>
+          <span>$ showcase all</span>
+          <span>
+            {theme.ansi.slice(1, 7).map((color) => (
+              <span style={`color:${color}`}>●</span>
+            ))}
+          </span>
+        </div>
+        <figcaption>
+          <code>theme: '{key}'</code>, {name}: background <code>{theme.background}</code>, foreground{' '}
+          <code>{theme.foreground}</code>
+        </figcaption>
+        <ul class="terminal-theme-ansi" aria-label={`The 16 ANSI colors of the ${key} theme`}>
+          {theme.ansi.map((color, index) => (
+            <li>
+              <span class="terminal-theme-swatch" style={`background:${color}`} aria-hidden="true" />
+              <span class="terminal-theme-hex">
+                <code>{color}</code>
+                <span class="sr-only">{ansiName(index)}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </figure>
+    ))
+  }
+</div>
+
+<style>
+  .terminal-themes {
+    display: grid;
+    gap: 1.5rem;
+    margin-block: 1.5rem;
+  }
+  .terminal-theme {
+    margin: 0;
+  }
+  .terminal-theme-sample {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--sl-color-hairline);
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-sm);
+  }
+  .terminal-theme figcaption {
+    margin-block: 0.5rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+  .terminal-theme-ansi {
+    /* 8 normal colors, then 8 bright ones: one row each on wide screens, two each on phones. */
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+  @media (min-width: 72rem) {
+    .terminal-theme-ansi {
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+    }
+  }
+  .terminal-theme-ansi li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+  }
+  .terminal-theme-swatch {
+    height: 1.5rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--sl-color-hairline);
+  }
+  .terminal-theme-hex code {
+    font-size: var(--sl-text-xs);
+  }
+</style>

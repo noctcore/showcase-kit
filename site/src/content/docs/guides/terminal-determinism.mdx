@@ -1,0 +1,121 @@
+---
+title: Terminal determinism
+description: Make terminal captures identical from run to run.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Committed screenshots should only change when the app changes. For a terminal app, the kit pins
+everything about the terminal it controls; the rest (data, time, animation, language) is up to the
+app. This page lists both halves.
+
+The result to aim for: **same OS, same pixels.** Two runs on one OS produce identical PNGs, and
+two recordings of a clip of an app with a frozen screen produce byte-identical files. Across
+operating systems expect small anti-aliasing differences, so run the captures on one OS if committed
+images must not churn.
+
+## What the kit does for you
+
+1. **A fixed size.** `target.cols` and `target.rows` (default 120 by 32) are never read from a
+   window, so the app lays out the same wherever you run it.
+2. **A pinned environment.** Colors on (`TERM=xterm-256color`, `COLORTERM=truecolor`,
+   `FORCE_COLOR=3`), `TZ=UTC`, `LANG` and `LC_ALL` set to `en_US.UTF-8`, and no CI or terminal
+   program hints (`CI`, `NO_COLOR`, `TERM_PROGRAM`, `WT_SESSION` and the like are removed). The full
+   list is in [Terminal apps](/showcase-kit/guides/terminal-apps/).
+3. **It settles on screen content, not on output silence.** It waits for the `ready` and `waitFor`
+   text, then a fixed grace. Waiting for the app to go quiet would never end for an app with a clock
+   or a spinner.
+4. **A grace period after `ready`** (`target.inputDelayMs`, default 300 ms) before the first key, so
+   keys are not lost while the app is still switching its terminal to raw mode.
+5. **A fixed look.** A bundled font, a whole-pixel cell width, a fixed line height, a fixed theme and
+   a hidden cursor (unless you ask for it).
+6. **Missing glyphs cannot shift a row.** A glyph the font lacks gets its own clipped cell. It still
+   comes from a system font, so it differs between operating systems: add `terminal.font.fallbackFile`
+   (a symbols or Nerd Font) if the app draws icons.
+7. **It renders the screen grid, not the bytes.** Windows' ConPTY rewrites an app's output, but the
+   grid, and so the PNG, comes out the same.
+
+## What the kit cannot do
+
+The kit can only freeze what the app lets it freeze. A spinner, a clock in the header, "3 minutes
+ago", live data or a first-run tip all change between runs, and nothing outside the app can stop
+them. The terminal equivalent of a web app's `?showcase=1` is a few environment variables the app
+reads, set through `target.env`.
+
+## What a TUI should offer
+
+### A fixture mode
+
+Behind an env var (`MYAPP_MOCK=1`): stable sample data from the app itself, and no network.
+
+```ts
+// src/data.ts
+export const loadServers = process.env.MYAPP_MOCK === '1'
+  ? async () => (await import('./fixtures/servers.js')).servers
+  : fetchServers;
+```
+
+### A frozen mode
+
+Behind another flag, or the same one (`MYAPP_SHOWCASE=1`): spinners and progress bars stopped on
+one frame, "now" pinned to a constant (clocks in headers, "3 minutes ago" labels), and no first-run
+splash or update check.
+
+```ts
+// src/clock.ts
+const FROZEN = process.env.MYAPP_SHOWCASE === '1';
+
+export const now = (): Date => (FROZEN ? new Date('2026-01-15T09:30:00Z') : new Date());
+export const spinnerFrame = (tick: number): number => (FROZEN ? 0 : tick % SPINNER.length);
+export const checkForUpdates = FROZEN ? async () => undefined : realCheckForUpdates;
+```
+
+The kit already sets `TZ=UTC`, so a pinned instant also prints the same clock time on every machine.
+
+### A pinned locale
+
+Dates and numbers formatted inside the app should use a locale the app picks, not the machine's.
+`LANG` only reaches apps on macOS and Linux; Windows ignores it.
+
+```ts
+const format = new Intl.DateTimeFormat(process.env.MYAPP_LANG ?? 'en', { dateStyle: 'medium' });
+```
+
+### A language switch
+
+An env var that sets the UI language lets one config capture every language, with a function
+`env`:
+
+```js
+target: {
+  mode: 'tty',
+  command: ['node', 'dist/cli.js'],
+  env: ({ lang }) => ({ MYAPP_MOCK: '1', MYAPP_SHOWCASE: '1', MYAPP_LANG: lang }),
+},
+langs: ['en', 'de', 'ja'],
+```
+
+### A layout that holds
+
+The app should lay out cleanly at the configured `cols` and `rows`. Read the size from the terminal
+(the kit's pseudo terminal reports exactly `cols` by `rows`) rather than from `COLUMNS` and `LINES`,
+which the kit removes.
+
+## Configure the capture to match
+
+- Set `ready` to text the finished first screen shows, not something drawn early. Without `ready` the
+  kit only waits for any text, which can catch the app halfway through its first screen.
+- Give every shot that changes screens a `waitFor`. Without it the kit waits at most one second for
+  the screen to change and then takes it, which is a race for anything slower.
+- Use `delayMs` only for a redraw that shows no text you could wait for.
+- If a screen depends on where earlier shots left off, and that is fragile, use `restart: true` to
+  start that shot from a clean app.
+
+<Aside title="Check it">
+  Run `showcase capture` twice on the same OS and compare the raw PNGs byte for byte (copy the
+  `outputs.raw` folder between runs). They should be identical; a file that differs names the screen
+  that is still live.
+</Aside>
+
+For clips, the same rules keep recordings small as well as repeatable: see
+[Clips](/showcase-kit/guides/clips/).
