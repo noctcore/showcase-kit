@@ -1,0 +1,249 @@
+/* noctcore docs preset: Observatory
+   An editorial star atlas: a serif with optical sizes, graticule hairlines and one calm column, for guides you read top to bottom beside framed screenshots.
+   Type: Newsreader for headings, Newsreader for text, JetBrains Mono for code.
+   Needs: @fontsource-variable/newsreader, @fontsource-variable/jetbrains-mono.
+   Dark is the default, as in Starlight: :root holds the dark values and
+   :root[data-theme='light'] overrides them. Load after base.css and
+   components.css. Contrast: every text pair passes WCAG AA, see contrast.md. */
+@import '@fontsource-variable/newsreader/opsz.css';
+@import '@fontsource-variable/newsreader/opsz-italic.css';
+@import '@fontsource-variable/jetbrains-mono';
+
+:root,
+::backdrop {
+  /* Type, shape and labels */
+  --nc-font-display: 'Newsreader Variable', 'Newsreader', ui-serif, Georgia, serif;
+  --nc-font-body: 'Newsreader Variable', 'Newsreader', ui-serif, Georgia, serif;
+  --nc-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --nc-label-font: var(--nc-font-mono);
+  --nc-label-case: uppercase;
+  --nc-label-tracking: 0.12em;
+  --nc-label-size: 0.6875rem;
+  --nc-label-weight: 500;
+  --nc-radius: 0.125rem;
+  --nc-measure: 42rem;
+  --sl-text-body: 1.0625rem;
+  --sl-line-height: 1.7;
+  --sl-text-h1: clamp(2.5rem, 1.75rem + 2.5vw, 3.25rem);
+  --sl-text-h2: clamp(1.625rem, 1.25rem + 1.25vw, 2rem);
+
+  /* Surfaces */
+  --nc-bg: #0a0f1d;
+  --nc-surface: #0a0f1d;
+  --nc-raised: #0f1526;
+  --nc-line: #242d47;
+  --nc-line-soft: #161d33;
+
+  /* Ink */
+  --nc-ink: #f1f3fa;
+  --nc-ink-2: #dfe4f0;
+  --nc-text: #c3cadb;
+  --nc-muted: #97a0b8;
+  --nc-faint: #56607d;
+
+  /* Accent */
+  --nc-link: #8fdde8;
+  --nc-on-link: #0a0f1d;
+  --nc-accent: #a79cff;
+  --nc-accent-soft: #171a38;
+  --nc-accent-strong: #8fdde8;
+
+  /* Signals: Starlight asides and badges, the ESLint verdict frames and rule badges */
+  --nc-note-bg: #0d1a28;
+  --nc-note-edge: #4dd0e1;
+  --nc-note-ink: #a6e6ee;
+  --nc-tip-bg: #15142f;
+  --nc-tip-edge: #8b7cff;
+  --nc-tip-ink: #cdc6ff;
+  --nc-caution-bg: #1f1a10;
+  --nc-caution-edge: #e2b04e;
+  --nc-caution-ink: #f1d49a;
+  --nc-danger-bg: #231219;
+  --nc-danger-edge: #f07a7a;
+  --nc-danger-ink: #f7bcbc;
+  --nc-success-bg: #0e1f1a;
+  --nc-success-edge: #56d68f;
+  --nc-success-ink: #a6e9c3;
+
+  /* Components: cards and package cards */
+  --nc-card-bg: #0a0f1d;
+  --nc-card-border: #242d47;
+
+  /* Code: frames read these; the Expressive Code theme carries the syn-* values */
+  --nc-code-inline: #161d33;
+  --nc-code-bg: #0f1526;
+  --nc-code-ink: #d9deeb;
+  --nc-syn-keyword: #c1b8ff;
+  --nc-syn-string: #92e0e9;
+  --nc-syn-number: #f0c98f;
+  --nc-syn-function: #a6e6ee;
+  --nc-syn-property: #dfe4f0;
+  --nc-syn-comment: #8a93ad;
+  --nc-syn-punct: #97a0b8;
+
+  /* Motif: the window-frame backdrop */
+  --nc-motif:
+    radial-gradient(circle at 23% 41%, rgba(241, 243, 250, 0.85) 0 1px, transparent 1.6px) 13px 29px / 113px 97px,
+    radial-gradient(circle at 71% 13%, rgba(143, 221, 232, 0.7) 0 1px, transparent 1.6px) 41px 7px / 167px 139px,
+    radial-gradient(circle at 47% 83%, rgba(241, 243, 250, 0.55) 0 0.8px, transparent 1.3px) 5px 53px / 229px 181px,
+    radial-gradient(circle at 88% 64%, rgba(167, 156, 255, 0.6) 0 0.9px, transparent 1.4px) 71px 23px / 191px 157px,
+    linear-gradient(160deg, #1b1f4a, #0a0f1d 60%);
+}
+
+:root[data-theme='light'],
+[data-theme='light'] ::backdrop {
+  /* Surfaces */
+  --nc-bg: #f6f8fc;
+  --nc-surface: #f6f8fc;
+  --nc-raised: #ffffff;
+  --nc-line: #cdd5e5;
+  --nc-line-soft: #e3e8f2;
+
+  /* Ink */
+  --nc-ink: #0d1430;
+  --nc-ink-2: #1e2745;
+  --nc-text: #2e3752;
+  --nc-muted: #58617c;
+  --nc-faint: #8a93ad;
+
+  /* Accent */
+  --nc-link: #4034b8;
+  --nc-on-link: #ffffff;
+  --nc-accent: #5a4ad6;
+  --nc-accent-soft: #e9e7fb;
+  --nc-accent-strong: #262066;
+
+  /* Signals: Starlight asides and badges, the ESLint verdict frames and rule badges */
+  --nc-note-bg: #e6f3f6;
+  --nc-note-edge: #177f8c;
+  --nc-note-ink: #0c4e58;
+  --nc-tip-bg: #ecebfa;
+  --nc-tip-edge: #5a4ad6;
+  --nc-tip-ink: #332a8f;
+  --nc-caution-bg: #f8efdf;
+  --nc-caution-edge: #b87a10;
+  --nc-caution-ink: #6b4207;
+  --nc-danger-bg: #f9e7e6;
+  --nc-danger-edge: #c63f36;
+  --nc-danger-ink: #85211a;
+  --nc-success-bg: #e3f2e9;
+  --nc-success-edge: #1d8a50;
+  --nc-success-ink: #12532f;
+
+  /* Components: cards and package cards */
+  --nc-card-bg: #ffffff;
+  --nc-card-border: #cdd5e5;
+
+  /* Code: frames read these; the Expressive Code theme carries the syn-* values */
+  --nc-code-inline: #e8ecf5;
+  --nc-code-bg: #ffffff;
+  --nc-code-ink: #1e2745;
+  --nc-syn-keyword: #4a36c4;
+  --nc-syn-string: #0a6873;
+  --nc-syn-number: #8a4b00;
+  --nc-syn-function: #0c4e58;
+  --nc-syn-property: #1e2745;
+  --nc-syn-comment: #5c6682;
+  --nc-syn-punct: #58617c;
+
+  /* Motif: the window-frame backdrop */
+  --nc-motif:
+    radial-gradient(circle at 23% 41%, rgba(241, 243, 250, 0.85) 0 1px, transparent 1.6px) 13px 29px / 113px 97px,
+    radial-gradient(circle at 71% 13%, rgba(143, 221, 232, 0.7) 0 1px, transparent 1.6px) 41px 7px / 167px 139px,
+    radial-gradient(circle at 47% 83%, rgba(241, 243, 250, 0.55) 0 0.8px, transparent 1.3px) 5px 53px / 229px 181px,
+    radial-gradient(circle at 88% 64%, rgba(167, 156, 255, 0.6) 0 0.9px, transparent 1.4px) 71px 23px / 191px 157px,
+    linear-gradient(160deg, #262066, #0d1430 65%);
+}
+
+/* Structure */
+:root:not([data-theme='light']) body {
+  background-image:
+    linear-gradient(to bottom, transparent 0, var(--sl-color-black) 26rem),
+    radial-gradient(circle, rgba(241, 243, 250, 0.55) 0 0.5px, transparent 1px),
+    radial-gradient(circle, rgba(143, 221, 232, 0.45) 0 0.75px, transparent 1.25px);
+  background-size: 100% 100%, 173px 139px, 257px 211px;
+  background-repeat: no-repeat, repeat, repeat;
+}
+
+.page > .header {
+  border-bottom: 0;
+  background-image:
+    repeating-linear-gradient(90deg, var(--sl-color-gray-5) 0 1px, transparent 1px 2rem),
+    linear-gradient(var(--sl-color-gray-5), var(--sl-color-gray-5));
+  background-size: 100% 0.3125rem, 100% 1px;
+  background-position: left bottom;
+  background-repeat: repeat-x, no-repeat;
+}
+
+.sidebar-pane {
+  border-inline-end: 1px solid var(--sl-color-hairline-light);
+}
+
+.group-label .large,
+starlight-toc h2,
+.sl-markdown-content th {
+  font-family: var(--sl-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+
+.sidebar-content a[aria-current='page'] {
+  background: transparent;
+  color: var(--sl-color-white);
+  box-shadow: inset 2px 0 0 var(--sl-color-text-accent);
+  border-radius: 0;
+}
+
+h1#_top,
+.hero h1 {
+  font-weight: 400;
+  font-variation-settings: 'opsz' 72;
+  letter-spacing: -0.02em;
+}
+
+.sl-markdown-content h2 {
+  font-weight: 400;
+  font-variation-settings: 'opsz' 60;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--sl-color-hairline-light);
+}
+
+.sl-markdown-content h2[id]::before {
+  content: '\00a7\00a0' attr(id);
+  display: block;
+  margin-bottom: 0.75rem;
+  font: 500 0.6875rem/1 var(--sl-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+
+.starlight-aside {
+  border: 1px solid var(--sl-color-asides-border);
+  border-inline-start-width: 3px;
+}
+
+.starlight-aside__title {
+  font-family: var(--sl-font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sl-link-card {
+  background: transparent;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  padding-inline: 0;
+  box-shadow: none;
+}
+
+.sl-link-card .title,
+.package-card-short {
+  font-family: var(--nc-font-display);
+  font-style: italic;
+  font-weight: 400;
+}

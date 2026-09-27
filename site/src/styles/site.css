@@ -1,0 +1,170 @@
+/* showcase-kit docs: the site's own rules.
+   Loaded last, after the noctcore theme (noctcore/base.css, components.css
+   and presets/observatory.css), so every colour here is a Starlight --sl-*
+   variable or an --nc-* token the preset sets for dark and light. */
+
+/* ---------------------------------------------------------------------------
+   Hero. base.css puts the brand gradient on the primary action with
+   night-navy text; the hover keeps that text instead of Starlight's.
+--------------------------------------------------------------------------- */
+
+.hero .sl-link-button.primary:hover,
+.hero .sl-link-button.primary:focus-visible {
+  color: var(--nc-night);
+  filter: brightness(1.08);
+}
+
+/* The tagline is the page's opening paragraph, in the .nc-lead type. */
+.hero .tagline {
+  max-width: 38rem;
+  font-size: var(--sl-text-lg);
+  line-height: 1.6;
+  color: var(--sl-color-gray-2);
+  text-wrap: pretty;
+}
+
+/* The splash's hero banner: a real output of the kit, shown as a figure under
+   the hero rather than in its image slot, because it carries another app's
+   name. The kit already framed it, so it is a plain image, not an .nc-shot. */
+.splash-shot {
+  margin: 0 0 2.5rem;
+}
+
+.splash-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--sl-color-hairline-light);
+  border-radius: calc(var(--nc-radius) * 1.25);
+}
+
+.splash-shot figcaption {
+  margin-top: 0.75rem;
+  font-size: var(--sl-text-sm);
+  line-height: 1.55;
+  color: var(--sl-color-gray-3);
+}
+
+/* ---------------------------------------------------------------------------
+   Version pill. SiteTitle.astro puts the current release next to the
+   wordmark as a small pill that links to the changelog.
+--------------------------------------------------------------------------- */
+
+.site-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.version-pill {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--sl-color-text-accent);
+  background: var(--sl-color-accent-low);
+}
+
+.version-pill:hover,
+.version-pill:focus-visible {
+  color: var(--sl-color-white);
+}
+
+/* Below Starlight's 50em breakpoint the header has room for the logo, the
+   search and menu buttons and about 15rem of title. Monospace at h4 size is
+   too wide for a 390px phone, base size fits. */
+@media (max-width: 50em) {
+  .site-title {
+    font-size: var(--sl-text-base);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Tables. At phone width a table's last column ("Meaning") gets squeezed to
+   a word per line. Give it a floor and let the table scroll sideways instead.
+--------------------------------------------------------------------------- */
+
+@media (max-width: 40rem) {
+  .sl-markdown-content table td:last-child {
+    min-width: 16rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   What one config produces: the splash's cards, one per output, each linking
+   to its guide (GuideOutputs.astro). On the preset's card surface.
+--------------------------------------------------------------------------- */
+
+.sl-markdown-content .link-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.sl-markdown-content .link-grid .link-card {
+  margin: 0;
+}
+
+.link-card a {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  height: 100%;
+  padding: 1rem 1.1rem;
+  overflow: hidden;
+  border: 1px solid var(--nc-card-border);
+  border-radius: var(--nc-radius);
+  background: var(--nc-card-bg);
+  color: var(--sl-color-gray-2);
+  text-decoration: none;
+}
+
+.link-card a::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--nc-gradient);
+  opacity: 0;
+}
+
+.link-card a:hover,
+.link-card a:focus-visible {
+  border-color: var(--sl-color-accent);
+}
+
+.link-card a:hover::before,
+.link-card a:focus-visible::before {
+  opacity: 1;
+}
+
+.link-card-name {
+  font-family: var(--nc-font-display);
+  font-size: var(--sl-text-lg);
+  line-height: 1.25;
+  color: var(--sl-color-white);
+}
+
+.link-card-desc {
+  font-size: var(--sl-text-sm);
+  line-height: 1.5;
+}
+
+.link-card-meta {
+  margin-top: auto;
+  font: 500 var(--sl-text-xs) / 1.4 var(--__sl-font-mono);
+  color: var(--sl-color-gray-3);
+}
+
+/* components.css sets the note's size and colour. */
+.site-footer-note {
+  margin-top: 1.5rem;
+}
