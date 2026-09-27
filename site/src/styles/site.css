@@ -46,38 +46,29 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Version pill. SiteTitle.astro puts the current release next to the
-   wordmark as a small pill that links to the changelog.
+   Site title. The wordmark override (SiteTitle.astro) replaces Starlight's
+   component, and with it the component's scoped layout: these are its values,
+   with a tighter gap between the wordmark, the separator and the product.
 --------------------------------------------------------------------------- */
 
-.site-title-group {
-  display: flex;
+.site-title {
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   min-width: 0;
-}
-
-.version-pill {
-  display: inline-block;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  font-family: var(--sl-font-mono);
-  font-size: var(--sl-text-xs);
-  font-weight: 600;
+  font-size: var(--sl-text-h4);
   white-space: nowrap;
   text-decoration: none;
-  color: var(--sl-color-text-accent);
-  background: var(--sl-color-accent-low);
 }
 
-.version-pill:hover,
-.version-pill:focus-visible {
-  color: var(--sl-color-white);
+.site-title img {
+  height: calc(var(--sl-nav-height) - 2 * var(--sl-nav-pad-y));
+  width: auto;
+  margin-inline-end: 0.25rem;
 }
 
 /* Below Starlight's 50em breakpoint the header has room for the logo, the
-   search and menu buttons and about 15rem of title. Monospace at h4 size is
-   too wide for a 390px phone, base size fits. */
+   search and menu buttons and about 15rem of title. The wordmark and the
+   product in monospace at h4 size are too wide for a 390px phone, base size fits. */
 @media (max-width: 50em) {
   .site-title {
     font-size: var(--sl-text-base);

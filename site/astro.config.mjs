@@ -39,6 +39,7 @@ export default defineConfig({
         Head: './src/components/Head.astro',
         Footer: './src/components/Footer.astro',
         SiteTitle: './src/components/SiteTitle.astro',
+        SocialIcons: './src/components/SocialIcons.astro',
       },
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/noctcore/showcase-kit' },
