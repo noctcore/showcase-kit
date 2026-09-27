@@ -4,6 +4,7 @@ description: Render a banner for the top of a README, and a GitHub social previe
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import GalleryThumbs from '../../../components/GalleryThumbs.astro';
 
 `showcase hero` composes a banner from the raw captures: your logo, name and tagline, and framed shots
 arranged by `layout`. The default, `stack`, puts the text on the left and one to three shots stacked and
@@ -45,6 +46,17 @@ npx showcase hero   # writes assets/showcase/hero.webp
 - **Text color.** `theme` defaults to `frame.theme`: `'dark'` gives light text, `'light'` gives dark
   text. Match it to the background, not the app.
 
+The default `stack` on a `mesh`, a `dots` and a `noise` background, from the docs
+[gallery](/showcase-kit/gallery/#hero-layouts), which has the config of each. Select one to open the file.
+
+<GalleryThumbs
+  items={[
+    { file: 'layouts/hero-mesh.webp', label: "{ type: 'mesh' }", alt: 'A banner for Nightjar, the gallery fixture app, on a mesh gradient of violet, teal, blue and magenta glows.' },
+    { file: 'layouts/hero-dots.webp', label: "{ type: 'dots' }", alt: 'The Nightjar banner on a dark navy background with a grid of faint dots.' },
+    { file: 'layouts/hero-noise.webp', label: "{ type: 'noise' }", alt: 'The Nightjar banner on a violet to teal gradient with a fine film grain.' },
+  ]}
+/>
+
 The banner is rendered at twice its size and scaled down to exactly `size`, for sharper text and edges
 on the tilted windows.
 
@@ -60,6 +72,20 @@ on the tilted windows.
 | `'row'` | 1 to 4 | Text centered at the top, the windows side by side under it. |
 | `'mosaic'` | 1 to 4 | Text on the left, a tilted wall of the windows (repeated to fill it), fading out towards the text. |
 | `'centered'` | 1 | Text centered at the top, one window rising from the bottom edge and leaning back. |
+
+Each layout with Nightjar, the fixture app of the docs gallery. Select one to open the file; the
+[gallery](/showcase-kit/gallery/#hero-layouts) has the config that made each.
+
+<GalleryThumbs
+  items={[
+    { file: 'hero.webp', label: "'stack' (default)", alt: 'A banner for Nightjar, the gallery fixture app, in the stack layout: the text on the left, three windows stacked and tilted on the right.' },
+    { file: 'layouts/hero-spotlight.webp', label: "'spotlight'", alt: 'The Nightjar banner in the spotlight layout: the text on the left, one large window running off the right and bottom edges.' },
+    { file: 'layouts/hero-split.webp', label: "'split'", alt: 'The Nightjar banner in the split layout: the text on the left, one window turned in perspective towards it.' },
+    { file: 'layouts/hero-row.webp', label: "'row'", alt: 'The Nightjar banner in the row layout: the text centered at the top, three windows side by side under it.' },
+    { file: 'layouts/hero-mosaic.webp', label: "'mosaic'", alt: 'The Nightjar banner in the mosaic layout: the text on the left, a tilted wall of windows fading out towards it.' },
+    { file: 'layouts/hero-centered.webp', label: "'centered'", alt: 'The Nightjar banner in the centered layout: the text centered at the top, one window rising from the bottom edge.' },
+  ]}
+/>
 
 ```js
 hero: {
