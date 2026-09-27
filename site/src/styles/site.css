@@ -202,3 +202,9 @@
   padding-top: 0;
   border-top: 0;
 }
+
+/* The preset sets table heads in mono capitals. Code in a head is a literal
+   (a URL, a key), so it keeps its case. */
+.sl-markdown-content th code {
+  text-transform: none;
+}
