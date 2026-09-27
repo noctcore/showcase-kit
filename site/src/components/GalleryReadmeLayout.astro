@@ -1,0 +1,17 @@
+---
+/** One README layout: the snippet `showcase readme` printed, as a live preview and as the HTML itself. */
+import { Code } from '@astrojs/starlight/components';
+import { readmeSnippet } from './GalleryVariants';
+import ReadmePreview from './ReadmePreview.astro';
+
+interface Props {
+  /** The `--layout` value, which is also the snippet's file name in site/gallery/readme/. */
+  layout: string;
+}
+
+const { layout } = Astro.props;
+const snippet = readmeSnippet(layout);
+---
+
+<ReadmePreview code={snippet.code} label={`Preview of the ${layout} layout, rendered like a GitHub README`} />
+<Code code={snippet.code} lang="html" title={`${snippet.file} (--layout ${layout})`} wrap />

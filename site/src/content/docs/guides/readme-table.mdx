@@ -1,11 +1,16 @@
 ---
 title: README table
-description: Print an HTML table of the framed images with captions, ready to paste into a README.
+description: Print the framed images with captions as README HTML, a table or one of four other layouts, ready to paste into a README.
 ---
+
+import { TabItem, Tabs } from '@astrojs/starlight/components';
+import { readmeSnippet } from '../../../components/GalleryVariants';
+import ReadmePreview from '../../../components/ReadmePreview.astro';
 
 `showcase readme` prints an HTML table of the framed images, a row of images and a row of `<sub>`
 captions under it, with image paths relative to your README. Run it after `showcase all` (or
-`showcase frame`) and paste the output into the README.
+`showcase frame`) and paste the output into the README. `--layout` picks one of four other
+arrangements of the same images (see [Layouts](#layouts)).
 
 ## A minimal run
 
@@ -80,6 +85,28 @@ checked through GitHub's own Markdown renderer.
 | `featured` | The first image full width with its caption under it, then the others in a table of `--cols` per row. |
 | `details` | One collapsible `<details>` per image, with the title and caption as its summary; the first starts open. |
 | `list` | Every image full width, one under the other, each with its caption. |
+
+Each layout as the kit printed it for Nightjar, the fixture app of the docs gallery, rendered here the
+way a GitHub README shows it. The [gallery](/showcase-kit/gallery/#readme-layouts) has the HTML of each
+and the command that printed it.
+
+<Tabs>
+  <TabItem label="table">
+    <ReadmePreview code={readmeSnippet('table').code} label="Preview of the table layout, rendered like a GitHub README" compact />
+  </TabItem>
+  <TabItem label="rows">
+    <ReadmePreview code={readmeSnippet('rows').code} label="Preview of the rows layout, rendered like a GitHub README" compact />
+  </TabItem>
+  <TabItem label="featured">
+    <ReadmePreview code={readmeSnippet('featured').code} label="Preview of the featured layout, rendered like a GitHub README" compact />
+  </TabItem>
+  <TabItem label="details">
+    <ReadmePreview code={readmeSnippet('details').code} label="Preview of the details layout, rendered like a GitHub README" compact />
+  </TabItem>
+  <TabItem label="list">
+    <ReadmePreview code={readmeSnippet('list').code} label="Preview of the list layout, rendered like a GitHub README" compact />
+  </TabItem>
+</Tabs>
 
 `--cols` only means something for `table` and `featured`; with another layout it is an error.
 

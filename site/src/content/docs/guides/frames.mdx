@@ -4,6 +4,7 @@ description: Turn raw captures into README images inside a window, browser or te
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import GalleryThumbs from '../../../components/GalleryThumbs.astro';
 
 `showcase frame` puts each raw capture inside a window frame (a title bar, rounded corners, a soft
 shadow) on a background, and writes it to `outputs.readme`. `showcase all` runs it after the capture.
@@ -41,6 +42,20 @@ config reference under [`frame`](/showcase-kit/reference/config/#frame) and
 | `'windows'` | A 32 px Windows title bar: the title on the left, minimize, maximize and close on the right. |
 | `'terminal'` | A 34 px terminal bar: traffic lights and a tab with a prompt icon and the title in a monospace font. |
 
+Each style on Nightjar, the fixture app of the docs gallery. Select one to open the file; the
+[gallery](/showcase-kit/gallery/#frame-styles-and-backgrounds) has the config that made each.
+
+<GalleryThumbs
+  items={[
+    { file: 'readme/en/tonight.webp', label: "'window' (default)", alt: "Nightjar's Tonight view, from the gallery fixture app, in the window frame: a title bar with traffic lights and the title centered." },
+    { file: 'layouts/tonight-minimal.webp', label: "'minimal'", alt: "Nightjar's Tonight view in the minimal frame: a thin bar with only the title." },
+    { file: 'layouts/tonight-none.webp', label: "'none'", alt: "Nightjar's Tonight view with no bar, only rounded corners and a shadow." },
+    { file: 'layouts/tonight-browser.webp', label: "'browser'", alt: "Nightjar's Tonight view in the browser frame, with nightjar.app/tonight in the address bar." },
+    { file: 'layouts/tonight-windows.webp', label: "'windows'", alt: "Nightjar's Tonight view in the windows frame: the title on the left, the caption buttons on the right." },
+    { file: 'layouts/tonight-terminal.webp', label: "'terminal'", alt: "Nightjar's Tonight view in the terminal frame: a tab with a prompt icon and the title." },
+  ]}
+/>
+
 `theme` (`'dark'` by default, or `'light'`) sets the title bar's colors. Pick the one that matches the
 app, so the bar reads as part of the window.
 
@@ -69,6 +84,16 @@ is an error there; write the address instead. A terminal app has no address, so 
 background and drops the line under the bar, so the bar and the screen read as one terminal window. In
 url and cdp mode the bar is a dark (or light) grey.
 
+The gallery's terminal app in `window` (the default), `terminal` and `windows`:
+
+<GalleryThumbs
+  items={[
+    { file: 'terminal/queue.webp', label: "'window' (default)", alt: 'The nightjar queue demo TUI in the window frame: a dark title bar with traffic lights over the terminal screen.' },
+    { file: 'layouts/queue-terminal.webp', label: "'terminal'", alt: 'The nightjar queue demo TUI in the terminal frame: the tab bar in the color of the terminal screen, no line between them.' },
+    { file: 'layouts/queue-windows.webp', label: "'windows'", alt: 'The nightjar queue demo TUI in the windows frame: the title on the left, the caption buttons on the right.' },
+  ]}
+/>
+
 `title` is the title bar text, `'{name}'` by default. It takes the tokens `{name}` (the config's
 `name`), `{title}` (the shot's title), `{id}` and `{lang}`, so `title: '{name}: {title}'` gives
 "My App: Settings". `title: false` hides it and keeps the bar.
@@ -93,6 +118,19 @@ background: { type: 'noise', from: '#2a1f6b', to: '#0b3b4c', angle: 135, amount:
   a dark one on a light `color`) and `spacing` the distance between dots, 8 to 96 CSS pixels (default 24).
 - **noise** is a gradient like `gradient`, with a film grain on top. `amount` (0 to 1, default 0.2) sets
   how strong the grain is. The grain comes from a fixed seed, so it is the same on every run.
+
+Each form on Nightjar, the fixture app of the docs gallery; the
+[gallery](/showcase-kit/gallery/#frame-styles-and-backgrounds) has the config that made each:
+
+<GalleryThumbs
+  items={[
+    { file: 'readme/en/tonight.webp', label: "{ type: 'gradient' }", alt: "Nightjar's Tonight view, from the gallery fixture app, in the window frame on a violet to teal gradient." },
+    { file: 'layouts/tonight-solid.webp', label: "'#141a3a'", alt: "Nightjar's Tonight view in the window frame on a solid dark navy background." },
+    { file: 'layouts/tonight-mesh.webp', label: "{ type: 'mesh' }", alt: "Nightjar's Tonight view in the window frame on a mesh gradient of violet, teal, blue and magenta glows." },
+    { file: 'layouts/tonight-dots.webp', label: "{ type: 'dots' }", alt: "Nightjar's Tonight view in the window frame on dark navy with a grid of faint dots." },
+    { file: 'layouts/tonight-noise.webp', label: "{ type: 'noise' }", alt: "Nightjar's Tonight view in the window frame on a violet to teal gradient with a fine film grain." },
+  ]}
+/>
 
 The hero's `background` takes the same forms.
 

@@ -1,0 +1,149 @@
+---
+/**
+ * A README snippet the kit printed, rendered live in a box styled like a
+ * GitHub README (GitHub's own table, `<sub>` and `<details>` rules, in its
+ * light and dark colors), with its image paths pointing at this gallery.
+ * `compact` shrinks the type for a guide.
+ */
+import { servedSnippet } from './GalleryVariants';
+
+interface Props {
+  /** The snippet as printed (imported from site/gallery/readme/). */
+  code: string;
+  /** Accessible name of the box, for example "Preview of the table layout". */
+  label: string;
+  compact?: boolean;
+}
+
+const { code, label, compact = false } = Astro.props;
+const html = servedSnippet(code);
+---
+
+<figure class:list={['readme-preview', 'not-content', { compact }]} aria-label={label}>
+  <div class="readme-bar" aria-hidden="true">
+    <svg viewBox="0 0 16 16" width="16" height="16"><path fill="currentColor" d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"></path></svg>
+    README.md
+  </div>
+  <div class="readme-body" set:html={html} />
+</figure>
+
+<style>
+  /* GitHub's README colors (github-markdown-css), dark by default like the site, light with the light theme. */
+  .readme-preview {
+    --gh-fg: #f0f6fc;
+    --gh-muted: #9198a1;
+    --gh-bg: #0d1117;
+    --gh-bg-muted: #151b23;
+    --gh-border: #3d444d;
+    --gh-border-muted: #3d444db3;
+    margin-block: 1rem;
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--gh-bg);
+    color: var(--gh-fg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  :global([data-theme='light']) .readme-preview {
+    --gh-fg: #1f2328;
+    --gh-muted: #59636e;
+    --gh-bg: #ffffff;
+    --gh-bg-muted: #f6f8fa;
+    --gh-border: #d1d9e0;
+    --gh-border-muted: #d1d9e0b3;
+  }
+  .readme-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.5em 1em;
+    border-bottom: 1px solid var(--gh-border);
+    background: var(--gh-bg-muted);
+    color: var(--gh-fg);
+    font-size: 0.875em;
+    font-weight: 600;
+  }
+  .readme-bar svg {
+    width: 1em;
+    height: 1em;
+    color: var(--gh-muted);
+  }
+  .readme-body {
+    padding: 1.5em 2em;
+  }
+  .compact {
+    font-size: 12px;
+  }
+  .compact .readme-body {
+    padding: 1em;
+  }
+  @media (max-width: 40rem) {
+    .readme-body {
+      padding: 1em;
+    }
+  }
+  .readme-body > :global(*:first-child) {
+    margin-top: 0 !important;
+  }
+  .readme-body > :global(*:last-child) {
+    margin-bottom: 0 !important;
+  }
+  .readme-body :global(p),
+  .readme-body :global(table),
+  .readme-body :global(details) {
+    margin-top: 0;
+    margin-bottom: 1em;
+  }
+  .readme-body :global(h3) {
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+    font-size: 1.25em;
+    font-weight: 600;
+    line-height: 1.25;
+    color: inherit;
+  }
+  .readme-body :global(table) {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow: auto;
+    border-spacing: 0;
+    border-collapse: collapse;
+  }
+  .readme-body :global(tr) {
+    background-color: var(--gh-bg);
+    border-top: 1px solid var(--gh-border-muted);
+  }
+  .readme-body :global(tr:nth-child(2n)) {
+    background-color: var(--gh-bg-muted);
+  }
+  .readme-body :global(td) {
+    padding: 0.375em 0.8125em;
+    border: 1px solid var(--gh-border);
+  }
+  .readme-body :global(td > :last-child) {
+    margin-bottom: 0;
+  }
+  .readme-body :global(img) {
+    max-width: 100%;
+    box-sizing: content-box;
+    background-color: transparent;
+    border-radius: 0;
+  }
+  .readme-body :global(sub) {
+    position: relative;
+    bottom: -0.25em;
+    font-size: 75%;
+    line-height: 0;
+    vertical-align: baseline;
+  }
+  .readme-body :global(summary) {
+    display: list-item;
+    cursor: pointer;
+  }
+  .readme-body :global(details > p) {
+    margin-top: 1em;
+  }
+</style>

@@ -7,7 +7,9 @@ import GalleryConfig from '../../components/GalleryConfig.astro';
 import GalleryFiles from '../../components/GalleryFiles.astro';
 import GalleryGrid from '../../components/GalleryGrid.astro';
 import GalleryImage from '../../components/GalleryImage.astro';
+import GalleryOption from '../../components/GalleryOption.astro';
 import GalleryPortfolio from '../../components/GalleryPortfolio.astro';
+import GalleryReadmeLayout from '../../components/GalleryReadmeLayout.astro';
 import web from '../../../gallery/showcase.config.mjs';
 import tty from '../../../gallery/showcase.tty.config.mjs';
 import webCode from '../../../gallery/showcase.config.mjs?raw';
@@ -72,8 +74,8 @@ imports it:
 
 ## Hero banner
 
-`showcase hero` stacks up to three framed shots, tilted, next to the logo, the name and the tagline, at the 1280x640
-GitHub social preview size. It renders from the raw captures, like the portfolio. The logo is this site's own mark.
+`showcase hero` in its default `stack` layout stacks up to three framed shots, tilted, next to the logo, the name and
+the tagline, at the 1280x640 GitHub social preview size. It renders from the raw captures, like the portfolio. The logo is this site's own mark.
 See the [hero guide](/showcase-kit/guides/hero/).
 
 <GalleryImage
@@ -82,6 +84,292 @@ See the [hero guide](/showcase-kit/guides/hero/).
 />
 
 <GalleryConfig code={webCode} file="site/gallery/showcase.config.mjs" section="hero" />
+
+## Hero layouts
+
+The same banner in each of the six `hero.layout` values. Every image from here down comes from a variant config in
+`site/gallery/variants/`: the web config above with one block changed, and `root: '..'` so its paths still resolve
+from `site/gallery/`. `showcase hero` and `showcase frame` render from the raw captures, so the variants capture
+nothing again. The block under each image is cut from the file that made it. The layouts that show one window
+also pick the one shot, since the config lists three. See [layouts in the hero guide](/showcase-kit/guides/hero/).
+
+<GalleryGrid cols={2}>
+  <GalleryOption
+    name="'stack'"
+    isDefault
+    file="hero.webp"
+    caption="Text on the left, up to three windows stacked and tilted."
+    alt="The Nightjar banner in the stack layout: the logo, name and tagline on the left, the Gear, Log and Tonight windows stacked and tilted on the right."
+    code={webCode}
+    config="site/gallery/showcase.config.mjs"
+    section="hero"
+  />
+  <GalleryOption
+    name="'spotlight'"
+    variant="hero-spotlight"
+    file="layouts/hero-spotlight.webp"
+    caption="One large straight window running off the right and bottom edges."
+    alt="The Nightjar banner in the spotlight layout: the text on the left, one large Tonight window running off the right and bottom edges."
+    section="hero"
+  />
+  <GalleryOption
+    name="'split'"
+    variant="hero-split"
+    file="layouts/hero-split.webp"
+    caption="One window turned in perspective towards the text."
+    alt="The Nightjar banner in the split layout: the text on the left, the Tonight window turned in perspective towards it."
+    section="hero"
+  />
+  <GalleryOption
+    name="'row'"
+    variant="hero-row"
+    file="layouts/hero-row.webp"
+    caption="Text centered at the top, up to four windows side by side under it."
+    alt="The Nightjar banner in the row layout: the logo, name and tagline centered at the top, the Gear, Log and Tonight windows side by side under them."
+    section="hero"
+  />
+  <GalleryOption
+    name="'mosaic'"
+    variant="hero-mosaic"
+    file="layouts/hero-mosaic.webp"
+    caption="A tilted wall of the windows, repeated to fill it, fading out towards the text."
+    alt="The Nightjar banner in the mosaic layout: the text on the left, a tilted wall of Gear, Log and Tonight windows fading out towards it."
+    section="hero"
+  />
+  <GalleryOption
+    name="'centered'"
+    variant="hero-centered"
+    file="layouts/hero-centered.webp"
+    caption="Text centered at the top, one window rising from the bottom edge."
+    alt="The Nightjar banner in the centered layout: the text centered at the top, the Tonight window rising from the bottom edge and leaning back."
+    section="hero"
+  />
+</GalleryGrid>
+
+### Hero backgrounds
+
+`hero.background` takes every form `frame.background` does and defaults to it, which is the gradient in the banner
+above. Here is the default `stack` on the three newer types.
+
+<GalleryGrid cols={2}>
+  <GalleryOption
+    name="{ type: 'mesh' }"
+    variant="hero-mesh"
+    file="layouts/hero-mesh.webp"
+    caption="The first color underneath, each other color glowing from its own corner."
+    alt="The Nightjar banner in the stack layout on a mesh gradient: violet, teal, blue and magenta glows on a dark navy base."
+    section="hero"
+  />
+  <GalleryOption
+    name="{ type: 'dots' }"
+    variant="hero-dots"
+    file="layouts/hero-dots.webp"
+    caption="A grid of faint dots on one color."
+    alt="The Nightjar banner in the stack layout on a dark navy background with a grid of faint dots."
+    section="hero"
+  />
+  <GalleryOption
+    name="{ type: 'noise' }"
+    variant="hero-noise"
+    file="layouts/hero-noise.webp"
+    caption="A gradient with a film grain, the same on every run."
+    alt="The Nightjar banner in the stack layout on the violet to teal gradient with a fine film grain."
+    section="hero"
+  />
+</GalleryGrid>
+
+## Frame styles and backgrounds
+
+`frame.style` sets the window chrome and `frame.background` what it sits on, for the README images, the portfolio,
+the hero and clips alike. These variants frame only the English `tonight` shot, at `maxWidth: 1200` and
+`quality: 80` for a tile here (the README images above are 1600 pixels wide). See the
+[frames guide](/showcase-kit/guides/frames/).
+
+### Web app
+
+<GalleryGrid cols={2}>
+  <GalleryOption
+    name="'window'"
+    isDefault
+    file="readme/en/tonight.webp"
+    caption="A title bar with the three traffic lights and the title centered."
+    alt="Nightjar's Tonight view in the window frame: a dark title bar with traffic lights and the title Nightjar: Tonight."
+    code={webCode}
+    config="site/gallery/showcase.config.mjs"
+    section="frame"
+  />
+  <GalleryOption
+    name="'minimal'"
+    variant="frame-minimal"
+    file="layouts/tonight-minimal.webp"
+    caption="A thin bar with the title, no lights."
+    alt="Nightjar's Tonight view in the minimal frame: a thin bar with only the title."
+    section="frame"
+  />
+  <GalleryOption
+    name="'none'"
+    variant="frame-none"
+    file="layouts/tonight-none.webp"
+    caption="No bar: just the rounded screenshot."
+    alt="Nightjar's Tonight view with no frame bar, only rounded corners and a shadow on the gradient."
+    section="frame"
+  />
+  <GalleryOption
+    name="'browser'"
+    variant="frame-browser"
+    file="layouts/tonight-browser.webp"
+    caption="A browser toolbar, with the address option's text in its address bar."
+    alt="Nightjar's Tonight view in the browser frame: traffic lights, back, forward and reload, and nightjar.app/tonight in the address bar."
+    section="frame"
+  />
+  <GalleryOption
+    name="'windows'"
+    variant="frame-windows"
+    file="layouts/tonight-windows.webp"
+    caption="A Windows title bar: the title on the left, the caption buttons on the right."
+    alt="Nightjar's Tonight view in the windows frame: the title on the left, minimize, maximize and close on the right."
+    section="frame"
+  />
+  <GalleryOption
+    name="'terminal'"
+    variant="frame-terminal"
+    file="layouts/tonight-terminal.webp"
+    caption="A terminal bar: a tab with a prompt icon and the title in a monospace font."
+    alt="Nightjar's Tonight view in the terminal frame: traffic lights and a tab with a prompt icon and the title."
+    section="frame"
+  />
+</GalleryGrid>
+
+### Terminal app
+
+The terminal shot from the tty config, framed three ways. `browser` is not among them: a terminal app has no
+address, so a tty config with `style: 'browser'` fails to load with `"browser" needs a page with an address; a
+terminal app has none (use "terminal" or "window")`.
+
+<GalleryGrid cols={2}>
+  <GalleryOption
+    name="'window'"
+    isDefault
+    file="terminal/queue.webp"
+    caption="The terminal shot above, as the tty config frames it."
+    alt="The nightjar queue in the window frame: a dark title bar with traffic lights over the terminal screen."
+    code={ttyCode}
+    config="site/gallery/showcase.tty.config.mjs"
+    section="frame"
+  />
+  <GalleryOption
+    name="'terminal'"
+    variant="tty-terminal"
+    file="layouts/queue-terminal.webp"
+    caption="In tty mode the bar takes the terminal's background, so bar and screen read as one."
+    alt="The nightjar queue in the terminal frame: the tab bar in the same color as the terminal screen, with no line between them."
+    section="frame"
+  />
+  <GalleryOption
+    name="'windows'"
+    variant="tty-windows"
+    file="layouts/queue-windows.webp"
+    caption="A Windows title bar over the terminal screen."
+    alt="The nightjar queue in the windows frame: the title on the left, minimize, maximize and close on the right."
+    section="frame"
+  />
+</GalleryGrid>
+
+### Backgrounds
+
+The web config's own background is a gradient, the same type as the kit's default (which is teal to indigo). The
+other forms are below; `transparent` is left out, since here it would only show this page's background.
+
+<GalleryGrid cols={2}>
+  <GalleryOption
+    name="{ type: 'gradient' }"
+    isDefault
+    file="readme/en/tonight.webp"
+    caption="A linear gradient between two colors, at 135 degrees unless angle says otherwise."
+    alt="Nightjar's Tonight view in the window frame on a violet to teal gradient."
+    code={webCode}
+    config="site/gallery/showcase.config.mjs"
+    section="frame"
+  />
+  <GalleryOption
+    name="'#141a3a'"
+    variant="background-solid"
+    file="layouts/tonight-solid.webp"
+    caption="Any CSS color, the same as { type: 'solid', color }."
+    alt="Nightjar's Tonight view in the window frame on a solid dark navy background."
+    section="frame"
+  />
+  <GalleryOption
+    name="{ type: 'mesh' }"
+    variant="background-mesh"
+    file="layouts/tonight-mesh.webp"
+    caption="Two to five colors: the base, then a glow from each corner."
+    alt="Nightjar's Tonight view in the window frame on a mesh gradient of violet, teal, blue and magenta glows."
+    section="frame"
+  />
+  <GalleryOption
+    name="{ type: 'dots' }"
+    variant="background-dots"
+    file="layouts/tonight-dots.webp"
+    caption="A grid of dots on one color; dot and spacing tune it."
+    alt="Nightjar's Tonight view in the window frame on dark navy with a grid of faint dots."
+    section="frame"
+  />
+  <GalleryOption
+    name="{ type: 'noise' }"
+    variant="background-noise"
+    file="layouts/tonight-noise.webp"
+    caption="A gradient with a film grain; amount sets how strong."
+    alt="Nightjar's Tonight view in the window frame on the violet to teal gradient with a fine film grain."
+    section="frame"
+  />
+</GalleryGrid>
+
+## README layouts
+
+`showcase readme --layout` prints the same images, captions and alt text in five arrangements. The gallery script
+runs it once per layout with the web config, from the repo root:
+
+```sh wrap
+showcase readme --config site/gallery/showcase.config.mjs --layout <name> --base ../..
+```
+
+Each box below renders the snippet the kit printed, committed as it came out under `site/gallery/readme/`, with its
+image paths pointing at this gallery's files. The box is styled like a GitHub README, and the HTML is under it.
+GitHub strips CSS and most attributes from a README, so every layout uses only the tags and attributes it keeps.
+Each layout was checked through GitHub's own Markdown renderer (its `markdown` API, in `gfm` mode) when it was added,
+and again for this page: every tag and attribute survives. See [layouts in the README guide](/showcase-kit/guides/readme-table/).
+
+### `table` (default)
+
+A row of images and a row of `<sub>` captions under it, two per row unless `--cols` says otherwise.
+
+<GalleryReadmeLayout layout="table" />
+
+### `rows`
+
+One small table per image: the image in a 60% cell beside its title (as `<h3>`) and caption, alternating sides.
+
+<GalleryReadmeLayout layout="rows" />
+
+### `featured`
+
+The first image full width with its caption, then the others in a table, two per row unless `--cols` says
+otherwise.
+
+<GalleryReadmeLayout layout="featured" />
+
+### `details`
+
+One collapsible `<details>` per image, with the title and caption as its summary; the first starts open.
+
+<GalleryReadmeLayout layout="details" />
+
+### `list`
+
+Every image full width, one under the other, each with its caption.
+
+<GalleryReadmeLayout layout="list" />
 
 ## Terminal shot and clip
 
@@ -130,7 +418,11 @@ under Node with an argument list (no shell), one command at a time:
 2. `hero` with the web config;
 3. `all --only queue` with the tty config: the terminal shot;
 4. `record` with the tty config: the clip;
-5. `icons` with the `web` preset.
+5. `icons` with the `web` preset;
+6. `hero` or `frame` with each config in `site/gallery/variants/`, from the raw captures of steps 1 and 3;
+7. `readme --layout <name>` with the web config, once per layout, each written to `site/gallery/readme/<name>.html`;
+8. `readme` with `site/gallery/readme.config.mjs`, a config that only lists gallery images: the table in the kit's
+   own README, written to `site/gallery/readme/kit-readme.html`.
 
 The kit starts the fixture server itself and stops its whole process tree when a command ends, and the script checks
 that the port is free again afterwards. Last, it writes `site/gallery/gallery.manifest.json` (the size, pixel size and

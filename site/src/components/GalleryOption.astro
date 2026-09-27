@@ -1,0 +1,65 @@
+---
+/**
+ * One option in the gallery: its name, the image it produced, and the block of
+ * the config that produced it, cut from the file on disk. A `variant` is a file
+ * in site/gallery/variants/; the defaults pass the main config's `code` and `file`.
+ */
+import GalleryConfig from './GalleryConfig.astro';
+import GalleryImage from './GalleryImage.astro';
+import { variantConfig } from './GalleryVariants';
+
+interface Props {
+  /** The option's value as a config writes it, for example `'spotlight'`. */
+  name: string;
+  /** Path under site/public/gallery/. */
+  file: string;
+  alt: string;
+  /** One line on what the option does. */
+  caption?: string;
+  /** Marks the option the kit uses when the key is left out. */
+  isDefault?: boolean;
+  /** A config in site/gallery/variants/, by name without `.mjs`. */
+  variant?: string;
+  /** Otherwise the config's text (imported with `?raw`) and its path. */
+  code?: string;
+  config?: string;
+  /** The config block to show, such as `hero` or `frame`. */
+  section: string;
+}
+
+const { name, file, alt, caption, isDefault = false, variant, section } = Astro.props;
+const source = variant === undefined ? { code: Astro.props.code, file: Astro.props.config } : variantConfig(variant);
+if (source.code === undefined || source.file === undefined) {
+  throw new Error(`gallery: the option "${name}" needs a variant, or code and config`);
+}
+---
+
+<div class="gallery-option">
+  <p class="gallery-option-name">
+    <code>{name}</code>
+    {isDefault && <span class="nc-badge nc-badge--on">default</span>}
+  </p>
+  <GalleryImage file={file} alt={alt} caption={caption} />
+  <GalleryConfig code={source.code} file={source.file} section={section} />
+</div>
+
+<style>
+  .gallery-option {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .gallery-option-name {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-weight: 600;
+  }
+  /* The grid spaces the options; inside one, the figure and the code sit close. */
+  .gallery-option :global(.gallery-figure),
+  .gallery-option :global(.expressive-code) {
+    margin-block: 0;
+  }
+</style>

@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 import { configSection } from '../src/components/GallerySection.ts';
 import {
@@ -15,12 +16,19 @@ import {
   missingBuild,
   OUTPUT_DIR,
   overBudget,
+  README_CONFIG,
+  README_LAYOUTS,
+  SNIPPET_STEPS,
   STEPS,
   TTY_CONFIG,
+  VARIANT_STEPS,
+  VARIANTS,
+  VARIANTS_DIR,
+  variantConfig,
   WEB_CONFIG,
   type Manifest,
 } from './gallery.ts';
-import { SITE_BASE } from './site.ts';
+import { SITE_BASE, SITE_DIR } from './site.ts';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'gallery-test-'));
 const solid = (width: number, height: number, r = 20) =>
@@ -89,6 +97,70 @@ describe('the steps', () => {
   });
 });
 
+describe('the variants', () => {
+  test('every config in variants/ runs, and every step has its config', () => {
+    const files = readdirSync(VARIANTS_DIR).filter(name => name.endsWith('.mjs'));
+    expect(files.map(name => name.slice(0, -'.mjs'.length)).sort()).toEqual([...VARIANTS].sort());
+    for (const name of VARIANTS) expect(existsSync(variantConfig(name))).toBe(true);
+  });
+
+  test('a hero- config runs hero, a web one frames only tonight, a tty one frames its only shot', () => {
+    VARIANTS.forEach((name, index) => {
+      const step = VARIANT_STEPS[index];
+      if (name.startsWith('hero-')) expect(step).toEqual(['hero', '--config', variantConfig(name)]);
+      else if (name.startsWith('tty-')) expect(step).toEqual(['frame', '--config', variantConfig(name)]);
+      else expect(step).toEqual(['frame', '--config', variantConfig(name), '--only', 'tonight']);
+    });
+  });
+
+  test('each one writes a file of its own under layouts/, named after the config', async () => {
+    const outputs = new Set<string>();
+    for (const name of VARIANTS) {
+      const config = ((await import(pathToFileURL(variantConfig(name)).href)) as { default: Record<string, any> }).default;
+      const option = name.slice(name.indexOf('-') + 1);
+      if (name.startsWith('hero-')) {
+        expect(config.hero.output).toBe(`../public/gallery/layouts/${name}.webp`);
+        outputs.add(config.hero.output);
+      } else {
+        // The web variants frame `tonight`; a tty variant frames its config's only shot.
+        const shots: { id: string }[] = config.shots;
+        const id = name.startsWith('tty-') ? shots[0]?.id : 'tonight';
+        if (name.startsWith('tty-')) expect(shots.length).toBe(1);
+        expect(config.outputs.readme).toBe(`../public/gallery/layouts/{id}-${option}.webp`);
+        outputs.add(config.outputs.readme.replace('{id}', String(id)));
+      }
+    }
+    expect(outputs.size).toBe(VARIANTS.length);
+  });
+});
+
+describe('the README snippets', () => {
+  test('one run per layout with the web config, then the kit README table, each to its own file', () => {
+    const layoutOf = (args: readonly string[]) => (args.includes('--layout') ? args[args.indexOf('--layout') + 1] : undefined);
+    expect(SNIPPET_STEPS.map(step => layoutOf(step.args))).toEqual([...README_LAYOUTS, undefined]);
+    expect(SNIPPET_STEPS.slice(0, -1).every(step => step.args.includes(WEB_CONFIG))).toBe(true);
+    expect(SNIPPET_STEPS.at(-1)?.args).toContain(README_CONFIG);
+    for (const { args, out } of SNIPPET_STEPS) {
+      expect(args[0]).toBe('readme');
+      expect(args.slice(-2)).toEqual(['--base', '../..']);
+      expect(existsSync(out)).toBe(true);
+    }
+    expect(new Set(SNIPPET_STEPS.map(step => step.out)).size).toBe(SNIPPET_STEPS.length);
+  });
+
+  test('every image a snippet lists is a gallery file in the manifest', () => {
+    const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as Manifest;
+    for (const { out } of SNIPPET_STEPS) {
+      const srcs = [...readFileSync(out, 'utf8').matchAll(/src="([^"]*)"/g)].map(match => match[1] ?? '');
+      expect(srcs.length).toBeGreaterThan(0);
+      for (const src of srcs) {
+        expect(src.startsWith('site/public/gallery/')).toBe(true);
+        expect(manifest[src.slice('site/public/gallery/'.length)]).toBeDefined();
+      }
+    }
+  });
+});
+
 describe('the committed gallery', () => {
   test('matches its manifest byte for byte', async () => {
     const onDisk = await buildManifest(OUTPUT_DIR);
@@ -98,9 +170,13 @@ describe('the committed gallery', () => {
 
   test('fits the budget', async () => {
     const manifest = await buildManifest(OUTPUT_DIR);
+    const snippets = Object.fromEntries(
+      SNIPPET_STEPS.map(({ out }) => [relative(SITE_DIR, out).split(sep).join('/'), readFileSync(out).length]),
+    );
     const { total } = budgetLines(manifest, {
       json: readFileSync(GALLERY_JSON).length,
       manifest: readFileSync(MANIFEST).length,
+      ...snippets,
     });
     expect(overBudget(total)).toBeUndefined();
   });

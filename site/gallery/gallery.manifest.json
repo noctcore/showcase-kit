@@ -27,6 +27,120 @@
     "width": 512,
     "height": 512
   },
+  "layouts/hero-centered.webp": {
+    "bytes": 23008,
+    "sha256": "fd4d3067b1e991726205757055fbd8062288f8a191a9050fddd28928906c9822",
+    "width": 1280,
+    "height": 640
+  },
+  "layouts/hero-dots.webp": {
+    "bytes": 46254,
+    "sha256": "3a9fd1b1b5fe8664e4d6fc61855710a586aa8bae2765631ceaf3c04690227c3c",
+    "width": 1280,
+    "height": 640
+  },
+  "layouts/hero-mesh.webp": {
+    "bytes": 41004,
+    "sha256": "6c63e699bd1fd0c2bef1b7ab9890bc5fc007bd258d1f15be2093e38db45be069",
+    "width": 1280,
+    "height": 640
+  },
+  "layouts/hero-mosaic.webp": {
+    "bytes": 62384,
+    "sha256": "31aefc7c1d14f7c0e742688d7677fe774c2415cfe8cdd342b404432278c20614",
+    "width": 1280,
+    "height": 640
+  },
+  "layouts/hero-noise.webp": {
+    "bytes": 46084,
+    "sha256": "6d3df9f322a13ad1938a3397b0764a1879c13c6bbe3546cc72e04060a70591fc",
+    "width": 1280,
+    "height": 640
+  },
+  "layouts/hero-row.webp": {
+    "bytes": 30680,
+    "sha256": "8ca0d9fa2c00abfff28f4b77e9de0a864bba47f89b9e03aa91089870d1a1b7f1",
+    "width": 1280,
+    "height": 640
+  },
+  "layouts/hero-split.webp": {
+    "bytes": 27188,
+    "sha256": "68357ce8b5f8c7a89d2db20859fda6c597f83f77c8a08fb3e9cb8180cae57760",
+    "width": 1280,
+    "height": 640
+  },
+  "layouts/hero-spotlight.webp": {
+    "bytes": 29646,
+    "sha256": "32bdc538ce116559e75dfb71605b2b07920ac410bf9362fd943590f798774452",
+    "width": 1280,
+    "height": 640
+  },
+  "layouts/queue-terminal.webp": {
+    "bytes": 82066,
+    "sha256": "768e2f7d9782f6a2f696fc062fbbcc1d59888dce2b78a8801568d390b00d6d06",
+    "width": 2040,
+    "height": 1188
+  },
+  "layouts/queue-windows.webp": {
+    "bytes": 81074,
+    "sha256": "0865d57c918ab5a498d580f538005d58aec33e6760d762b69d2917c0f463386d",
+    "width": 2040,
+    "height": 1184
+  },
+  "layouts/tonight-browser.webp": {
+    "bytes": 33656,
+    "sha256": "421c7299e80c128681da0863a84959beb200d937a09d4545506f2c81c2435e57",
+    "width": 1200,
+    "height": 760
+  },
+  "layouts/tonight-dots.webp": {
+    "bytes": 37050,
+    "sha256": "710ef31572a5e574178130d43ef7b2a0800acfda8898389dac7b5941d8929d2e",
+    "width": 1200,
+    "height": 757
+  },
+  "layouts/tonight-mesh.webp": {
+    "bytes": 33804,
+    "sha256": "31bccf9ac03db192d9b183ab70f59727ed702de5978d09a1bd566fa3c4edb09a",
+    "width": 1200,
+    "height": 757
+  },
+  "layouts/tonight-minimal.webp": {
+    "bytes": 32324,
+    "sha256": "909fb7793bef805aa89c3fa549aecbe12ee20dc5f92aa49f794af1ae40c19961",
+    "width": 1200,
+    "height": 747
+  },
+  "layouts/tonight-noise.webp": {
+    "bytes": 32900,
+    "sha256": "3603caac55b081a56b4e2c9df0e81ed5748c7cce4156574f03b04991121b1a8e",
+    "width": 1200,
+    "height": 757
+  },
+  "layouts/tonight-none.webp": {
+    "bytes": 31926,
+    "sha256": "331238da379691695edd84441d63cba1380b4d659d004531185410628639253b",
+    "width": 1200,
+    "height": 723
+  },
+  "layouts/tonight-solid.webp": {
+    "bytes": 32280,
+    "sha256": "98ba29628b99b180aba967d118d24ed2b3b7411dcedeb3e559c15a6573726fe1",
+    "width": 1200,
+    "height": 757
+  },
+  "layouts/tonight-terminal.webp": {
+    "bytes": 33216,
+    "sha256": "deaa48f6b326cca377e7432f118a70ee8198548e09b40c3d7b25291f12ce877b",
+    "width": 1200,
+    "height": 752
+  },
+  "layouts/tonight-windows.webp": {
+    "bytes": 32514,
+    "sha256": "5f1dc938990152803661f8eb1b5e896787a46d5b281a108ac7785bc6a2ce7fc9",
+    "width": 1200,
+    "height": 750
+  },
   "portfolio/gear.webp": {
     "bytes": 39490,
     "sha256": "06265706035004f4b97fc384c0a298fbebaad0f4fbae62b228c0a5e3d130fc13",

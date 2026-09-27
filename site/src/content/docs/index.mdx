@@ -20,6 +20,7 @@ hero:
       variant: minimal
 ---
 
+import GalleryThumbs from '../../components/GalleryThumbs.astro';
 import GuideOutputs from '../../components/GuideOutputs.astro';
 
 <figure class="splash-shot">
@@ -50,14 +51,27 @@ or newer and Playwright's Chromium.
 DevTools Protocol either, so there you capture the app's web build instead
 ([Tauri](/showcase-kit/guides/tauri/) explains the trade-off). The kit also cannot make a changing app
 look the same twice on its own: if every run shows new data, the images change with it until you give
-the app a fixture mode. And clips (animated recordings) are for terminal apps only in 0.2.0.
+the app a fixture mode. And clips (animated recordings) are for terminal apps only, so far.
 
 ## What one config produces
 
 <GuideOutputs />
 
 `showcase all` runs capture, frame, then the portfolio export when it is configured, then the clips when
-there are any. The README table, the hero banner and the icons are their own commands.
+there are any. The README snippet, the hero banner and the icons are their own commands.
+
+Six hero layouts, six frame styles, six kinds of background and five README layouts, all shown in the
+[gallery](/showcase-kit/gallery/#hero-layouts) with the config that made each. Four of the hero layouts, for Nightjar:
+
+<GalleryThumbs
+  cols={4}
+  items={[
+    { file: 'layouts/hero-spotlight.webp', label: 'hero: spotlight', href: '/showcase-kit/gallery/#hero-layouts', alt: 'A banner for Nightjar, the gallery fixture app, in the spotlight layout.' },
+    { file: 'layouts/hero-row.webp', label: 'hero: row', href: '/showcase-kit/gallery/#hero-layouts', alt: 'The Nightjar banner in the row layout.' },
+    { file: 'layouts/hero-mosaic.webp', label: 'hero: mosaic', href: '/showcase-kit/gallery/#hero-layouts', alt: 'The Nightjar banner in the mosaic layout.' },
+    { file: 'layouts/hero-centered.webp', label: 'hero: centered', href: '/showcase-kit/gallery/#hero-layouts', alt: 'The Nightjar banner in the centered layout.' },
+  ]}
+/>
 
 ## A minimal config
 
