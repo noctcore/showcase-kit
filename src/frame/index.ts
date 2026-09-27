@@ -3,7 +3,7 @@ import type { ResolvedConfig } from '../config/types.js';
 import { ShowcaseError } from '../errors.js';
 import { log } from '../log.js';
 import { outputPath, select } from '../paths.js';
-import { formatOf, frameTitle, logWritten, readRaw, renderFrame, writeImage } from './render.js';
+import { formatOf, frameAddress, frameTitle, logWritten, readRaw, renderFrame, writeImage } from './render.js';
 import { readmeLayout } from './template.js';
 
 export interface FrameRunOptions {
@@ -44,6 +44,7 @@ export async function frame(config: ResolvedConfig, options: FrameRunOptions = {
         raw,
         layout,
         title: frameTitle(config, shot, lang),
+        address: frameAddress(config, shot, lang),
         deviceScaleFactor: config.deviceScaleFactor,
       });
       const path = outputPath(config, readme, lang, shot.id);

@@ -345,13 +345,19 @@ export type Background =
       amount?: number;
     };
 
-/** The window chrome around a capture. */
-export type FrameStyle = 'window' | 'minimal' | 'none';
+/**
+ * The window chrome around a capture. `window` reads as macOS, `windows` as Windows 11, `browser` as a browser
+ * with an address bar, and `terminal` as a terminal emulator.
+ */
+export type FrameStyle = 'window' | 'minimal' | 'none' | 'browser' | 'windows' | 'terminal';
 
 /** How a capture is framed for the README, the portfolio, the hero and clips. */
 export interface FrameOptions {
   /**
-   * `window`: title bar with traffic lights. `minimal`: thin bar. `none`: just the rounded screenshot.
+   * `window`: title bar with traffic lights. `minimal`: thin bar. `none`: just the rounded screenshot. `browser`: a
+   * browser toolbar with the `address` in its address bar (url and cdp mode). `windows`: a Windows title bar, the
+   * title on the left and the caption buttons on the right. `terminal`: a terminal emulator's bar, a tab with the
+   * title in a monospace font; in tty mode it takes the terminal's background, so bar and screen read as one.
    * @default `'window'`
    */
   style?: FrameStyle;
@@ -365,6 +371,13 @@ export interface FrameOptions {
    * @default `'{name}'`
    */
   title?: string | false;
+  /**
+   * Address bar text for `style: 'browser'`. Tokens: `{url}`, `{name}`, `{title}`, `{id}`, `{lang}`. `{url}` is the
+   * page the shot visits without `http://` or `https://`: the target url, resolved with the shot's `nav` when that is
+   * a path or URL. In cdp mode the page is not known when framing, so write the text without `{url}`.
+   * @default `'{url}'`
+   */
+  address?: string;
   /**
    * What the window sits on.
    * @default `{ type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 }`
@@ -675,6 +688,7 @@ export interface ResolvedFrame {
   style: FrameStyle;
   theme: 'light' | 'dark';
   title: string | false;
+  address: string;
   background: ResolvedBackground;
   padding: number;
   radius: number;

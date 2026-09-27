@@ -14,6 +14,7 @@ import {
   WEB_ONLY_KEYS,
 } from './tty.js';
 import type {
+  Mode,
   ResolvedBackground,
   ResolvedConfig,
   ResolvedFrame,
@@ -51,6 +52,8 @@ export const GALLERY_FILE = 'showcase.gallery.json';
 const DEFAULT_BACKGROUND: ResolvedBackground = { type: 'gradient', from: '#0f766e', to: '#1e1b4b', angle: 135 };
 const DEFAULT_DOT = 'rgba(255,255,255,0.14)';
 const BACKGROUND_TYPES = ['solid', 'gradient', 'transparent', 'mesh', 'dots', 'noise'] as const;
+export const FRAME_STYLES = ['window', 'minimal', 'none', 'browser', 'windows', 'terminal'] as const;
+const ADDRESS_TOKENS = ['url', 'name', 'title', 'id', 'lang'];
 
 function resolveWebTarget(issues: Issues, value: unknown, rootDir: string): ResolvedWebConfig['target'] {
   if (!isObj(value)) {
@@ -183,23 +186,42 @@ function resolveBackground(
   return fallback;
 }
 
-function resolveFrame(issues: Issues, value: unknown): ResolvedFrame {
+function resolveFrame(issues: Issues, value: unknown, mode: Mode): ResolvedFrame {
   const frame = value === undefined ? {} : value;
   if (!isObj(frame)) {
     issues.add('frame', `must be an object, got ${describe(frame)}`);
-    return resolveFrame(issues, {});
+    return resolveFrame(issues, {}, mode);
   }
-  checkKeys(issues, 'frame', frame, ['style', 'theme', 'title', 'background', 'padding', 'radius', 'shadow', 'quality', 'maxWidth']);
+  checkKeys(issues, 'frame', frame, [
+    'style',
+    'theme',
+    'title',
+    'address',
+    'background',
+    'padding',
+    'radius',
+    'shadow',
+    'quality',
+    'maxWidth',
+  ]);
   let title: string | false = '{name}';
   if (frame.title === false) {
     title = false;
   } else if (frame.title !== undefined) {
     title = str(issues, 'frame.title', frame.title) ?? '{name}';
   }
+  const style = oneOf(issues, 'frame.style', frame.style, FRAME_STYLES, 'window');
+  const address = pathTemplate(issues, 'frame.address', frame.address, '{url}', { allowed: ADDRESS_TOKENS, required: [] });
+  if (style === 'browser' && mode === 'tty') {
+    issues.add('frame.style', '"browser" needs a page with an address; a terminal app has none (use "terminal" or "window")');
+  } else if (style === 'browser' && mode === 'cdp' && address.includes('{url}')) {
+    issues.add('frame.address', 'cannot use {url} in cdp mode, where the page is not known when framing: write the address');
+  }
   return {
-    style: oneOf(issues, 'frame.style', frame.style, ['window', 'minimal', 'none'] as const, 'window'),
+    style,
     theme: oneOf(issues, 'frame.theme', frame.theme, ['light', 'dark'] as const, 'dark'),
     title,
+    address,
     background: resolveBackground(issues, frame.background),
     padding: num(issues, 'frame.padding', frame.padding, 72, { min: 0, integer: true }),
     radius: num(issues, 'frame.radius', frame.radius, 14, { min: 0, integer: true }),
@@ -454,7 +476,8 @@ export function resolveConfig(input: unknown, root: string, source?: string): Re
     issues.add('timeouts', `must be an object, got ${describe(timeouts)}`);
   }
 
-  const frame = resolveFrame(issues, input.frame);
+  const mode: Mode = tty ? 'tty' : isObj(input.target) && input.target.mode === 'cdp' ? 'cdp' : 'url';
+  const frame = resolveFrame(issues, input.frame, mode);
   const common = {
     name,
     slug,
