@@ -1,12 +1,13 @@
 ---
 title: Hero banner
-description: Render a banner for the top of a README, and a GitHub social preview, from your logo, name, tagline and up to three framed shots.
+description: Render a banner for the top of a README, and a GitHub social preview, from your logo, name, tagline and framed shots, in one of six layouts.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-`showcase hero` composes a banner from the raw captures: your logo, name and tagline on the left, and
-one to three framed shots stacked and tilted on the right. The default size, 1280x640, is GitHub's
+`showcase hero` composes a banner from the raw captures: your logo, name and tagline, and framed shots
+arranged by `layout`. The default, `stack`, puts the text on the left and one to three shots stacked and
+tilted on the right. The default size, 1280x640, is GitHub's
 social preview size, so the same file works at the top of the README and as the repository's preview
 image. The `hero` block configures it; every key is optional.
 
@@ -35,17 +36,41 @@ npx showcase hero   # writes assets/showcase/hero.webp
 ## Composition
 
 - **Text.** The logo (fitted into a 96 px square at the default height), then `name`, then `tagline`,
-  vertically centered on the left.
-- **Windows.** `shots` lists one to three shot ids, back to front, and defaults to the first three
-  shots. Each window is half the banner's width, tilted a few degrees, and framed with your `frame`
-  settings (style, theme, title, radius, shadow). The positions are fractions of the canvas, so a
-  different `size` keeps the composition.
+  vertically centered on the left. The `row` and `centered` layouts center it at the top instead.
+- **Windows.** `shots` lists the shot ids to show, back to front, and defaults to as many of the first
+  shots as the layout shows. In `stack`, each window is half the banner's width and tilted a few
+  degrees. Every window is framed with your `frame` settings (style, theme, title, radius, shadow). The
+  positions are fractions of the canvas, so a different `size` keeps the composition.
 - **Background.** `background` takes the same forms as `frame.background` and defaults to it.
 - **Text color.** `theme` defaults to `frame.theme`: `'dark'` gives light text, `'light'` gives dark
   text. Match it to the background, not the app.
 
 The banner is rendered at twice its size and scaled down to exactly `size`, for sharper text and edges
 on the tilted windows.
+
+## Layouts
+
+`layout` picks the composition. Every layout keeps `size`, `background`, `theme` and the frame look.
+
+| `layout` | Shots | What it looks like |
+| --- | --- | --- |
+| `'stack'` (default) | 1 to 3 | Text on the left, the windows stacked and tilted on the right. |
+| `'spotlight'` | 1 | Text on the left, one large straight window running off the right and bottom edges. |
+| `'split'` | 1 | Text on the left, one window turned in perspective towards it. |
+| `'row'` | 1 to 4 | Text centered at the top, the windows side by side under it. |
+| `'mosaic'` | 1 to 4 | Text on the left, a tilted wall of the windows (repeated to fill it), fading out towards the text. |
+| `'centered'` | 1 | Text centered at the top, one window rising from the bottom edge and leaning back. |
+
+```js
+hero: {
+  layout: 'spotlight',
+  shots: ['player'],
+},
+```
+
+A `shots` list longer than the layout shows is an error that names the layout, so switching from
+`stack` to a one-window layout means picking the one shot to show. Without `shots`, each layout takes the
+first shots of the config.
 
 ## Logo, language and output
 

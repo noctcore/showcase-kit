@@ -44,7 +44,8 @@ So a shot with a `title` and no `caption` gets its title as the caption, as `set
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `--cols <n>` | 2 | Images per row, 1 to 6. Each cell is `100 / n` percent wide, rounded down. |
+| `--layout <name>` | `table` | How the images are laid out: `table`, `rows`, `featured`, `details` or `list` (see [Layouts](#layouts)). |
+| `--cols <n>` | 2 | Images per row, 1 to 6, in the `table` layout, and thumbnails per row in `featured`. Each cell is `100 / n` percent wide, rounded down. |
 | `--lang <code>` | the first of `langs` | Which language's images to list. It must be one of `langs`. |
 | `--base <dir>` | the config's directory | The directory your README is in. Image paths are written relative to it. |
 | `--only <ids>` | every shot and clip | Comma-separated shot and clip ids. The table keeps config order; an unknown id is an error. |
@@ -65,10 +66,46 @@ run (`showcase frame`, or `showcase record` for a clip).
 
 The [CLI reference](/showcase-kit/reference/cli/#readme) has the command with every option.
 
+## Layouts
+
+`--layout` picks another arrangement of the same images, captions and alt text. GitHub removes CSS and
+most HTML attributes from a README, so every layout is built only from what it keeps: tables with
+`width` and `align`, `<p align>`, `<h3>`, `<sub>`, `<br>`, `<details>` and `<summary>`. Each one was
+checked through GitHub's own Markdown renderer.
+
+| `--layout` | What it prints |
+| --- | --- |
+| `table` (default) | The table above. |
+| `rows` | One table row per image: the image in a 60% cell, and the title (as `<h3>`) and caption in a 40% cell, alternating sides. |
+| `featured` | The first image full width with its caption under it, then the others in a table of `--cols` per row. |
+| `details` | One collapsible `<details>` per image, with the title and caption as its summary; the first starts open. |
+| `list` | Every image full width, one under the other, each with its caption. |
+
+`--cols` only means something for `table` and `featured`; with another layout it is an error.
+
+```sh
+npx showcase readme --layout featured --cols 3
+```
+
+```html title="output"
+<p align="center">
+  <img width="100%" src="assets/showcase/en/home.webp" alt="My App: Home" />
+  <br /><sub>The home screen.</sub>
+</p>
+<table>
+  <tr>
+    <td width="33%"><img src="assets/showcase/en/settings.webp" alt="My App: Settings" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Settings</sub></td>
+  </tr>
+</table>
+```
+
 ## Clips in the table
 
 In a terminal app config with [`clips`](/showcase-kit/guides/clips/), the clips follow the shots in the
-same table:
+same table (or in the same layout):
 
 - a clip with a WebP or GIF gets an `<img>` of the first of those in its `formats`, which GitHub plays
   inline;
