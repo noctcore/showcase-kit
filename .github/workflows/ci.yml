@@ -14,8 +14,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Linux runs the POSIX process group kill path, Windows the taskkill path.
-        os: [ubuntu-24.04, windows-latest]
+        # Linux runs the POSIX process group kill path, Windows the taskkill path. macOS ptys hand an app's output
+        # over in smaller reads than Linux, which is where a shot of a half drawn frame showed up (#3).
+        os: [ubuntu-24.04, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
