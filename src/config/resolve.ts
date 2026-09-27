@@ -14,6 +14,7 @@ import {
   WEB_ONLY_KEYS,
 } from './tty.js';
 import type {
+  HeroLayout,
   Mode,
   ResolvedBackground,
   ResolvedConfig,
@@ -53,6 +54,9 @@ const DEFAULT_BACKGROUND: ResolvedBackground = { type: 'gradient', from: '#0f766
 const DEFAULT_DOT = 'rgba(255,255,255,0.14)';
 const BACKGROUND_TYPES = ['solid', 'gradient', 'transparent', 'mesh', 'dots', 'noise'] as const;
 export const FRAME_STYLES = ['window', 'minimal', 'none', 'browser', 'windows', 'terminal'] as const;
+export const HERO_LAYOUTS = ['stack', 'spotlight', 'split', 'row', 'mosaic', 'centered'] as const;
+/** The most shots each hero layout shows; it shows the first ones when `hero.shots` is not set. */
+export const HERO_MAX_SHOTS: Record<HeroLayout, number> = { stack: 3, spotlight: 1, split: 1, row: 4, mosaic: 4, centered: 1 };
 const ADDRESS_TOKENS = ['url', 'name', 'title', 'id', 'lang'];
 
 function resolveWebTarget(issues: Issues, value: unknown, rootDir: string): ResolvedWebConfig['target'] {
@@ -324,14 +328,27 @@ function resolveHero(
     issues.add('hero', `must be an object, got ${describe(hero)}`);
     return resolveHero(issues, {}, { shots, langs, frame });
   }
-  checkKeys(issues, 'hero', hero, ['tagline', 'logo', 'shots', 'lang', 'output', 'size', 'background', 'theme', 'quality']);
+  checkKeys(issues, 'hero', hero, [
+    'layout',
+    'tagline',
+    'logo',
+    'shots',
+    'lang',
+    'output',
+    'size',
+    'background',
+    'theme',
+    'quality',
+  ]);
 
-  let heroShots = shots.slice(0, 3).map(shot => shot.id);
+  const layout = oneOf(issues, 'hero.layout', hero.layout, HERO_LAYOUTS, 'stack');
+  const max = HERO_MAX_SHOTS[layout];
+  let heroShots = shots.slice(0, max).map(shot => shot.id);
   if (hero.shots !== undefined) {
     const valid =
       Array.isArray(hero.shots) &&
       hero.shots.length >= 1 &&
-      hero.shots.length <= 3 &&
+      hero.shots.length <= max &&
       hero.shots.every(id => typeof id === 'string');
     if (valid) {
       heroShots = hero.shots as string[];
@@ -339,7 +356,9 @@ function resolveHero(
         if (!shots.some(shot => shot.id === id)) issues.add('hero.shots', `"${id}" is not a shot id`);
       }
     } else {
-      issues.add('hero.shots', `must be an array of one to three shot ids, got ${describe(hero.shots)}`);
+      const count = max === 1 ? 'one shot id' : `one to ${NUMBER_WORDS[max] ?? String(max)} shot ids`;
+      const why = layout === 'stack' ? '' : ` (layout "${layout}")`;
+      issues.add('hero.shots', `must be an array of ${count}${why}, got ${describe(hero.shots)}`);
     }
   }
   let size: [number, number] = [1280, 640];
@@ -355,6 +374,7 @@ function resolveHero(
   if (hero.lang !== undefined && !langs.includes(lang)) issues.add('hero.lang', `"${lang}" is not in langs`);
 
   return {
+    layout,
     tagline: str(issues, 'hero.tagline', hero.tagline),
     logo: str(issues, 'hero.logo', hero.logo),
     shots: heroShots,
@@ -370,6 +390,8 @@ function resolveHero(
     quality: num(issues, 'hero.quality', hero.quality, 90, { min: 1, max: 100, integer: true }),
   };
 }
+
+const NUMBER_WORDS: Record<number, string> = { 3: 'three', 4: 'four' };
 
 function slugify(name: string): string {
   return name

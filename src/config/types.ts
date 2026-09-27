@@ -476,15 +476,32 @@ export interface Outputs {
   clips?: string;
 }
 
+/**
+ * How the hero banner is composed.
+ *
+ * - `stack`: text on the left, one to three windows stacked and tilted on the right.
+ * - `spotlight`: text on the left, one large straight window running off the right and bottom edges.
+ * - `split`: text on the left, one window turned in perspective on the right.
+ * - `row`: text centered at the top, one to four windows side by side under it.
+ * - `mosaic`: text on the left, a tilted wall of one to four windows, repeated, filling the right.
+ * - `centered`: text first, centered, with one window rising from the bottom edge.
+ */
+export type HeroLayout = 'stack' | 'spotlight' | 'split' | 'row' | 'mosaic' | 'centered';
+
 /** The README banner that `showcase hero` renders. */
 export interface HeroOptions {
+  /**
+   * How the banner is composed: `stack`, `spotlight`, `split`, `row`, `mosaic` or `centered`.
+   * @default `'stack'`
+   */
+  layout?: HeroLayout;
   /** Line under the name. */
   tagline?: string;
   /** Logo image (PNG, SVG, WebP or JPEG), relative to the config root. */
   logo?: string;
   /**
-   * One to three shot ids to stack, back to front.
-   * @default the first three shots
+   * Shot ids to show, back to front: one to three for `stack`, one to four for `row` and `mosaic`, one for the others.
+   * @default as many of the first shots as the layout shows
    */
   shots?: string[];
   /**
@@ -581,7 +598,7 @@ export interface CommonConfig {
   frame?: FrameOptions;
   /** Where the files go. */
   outputs?: Outputs;
-  /** Banner image for the top of a README: logo, name, tagline and a stack of framed shots. */
+  /** Banner image for the top of a README: logo, name, tagline and framed shots, in one of several layouts. */
   hero?: HeroOptions;
   /** The Chromium that captures web apps, renders terminal screens and draws frames. */
   browser?: BrowserOptions;
@@ -713,6 +730,7 @@ export interface ResolvedPortfolio {
 
 /** `hero` with every default filled in. */
 export interface ResolvedHero {
+  layout: HeroLayout;
   tagline: string | undefined;
   logo: string | undefined;
   shots: string[];
