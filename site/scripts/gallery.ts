@@ -4,9 +4,12 @@
  * Regenerates everything the /gallery/ page shows by running the built CLI
  * against the fixture app in site/gallery/: README frames, portfolio images and
  * their gallery JSON, the hero banner, a terminal shot and clip, and an icon
- * set. It starts from empty output folders, so a run leaves exactly what the
- * configs produce, then writes a manifest (size, pixel size, hash of every
- * file) that the page reads for image dimensions.
+ * set. Then the variant configs in site/gallery/variants/ render every hero
+ * layout, frame style and background from the same raw captures, and
+ * `showcase readme` prints each README layout to a file the pages import. It
+ * starts from empty output folders, so a run leaves exactly what the configs
+ * produce, then writes a manifest (size, pixel size, hash of every file) that
+ * the page reads for image dimensions.
  *
  *   bun run docs:gallery   (from the repo root; needs `bun run build` first)
  */
@@ -29,6 +32,12 @@ export const GALLERY_JSON = join(GALLERY_DIR, 'showcase.gallery.json');
 export const MANIFEST = join(GALLERY_DIR, 'gallery.manifest.json');
 export const WEB_CONFIG = join(GALLERY_DIR, 'showcase.config.mjs');
 export const TTY_CONFIG = join(GALLERY_DIR, 'showcase.tty.config.mjs');
+/** One config per hero layout, frame style and background, each a small change to the web or tty config. */
+export const VARIANTS_DIR = join(GALLERY_DIR, 'variants');
+/** Lists gallery images for the kit's own README; only `showcase readme` reads it. */
+export const README_CONFIG = join(GALLERY_DIR, 'readme.config.mjs');
+/** What `showcase readme` printed, one file per run: committed, because the pages import them. */
+export const SNIPPET_DIR = join(GALLERY_DIR, 'readme');
 export const CLI = join(REPO_ROOT, 'dist', 'cli.js');
 const MARK = join(SITE_DIR, 'src', 'assets', 'mark.svg');
 const ICON_SOURCE = join(RAW_DIR, 'icon-source.png');
@@ -57,6 +66,61 @@ export const STEPS: readonly (readonly string[])[] = [
   ['all', '--config', TTY_CONFIG, '--only', 'queue'],
   ['record', '--config', TTY_CONFIG],
   ['icons', '--source', ICON_SOURCE, '--preset', 'web', '--out', join(OUTPUT_DIR, 'icons')],
+];
+
+/**
+ * The variant configs, by file name without `.mjs`. A `hero-` config runs `hero`; the others run `frame`, and a web
+ * one frames only `tonight`. None of them captures: they read the raw captures the steps above wrote.
+ */
+export const VARIANTS: readonly string[] = [
+  'hero-spotlight',
+  'hero-split',
+  'hero-row',
+  'hero-mosaic',
+  'hero-centered',
+  'hero-mesh',
+  'hero-dots',
+  'hero-noise',
+  'frame-minimal',
+  'frame-none',
+  'frame-browser',
+  'frame-windows',
+  'frame-terminal',
+  'tty-windows',
+  'tty-terminal',
+  'background-solid',
+  'background-mesh',
+  'background-dots',
+  'background-noise',
+];
+
+export const variantConfig = (name: string): string => join(VARIANTS_DIR, `${name}.mjs`);
+
+export const VARIANT_STEPS: readonly (readonly string[])[] = VARIANTS.map(name =>
+  name.startsWith('hero-')
+    ? ['hero', '--config', variantConfig(name)]
+    : ['frame', '--config', variantConfig(name), ...(name.startsWith('tty-') ? [] : ['--only', 'tonight'])],
+);
+
+/** The layouts `showcase readme --layout` takes, in the order the CLI lists them. */
+export const README_LAYOUTS = ['table', 'rows', 'featured', 'details', 'list'] as const;
+
+/** A `showcase readme` run and the file its standard output goes to. */
+export interface SnippetStep {
+  args: readonly string[];
+  out: string;
+}
+
+/**
+ * Each README layout of the web config's English images, then the table in the kit's own README. `--base ../..` is
+ * the repo root, where a README would sit, so every image path starts with `site/public/gallery/`.
+ */
+export const SNIPPET_STEPS: readonly SnippetStep[] = [
+  ...README_LAYOUTS.map(layout => ({
+    args: ['readme', '--config', WEB_CONFIG, '--layout', layout, '--base', '../..'],
+    out: join(SNIPPET_DIR, `${layout}.html`),
+  })),
+  { args: ['readme', '--config', README_CONFIG, '--base', '../..'], out: join(SNIPPET_DIR, 'kit-readme.html') },
 ];
 
 /** Why the gallery cannot run yet, or undefined when the built CLI is there. */
@@ -122,17 +186,32 @@ function portAnswers(port: number): Promise<boolean> {
 
 let current: ReturnType<typeof spawn> | undefined;
 
-/** Run the built CLI under Node (tty mode refuses the Bun runtime) and wait for it. */
-function runCli(args: readonly string[]): Promise<void> {
-  console.log(`\n$ node dist/cli.js ${args.map(arg => (arg.startsWith(REPO_ROOT) ? relative(REPO_ROOT, arg) : arg)).join(' ')}`);
+/**
+ * Run the built CLI under Node (tty mode refuses the Bun runtime) and wait for it. With `out`, its standard output
+ * goes to that file instead of the console, byte for byte.
+ */
+function runCli(args: readonly string[], out?: string): Promise<void> {
+  const shown = args.map(arg => (arg.startsWith(REPO_ROOT) ? relative(REPO_ROOT, arg) : arg)).join(' ');
+  console.log(`\n$ node dist/cli.js ${shown}${out ? ` > ${relative(REPO_ROOT, out)}` : ''}`);
   return new Promise((resolve, reject) => {
-    const child = spawn('node', [CLI, ...args], { cwd: REPO_ROOT, stdio: 'inherit', windowsHide: true });
+    const child = spawn('node', [CLI, ...args], {
+      cwd: REPO_ROOT,
+      stdio: ['inherit', out ? 'pipe' : 'inherit', 'inherit'],
+      windowsHide: true,
+    });
     current = child;
+    const chunks: Buffer[] = [];
+    child.stdout?.on('data', (chunk: Buffer) => chunks.push(chunk));
     child.once('error', reject);
-    child.once('exit', (code, signal) => {
+    child.once('close', (code, signal) => {
       current = undefined;
-      if (code === 0) resolve();
-      else reject(new Error(`gallery: \`showcase ${args[0] ?? ''}\` failed (${signal ?? `exit code ${String(code)}`})`));
+      if (code !== 0) {
+        reject(new Error(`gallery: \`showcase ${args[0] ?? ''}\` failed (${signal ?? `exit code ${String(code)}`})`));
+      } else if (out) {
+        writeFile(out, Buffer.concat(chunks)).then(resolve, reject);
+      } else {
+        resolve();
+      }
     });
   });
 }
@@ -159,18 +238,22 @@ async function main(): Promise<void> {
   // reaches this process, so pass it on.
   process.on('SIGTERM', () => current?.kill('SIGTERM'));
 
-  for (const path of [OUTPUT_DIR, RAW_DIR, GALLERY_JSON, MANIFEST]) await rm(path, { recursive: true, force: true });
+  for (const path of [OUTPUT_DIR, RAW_DIR, GALLERY_JSON, MANIFEST, SNIPPET_DIR]) await rm(path, { recursive: true, force: true });
   await renderIconSource();
   for (const args of STEPS) await runCli(args);
+  for (const args of VARIANT_STEPS) await runCli(args);
+  await mkdir(SNIPPET_DIR, { recursive: true });
+  for (const { args, out } of SNIPPET_STEPS) await runCli(args, out);
 
   if (await portAnswers(port)) throw new Error(`gallery: the fixture server is still running on 127.0.0.1:${String(port)}.`);
 
   const manifest = await buildManifest(OUTPUT_DIR);
   await writeFile(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
-  const extra = {
+  const extra: Record<string, number> = {
     'gallery/showcase.gallery.json': (await readFile(GALLERY_JSON)).length,
     'gallery/gallery.manifest.json': (await readFile(MANIFEST)).length,
   };
+  for (const { out } of SNIPPET_STEPS) extra[relative(SITE_DIR, out).split(sep).join('/')] = (await readFile(out)).length;
   const { lines, total } = budgetLines(manifest, extra);
   console.log('\nCommitted gallery files (under site/):');
   for (const [path, bytes] of lines) console.log(`  ${kb(bytes).padStart(10)}  ${path}`);
