@@ -29,8 +29,8 @@ From one config it produces:
 ## Layouts
 
 The [gallery](https://noctcore.github.io/showcase-kit/gallery/) shows every hero layout, frame style, background and
-README layout, each with the config that made it. A few of them below, for Nightjar, the made-up app the gallery
-captures (not the kit's own UI). The table is what `showcase readme` printed for them.
+README layout, each with the config that made it. Below are four of them, rendered for Nightjar, a made-up app the
+gallery captures (not the kit's own UI). `showcase readme` printed the table itself.
 
 <table>
   <tr>
@@ -38,16 +38,16 @@ captures (not the kit's own UI). The table is what `showcase readme` printed for
     <td width="50%"><img src="https://noctcore.github.io/showcase-kit/gallery/layouts/hero-row.webp" alt="The Nightjar banner in the row layout: the logo, name and tagline centered at the top, the Gear, Log and Tonight windows side by side under them." /></td>
   </tr>
   <tr>
-    <td align="center"><sub>Hero layout spotlight, for Nightjar (the gallery fixture app)</sub></td>
-    <td align="center"><sub>Hero layout row</sub></td>
+    <td align="center"><sub>Hero: spotlight</sub></td>
+    <td align="center"><sub>Hero: row</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="https://noctcore.github.io/showcase-kit/gallery/layouts/hero-mosaic.webp" alt="The Nightjar banner in the mosaic layout: the text on the left, a tilted wall of Nightjar windows fading out towards it." /></td>
     <td width="50%"><img src="https://noctcore.github.io/showcase-kit/gallery/layouts/tonight-browser.webp" alt="Nightjar&#39;s Tonight view in the browser frame: a toolbar with back, forward and reload, and nightjar.app/tonight in the address bar." /></td>
   </tr>
   <tr>
-    <td align="center"><sub>Hero layout mosaic</sub></td>
-    <td align="center"><sub>Frame style browser, with an address bar</sub></td>
+    <td align="center"><sub>Hero: mosaic</sub></td>
+    <td align="center"><sub>Frame: browser</sub></td>
   </tr>
 </table>
 
@@ -67,7 +67,7 @@ apps also need `@lydell/node-pty`.
 npx showcase init     # writes showcase.config.mjs (--ts for TypeScript, --tty for a terminal app)
 # edit the target and the shots
 npx showcase all      # capture, frame, and export the portfolio images
-npx showcase readme   # print the README table
+npx showcase readme   # print the README snippet (--layout for the others)
 ```
 
 A minimal config for a web app:
