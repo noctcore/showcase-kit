@@ -1,0 +1,12 @@
+# Template chooser for github.com/noctcore/showcase-kit/issues/new/choose.
+# Blank issues stay on: a question about using the kit has no form and should
+# not be forced into one. Discussions are off; at this volume an issue with the
+# `question` label is the same thing with less to check.
+blank_issues_enabled: true
+contact_links:
+  - name: Getting started
+    url: https://noctcore.github.io/showcase-kit/getting-started/
+    about: Install, Playwright's Chromium, a first config and the first run. Most "it does not start" reports are answered here.
+  - name: Config reference
+    url: https://noctcore.github.io/showcase-kit/reference/config/
+    about: Every config key, its default and what it accepts. Check it before reporting that a key is ignored or rejected.

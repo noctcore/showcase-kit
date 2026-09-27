@@ -1,0 +1,56 @@
+name: Crash or install problem
+description: The kit throws with a stack trace, a command will not start, or the package fails to install or load.
+labels: ["crash"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For the cases where nothing gets to the point of capturing: an exception with a stack trace, an install or import failure, a missing file in the published package. A clear `showcase:` message about your config is not a crash; if it is wrong, use the capture or terminal form.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What happens
+      options:
+        - the kit throws an error with a stack trace
+        - the package fails to install
+        - importing the package or running the CLI fails (ESM, types, exports map)
+        - the published package is missing files or has wrong metadata
+        - something else
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: The full error
+      description: The whole output, from the first line to the last.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce it
+      description: The command you ran, and the config or the install command that triggers it.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: kit-version
+    attributes:
+      label: showcase-kit version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Node, package manager and OS
+      placeholder: "node 22.22, pnpm 10.4, Ubuntu 24.04"
+    validations:
+      required: true
+  - type: input
+    id: peers
+    attributes:
+      label: Playwright and PTY package versions
+      description: Optional. From `npm ls playwright @lydell/node-pty node-pty`.
+      placeholder: "playwright 1.63.0, @lydell/node-pty 1.2.0-beta.15"

@@ -1,0 +1,64 @@
+name: Capture problem (web app, Electron, Tauri)
+description: url or cdp mode fails, times out, or captures the wrong view.
+labels: ["bug", "area: capture"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a web app, an Electron app over CDP, or a Tauri app's web build. A terminal app (`mode: 'tty'`) has its own form. If the capture worked but a framed, portfolio or hero image looks wrong, use the wrong output form instead.
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - "url (a dev server or a live site)"
+        - "cdp (Electron, WebView2, another Chromium app)"
+        - "url, for a Tauri app's web build"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what you expected
+      description: The shot that failed or looks wrong, what the image or the command shows, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: The config
+      description: Your `showcase.config.*`, or the smallest one that shows the problem. Replace URLs, tokens and anything private; keep `target`, `ready`, `setup` and the failing shot as they are.
+      render: js
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: The command and its output
+      description: The command you ran and everything it printed. Run it with `--verbose` to include the start command's output.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: kit-version
+    attributes:
+      label: showcase-kit version
+      description: The output of `npx showcase --version`.
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: playwright-version
+    attributes:
+      label: Playwright version
+      description: The output of `npx playwright --version`. For cdp mode, also the Electron or browser version.
+      placeholder: "Version 1.63.0 (Electron 38.2.0)"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Node, package manager and OS
+      placeholder: "node 22.22, pnpm 10.4, Windows 11"
+    validations:
+      required: true
