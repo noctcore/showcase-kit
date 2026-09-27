@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "sync": "bun scripts/sync.ts",
-    "dev": "bun run sync && astro dev",
-    "docs:build": "bun run sync && astro build && bun scripts/check-build.ts",
-    "preview": "astro preview",
-    "typecheck": "bun run sync && astro sync && tsc --noEmit",
+    "dev": "bun run sync && ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "docs:build": "bun run sync && ASTRO_TELEMETRY_DISABLED=1 astro build && bun scripts/check-build.ts",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+    "typecheck": "bun run sync && ASTRO_TELEMETRY_DISABLED=1 astro sync && tsc --noEmit",
     "test": "bun test scripts",
     "gallery": "bun scripts/gallery.ts"
   },
