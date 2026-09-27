@@ -14,11 +14,21 @@ exactly what is needed to act.
 Requirements:
 
 - [Bun](https://bun.sh) **1.4.2**, the `packageManager` in `package.json` and the version CI pins.
-  Use that version: `bun.lock` is `lockfileVersion: 2`, which Bun 1.3 cannot read. Bun 1.3 prints
-  `UnknownLockfileVersion`, ignores the lockfile, and a plain `bun install` then re-resolves every
-  dependency and rewrites `bun.lock`. If an install changed `bun.lock` although you did not add or
-  bump a dependency, run `git checkout -- bun.lock`, check `bun --version`, and install again with
-  `bun install --frozen-lockfile`.
+  Use that version: another Bun can resolve differently and rewrite `bun.lock`. If an install
+  changed `bun.lock` although you did not add or bump a dependency, run `git checkout -- bun.lock`,
+  check `bun --version`, and install again with `bun install --frozen-lockfile`.
+- **Both lockfiles stay at `lockfileVersion: 1` on purpose.** Bun 1.4 writes version 2 for a new
+  lockfile, but Dependabot's bun updater still bundles Bun 1.3, which reads only version 1 and fails
+  every update run on a version 2 file
+  ([dependabot-core#16026](https://github.com/dependabot/dependabot-core/issues/16026)). Versions 1
+  and 2 hold the same content, and Bun 1.4 keeps the version a lockfile was loaded with, so
+  installs, `bun add` and `bun update` leave them at 1. Never delete a `bun.lock` to regenerate it:
+  that writes version 2, and `test/lockfile-version.test.ts` fails. Version 1 skips two checks
+  version 2 makes while parsing (an npm tarball outside the default registry must carry an
+  integrity hash, a git dependency's resolved tag must be a safe path), so review lockfile diffs
+  for tarball URLs and git dependencies. Once Dependabot runs a Bun that reads version 2
+  ([dependabot-core#16071](https://github.com/dependabot/dependabot-core/pull/16071)), set the field
+  to 2 in both lockfiles and update that test, this paragraph and `.github/dependabot.yml`.
 - **Node 22 or newer** (`engines`). The tests run on Node, not on the Bun runtime (see below).
 - **Playwright's Chromium.** `playwright` is a devDependency pinned to an exact version; download
   the browser that version expects once:
