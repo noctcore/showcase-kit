@@ -1,0 +1,140 @@
+/* noctcore docs base.css
+   The token contract. Every preset sets the same --nc-* tokens; this file
+   maps them onto Starlight 0.42's --sl-* variables once, so a preset never
+   names a Starlight variable for colour. Starlight's own CSS sits in cascade
+   layers and customCss is unlayered, so these rules win without !important.
+   The brand constants are decorative only (the crescent rule, the hero
+   button, the wordmark): never body text. Load first in customCss. */
+
+:root,
+::backdrop {
+  /* Brand constants */
+  --nc-violet: #8b7cff;
+  --nc-cyan: #4dd0e1;
+  --nc-night: #0b1020;
+  --nc-gradient: linear-gradient(90deg, var(--nc-violet), var(--nc-cyan));
+
+  /* Type and measure */
+  --sl-font: var(--nc-font-body);
+  --sl-font-mono: var(--nc-font-mono);
+  --sl-content-width: var(--nc-measure);
+
+  /* Starlight's grey ramp is named for dark mode; the --nc names say what each step does */
+  --sl-color-white: var(--nc-ink);
+  --sl-color-gray-1: var(--nc-ink-2);
+  --sl-color-gray-2: var(--nc-text);
+  --sl-color-gray-3: var(--nc-muted);
+  --sl-color-gray-4: var(--nc-faint);
+  --sl-color-gray-5: var(--nc-line);
+  --sl-color-gray-6: var(--nc-surface);
+  --sl-color-gray-7: var(--nc-raised);
+  --sl-color-black: var(--nc-bg);
+
+  /* Accent */
+  --sl-color-accent-low: var(--nc-accent-soft);
+  --sl-color-accent: var(--nc-accent);
+  --sl-color-accent-high: var(--nc-accent-strong);
+
+  /* Aliases Starlight switches per mode. Mapped once here, so the presets hold all the mode logic */
+  --sl-color-text: var(--nc-text);
+  --sl-color-text-accent: var(--nc-link);
+  --sl-color-text-invert: var(--nc-on-link);
+  --sl-color-bg: var(--nc-bg);
+  --sl-color-bg-nav: var(--nc-surface);
+  --sl-color-bg-sidebar: var(--nc-surface);
+  --sl-color-bg-inline-code: var(--nc-code-inline);
+  --sl-color-bg-accent: var(--nc-link);
+  --sl-color-hairline-light: var(--nc-line);
+  --sl-color-hairline: var(--nc-line-soft);
+  --sl-color-hairline-shade: var(--nc-bg);
+
+  /* Signals: Starlight hues by role (blue note, purple tip, orange caution, red danger, green success) */
+  --sl-color-blue-low: var(--nc-note-bg);
+  --sl-color-blue: var(--nc-note-edge);
+  --sl-color-blue-high: var(--nc-note-ink);
+  --sl-color-purple-low: var(--nc-tip-bg);
+  --sl-color-purple: var(--nc-tip-edge);
+  --sl-color-purple-high: var(--nc-tip-ink);
+  --sl-color-orange-low: var(--nc-caution-bg);
+  --sl-color-orange: var(--nc-caution-edge);
+  --sl-color-orange-high: var(--nc-caution-ink);
+  --sl-color-red-low: var(--nc-danger-bg);
+  --sl-color-red: var(--nc-danger-edge);
+  --sl-color-red-high: var(--nc-danger-ink);
+  --sl-color-green-low: var(--nc-success-bg);
+  --sl-color-green: var(--nc-success-edge);
+  --sl-color-green-high: var(--nc-success-ink);
+}
+
+/* Shared structure: the wordmark, the crescent rule, the hero button, radius, focus. */
+.site-title {
+  font-family: var(--sl-font-mono);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--sl-color-white);
+}
+
+.nc-wordmark {
+  position: relative;
+}
+
+.nc-wordmark::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -0.3rem;
+  width: 1.75rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--nc-gradient);
+}
+
+h1#_top,
+.hero h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  font-family: var(--nc-font-display);
+}
+
+.hero h1::after {
+  content: '';
+  display: block;
+  width: 6rem;
+  height: 0.25rem;
+  margin-top: 1rem;
+  border-radius: 999px;
+  background: var(--nc-gradient);
+}
+
+@media (max-width: 49.99rem) {
+  .hero h1::after {
+    margin-inline: auto;
+  }
+}
+
+.hero .sl-link-button.primary {
+  background: var(--nc-gradient);
+  border-color: transparent;
+  color: var(--nc-night);
+}
+
+.starlight-aside,
+.sl-link-card,
+.card,
+.pagination-links a {
+  border-radius: var(--nc-radius);
+}
+
+.expressive-code {
+  --ec-brdRad: var(--nc-radius);
+}
+
+:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
+.expressive-code pre,
+code {
+  font-variant-ligatures: none;
+}

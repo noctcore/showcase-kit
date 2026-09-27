@@ -27,11 +27,19 @@ export default defineConfig({
         'Capture, frame and export showcase images of desktop and web apps for READMEs and portfolios.',
       favicon: '/favicon.svg',
       logo: { src: './src/assets/mark.svg', alt: '' },
-      customCss: ['./src/styles/theme.css'],
+      // The noctcore theme in its load order: the token contract, the shared
+      // pieces, the Observatory preset (it may tune a piece), then this site's own rules.
+      customCss: [
+        './src/styles/noctcore/base.css',
+        './src/styles/noctcore/components.css',
+        './src/styles/noctcore/presets/observatory.css',
+        './src/styles/site.css',
+      ],
       components: {
         Head: './src/components/Head.astro',
         Footer: './src/components/Footer.astro',
         SiteTitle: './src/components/SiteTitle.astro',
+        SocialIcons: './src/components/SocialIcons.astro',
       },
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/noctcore/showcase-kit' },

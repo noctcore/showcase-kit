@@ -4,6 +4,8 @@
  * src/tty/types.ts, with modes from the validator. Nothing in it is typed by
  * hand: see scripts/reference/config.ts.
  */
+import { Badge } from '@astrojs/starlight/components';
+
 import { configTable } from '../../scripts/reference/data';
 import type { ConfigMode, ConfigRow } from '../../scripts/reference/types';
 import ReferenceText from './ReferenceText.astro';
@@ -42,7 +44,7 @@ function typeText(row: ConfigRow): string {
   <div class="reference-wrap">
     {
       table.kind === 'fields' ? (
-        <table class="reference-table">
+        <table class="nc-ref">
           <thead>
             <tr>
               <th scope="col">Key</th>
@@ -54,11 +56,15 @@ function typeText(row: ConfigRow): string {
           <tbody>
             {table.rows.map((row) => (
               <tr>
-                <td class="reference-key">
+                <td class="reference-key" data-label="Key">
                   <code>{row.key}</code>
-                  {showModes && row.modes.length === 1 && <span class="reference-mode">{modeLabel(row.modes)}</span>}
+                  {showModes && row.modes.length === 1 && (
+                    <span class="reference-mode">
+                      <Badge text={modeLabel(row.modes)} variant={row.modes[0] === 'web' ? 'note' : 'tip'} />
+                    </span>
+                  )}
                 </td>
-                <td class="reference-type">
+                <td class="reference-type" data-label="Type">
                   {row.link ? (
                     <a href={`#${row.link}`}>
                       <code>{typeText(row)}</code>
@@ -73,7 +79,7 @@ function typeText(row: ConfigRow): string {
                     </span>
                   )}
                 </td>
-                <td>
+                <td data-label="Default">
                   {row.default?.kind === 'literal' ? (
                     <code>
                       {breakable(row.default.text).map((part, i) => (
@@ -93,7 +99,7 @@ function typeText(row: ConfigRow): string {
                     'none'
                   )}
                 </td>
-                <td class="reference-meaning">
+                <td class="reference-meaning" data-label="Meaning">
                   <ReferenceText text={row.description} />
                 </td>
               </tr>
@@ -101,7 +107,7 @@ function typeText(row: ConfigRow): string {
           </tbody>
         </table>
       ) : (
-        <table class="reference-table">
+        <table class="nc-ref">
           <thead>
             <tr>
               <th scope="col">Form</th>
@@ -111,10 +117,10 @@ function typeText(row: ConfigRow): string {
           <tbody>
             {table.forms.map((form) => (
               <tr>
-                <td class="reference-type">
+                <td class="reference-type" data-label="Form">
                   <code>{form.type}</code>
                 </td>
-                <td class="reference-meaning">
+                <td class="reference-meaning" data-label="Meaning">
                   <ReferenceText text={form.description} />
                   {form.fields
                     ?.filter((field) => field.description || field.default)
@@ -147,16 +153,6 @@ function typeText(row: ConfigRow): string {
 </div>
 
 <style>
-  .reference-wrap {
-    overflow-x: auto;
-  }
-
-  .reference-table {
-    display: table;
-    width: 100%;
-    font-size: var(--sl-text-sm);
-  }
-
   .reference-key code {
     white-space: nowrap;
   }
@@ -164,9 +160,6 @@ function typeText(row: ConfigRow): string {
   .reference-mode {
     display: block;
     margin-top: 0.25rem;
-    color: var(--sl-color-gray-3);
-    font-size: var(--sl-text-xs);
-    white-space: nowrap;
   }
 
   /* Types wrap between words; long default paths break after a slash or a
@@ -174,7 +167,6 @@ function typeText(row: ConfigRow): string {
   .reference-type {
     min-width: 7rem;
   }
-
 
   .reference-meaning {
     min-width: 12rem;
@@ -191,5 +183,4 @@ function typeText(row: ConfigRow): string {
   .reference-lead :global(ul) {
     margin-top: 0.5rem;
   }
-
 </style>

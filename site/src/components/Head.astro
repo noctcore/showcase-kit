@@ -1,9 +1,5 @@
 ---
 import Default from '@astrojs/starlight/components/Head.astro';
-// Space Grotesk for headings and the wordmark, JetBrains Mono for code. Both
-// self-hosted, so the site makes no third-party font requests.
-import '@fontsource-variable/space-grotesk';
-import '@fontsource-variable/jetbrains-mono';
 
 // The release feed (src/pages/changelog.xml.ts), so feed readers find it from any page.
 const feed = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/changelog.xml`;
