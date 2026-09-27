@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="https://noctcore.github.io/showcase-kit/gallery/hero.webp" width="100%" alt="A banner showcase-kit rendered for Nightjar, the made-up observing planner in its docs gallery: the crescent logo, the name and the tagline on the left, and the Gear, Log and Tonight windows stacked and tilted on the right." />
+  <br /><sub>A banner the kit rendered for Nightjar, the fixture app of the <a href="https://noctcore.github.io/showcase-kit/gallery/">docs gallery</a>.</sub>
+</p>
+
 # @noctcore/showcase-kit
 
 Capture, frame and export showcase images of desktop and web apps for READMEs and portfolios.
@@ -11,12 +16,40 @@ Protocol, or a terminal app in a pseudo terminal) and captures the same pixels o
 From one config it produces:
 
 - **raw captures**: pixel-exact PNGs at a fixed viewport and device scale factor, in every UI language;
-- **framed README images**: each capture in a window frame on a solid or gradient background, as WebP or PNG;
+- **framed README images**: each capture in a window, browser or terminal frame (six styles) on a solid, gradient,
+  mesh, dotted, grainy or transparent background, as WebP or PNG;
 - **portfolio images**: exact-size 16:9 images with the framed window contained, a thumbnail and a gallery JSON;
-- **a README table**: an HTML table of the framed images with captions;
-- **a hero banner**: logo, name, tagline and a stack of tilted framed shots;
+- **a README snippet**: the framed images with captions as HTML, in one of five layouts (a table, rows, a featured
+  image, collapsible details or a list);
+- **a hero banner**: logo, name, tagline and framed shots in one of six layouts (stack, spotlight, split, row,
+  mosaic or centered);
 - **terminal clips**: animated WebP and GIF recordings of a terminal app (MP4 opt-in);
 - **app icons**: web, Electron or Tauri icon sets from one square image.
+
+## Layouts
+
+The [gallery](https://noctcore.github.io/showcase-kit/gallery/) shows every hero layout, frame style, background and
+README layout, each with the config that made it. A few of them below, for Nightjar, the made-up app the gallery
+captures (not the kit's own UI). The table is what `showcase readme` printed for them.
+
+<table>
+  <tr>
+    <td width="50%"><img src="https://noctcore.github.io/showcase-kit/gallery/layouts/hero-spotlight.webp" alt="A banner for Nightjar, the made-up app in showcase-kit&#39;s docs gallery, in the spotlight layout: the logo, name and tagline on the left, one large Tonight window running off the right edge." /></td>
+    <td width="50%"><img src="https://noctcore.github.io/showcase-kit/gallery/layouts/hero-row.webp" alt="The Nightjar banner in the row layout: the logo, name and tagline centered at the top, the Gear, Log and Tonight windows side by side under them." /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Hero layout spotlight, for Nightjar (the gallery fixture app)</sub></td>
+    <td align="center"><sub>Hero layout row</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="https://noctcore.github.io/showcase-kit/gallery/layouts/hero-mosaic.webp" alt="The Nightjar banner in the mosaic layout: the text on the left, a tilted wall of Nightjar windows fading out towards it." /></td>
+    <td width="50%"><img src="https://noctcore.github.io/showcase-kit/gallery/layouts/tonight-browser.webp" alt="Nightjar&#39;s Tonight view in the browser frame: a toolbar with back, forward and reload, and nightjar.app/tonight in the address bar." /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Hero layout mosaic</sub></td>
+    <td align="center"><sub>Frame style browser, with an address bar</sub></td>
+  </tr>
+</table>
 
 ## Install
 
@@ -67,9 +100,9 @@ export default defineConfig({
 | [Terminal determinism](https://noctcore.github.io/showcase-kit/guides/terminal-determinism/) | What the kit pins down, and what a TUI should offer |
 | [Clips](https://noctcore.github.io/showcase-kit/guides/clips/) | Animated recordings of a terminal app |
 | [Frames](https://noctcore.github.io/showcase-kit/guides/frames/) | Window styles, backgrounds, formats and sizes |
-| [README table](https://noctcore.github.io/showcase-kit/guides/readme-table/) | `showcase readme` and its options |
+| [README table](https://noctcore.github.io/showcase-kit/guides/readme-table/) | `showcase readme`, its options and its five layouts |
 | [Portfolio](https://noctcore.github.io/showcase-kit/guides/portfolio/) | Exact-size images, the thumbnail and the gallery JSON |
-| [Hero banner](https://noctcore.github.io/showcase-kit/guides/hero/) | The README banner and social preview |
+| [Hero banner](https://noctcore.github.io/showcase-kit/guides/hero/) | The README banner and social preview, in six layouts |
 | [Icons](https://noctcore.github.io/showcase-kit/guides/icons/) | Web, Electron and Tauri icon sets |
 | [Config reference](https://noctcore.github.io/showcase-kit/reference/config/) | Every config key, its type and default |
 | [CLI reference](https://noctcore.github.io/showcase-kit/reference/cli/) | Every command and option |
