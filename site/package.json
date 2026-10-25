@@ -21,8 +21,8 @@
     "satteri": "0.10.5"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.2",
-    "sharp": "0.35.4",
+    "@types/bun": "^1.4.3",
+    "sharp": "0.35.5",
     "typescript": "^5.9.3"
   }
 }
