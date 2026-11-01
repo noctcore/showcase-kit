@@ -1,5 +1,11 @@
 # @noctcore/showcase-kit
 
+## 0.3.1
+
+### Patch Changes
+
+- [#28](https://github.com/noctcore/showcase-kit/pull/28) [`cd27ffd`](https://github.com/noctcore/showcase-kit/commit/cd27ffded6e13a853012667b375fe98a15efee02) Thanks [@Shironex](https://github.com/Shironex)! - Require sharp 0.35.5 or newer, which fixes a high severity advisory.
+
 ## 0.3.0
 
 ### Minor Changes
