@@ -5,6 +5,11 @@
 
 # @noctcore/showcase-kit
 
+[![CI](https://github.com/noctcore/showcase-kit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/noctcore/showcase-kit/actions/workflows/ci.yml)
+[![Docs](https://github.com/noctcore/showcase-kit/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/noctcore/showcase-kit/actions/workflows/docs.yml)
+[![npm](https://img.shields.io/npm/v/@noctcore/showcase-kit)](https://www.npmjs.com/package/@noctcore/showcase-kit)
+[![MIT license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+
 Capture, frame and export showcase images of desktop and web apps for READMEs and portfolios.
 
 One config file describes your app and the views worth showing. The `showcase` CLI drives the app with
