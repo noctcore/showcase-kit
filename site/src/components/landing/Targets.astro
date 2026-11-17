@@ -1,0 +1,66 @@
+---
+/**
+ * The four kinds of app the kit captures, by target mode, beside the
+ * gallery's framed terminal app. Each mode links to its guide.
+ */
+import { galleryFile } from '../GalleryData';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const queue = galleryFile('layouts/queue-terminal.webp');
+
+const modes = [
+  {
+    mode: 'url',
+    name: 'Web apps.',
+    text: 'Starts your dev server, or uses a URL that is already up, in headless Chromium.',
+    guide: 'guides/web-apps/',
+  },
+  {
+    mode: 'cdp',
+    name: 'Electron.',
+    text: 'Attaches to the running app over the Chrome DevTools Protocol.',
+    guide: 'guides/electron/',
+  },
+  {
+    mode: 'tty',
+    name: 'Terminal apps.',
+    text: 'Runs a TUI or a CLI in a pseudo terminal with a pinned size, font and environment. Records clips too.',
+    guide: 'guides/terminal-apps/',
+  },
+  {
+    mode: 'tauri',
+    name: 'Tauri.',
+    text: 'The web build in url mode on any OS, or WebView2 over CDP on Windows.',
+    guide: 'guides/tauri/',
+  },
+];
+---
+
+<section class="nc-section nc-targets not-content" aria-labelledby="targets">
+  <div>
+    <h2 class="nc-h2" id="targets">Web, Electron, terminal and Tauri apps.</h2>
+    <ul class="nc-modes">
+      {
+        modes.map((mode) => (
+          <li>
+            <span class="nc-mode">{mode.mode}</span>
+            <div>
+              <a href={`${base}/${mode.guide}`}>{mode.name}</a> <span>{mode.text}</span>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+  <figure class="nc-shot">
+    <img
+      src={queue.src}
+      width={queue.width}
+      height={queue.height}
+      loading="lazy"
+      decoding="async"
+      alt="The nightjar queue demo TUI in the terminal frame, the tab bar in the same color as the terminal screen: imaging targets with their progress, one selected, and its details."
+    />
+    <figcaption><code>tty</code> the gallery's demo TUI, framed with <code>style: 'terminal'</code></figcaption>
+  </figure>
+</section>

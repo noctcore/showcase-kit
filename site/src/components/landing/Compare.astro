@@ -1,0 +1,100 @@
+---
+/**
+ * Raw capture against framed image: the framed README image of Nightjar's
+ * Tonight view, with the raw capture of the same view laid over its screen
+ * area and clipped at the divider. Drag, or use the arrow keys, Home and End.
+ *
+ * The raw layer's box is measured on the framed file (window style, padding
+ * 64, maxWidth 1600): the screen sits at left 4.5%, top 11.5%, 91% wide and
+ * 81.27% high. Re-measure when the gallery's frame geometry changes.
+ */
+import { galleryFile } from '../GalleryData';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const framed = galleryFile('readme/en/tonight.webp');
+const raw = `${base}/landing/tonight-raw.webp`;
+const start = 34;
+---
+
+<figure class="nc-compare-wrap not-content">
+  <div
+    class="nc-compare nc-nudge"
+    id="nc-compare"
+    role="slider"
+    tabindex="0"
+    aria-label="Divider between the raw capture and the framed image"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow={start}
+    aria-valuetext={`${start}% raw capture`}
+    style={`--x: ${start}%; aspect-ratio: ${framed.width} / ${framed.height}`}
+  >
+    <img
+      class="nc-compare-framed"
+      src={framed.src}
+      width={framed.width}
+      height={framed.height}
+      alt="Nightjar's Tonight view framed for a README: a dark window with traffic lights and a soft shadow on a teal to indigo gradient."
+    />
+    <div class="nc-compare-raw">
+      <img
+        src={raw}
+        width="1600"
+        height="900"
+        alt="The same view as the raw capture: the app's pixels with no frame or background."
+      />
+    </div>
+    <span class="nc-compare-tag nc-compare-tag--l">raw/<span class="nc-long">en/</span>tonight.png</span>
+    <span class="nc-compare-tag nc-compare-tag--r"
+      ><span class="nc-long">assets/</span>showcase/<span class="nc-long">en/</span>tonight.webp</span
+    >
+    <div class="nc-compare-handle" aria-hidden="true">
+      <span>
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+          ><path d="M6.5 4.5 2 9l4.5 4.5M11.5 4.5 16 9l-4.5 4.5"></path></svg
+        >
+      </span>
+    </div>
+  </div>
+  <figcaption>
+    <span class="nc-compare-hint">Drag to compare.</span> Left: what <code>showcase capture</code> wrote. Right: what
+    <code>showcase frame</code> made of it.
+  </figcaption>
+</figure>
+
+<script>
+  const slider = document.getElementById('nc-compare');
+  if (slider) {
+    const set = (value: number) => {
+      const p = Math.max(0, Math.min(100, value));
+      slider.style.setProperty('--x', `${p}%`);
+      slider.setAttribute('aria-valuenow', String(Math.round(p)));
+      slider.setAttribute('aria-valuetext', `${Math.round(p)}% raw capture`);
+    };
+    const stopNudge = () => slider.classList.remove('nc-nudge');
+    const move = (event: PointerEvent) => {
+      const box = slider.getBoundingClientRect();
+      set(((event.clientX - box.left) / box.width) * 100);
+    };
+    slider.addEventListener('pointerdown', (event) => {
+      stopNudge();
+      slider.setPointerCapture(event.pointerId);
+      move(event);
+    });
+    slider.addEventListener('pointermove', (event) => {
+      if (slider.hasPointerCapture(event.pointerId)) move(event);
+    });
+    slider.addEventListener('keydown', (event) => {
+      const now = Number(slider.getAttribute('aria-valuenow'));
+      const next = { ArrowLeft: now - 5, ArrowDown: now - 5, ArrowRight: now + 5, ArrowUp: now + 5, Home: 0, End: 100 }[
+        event.key
+      ];
+      if (next === undefined) return;
+      event.preventDefault();
+      stopNudge();
+      set(next);
+    });
+    // The nudge runs once, only when motion is welcome (the CSS gates it too); after it the divider rests where it began.
+    slider.addEventListener('animationend', stopNudge, { once: true });
+  }
+</script>

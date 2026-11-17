@@ -1,0 +1,46 @@
+---
+/**
+ * The landing page's hero, in place of Starlight's: an eyebrow, the promise,
+ * the lead, the actions and the install command on the grid field, beside the
+ * passage diagram from the README header. Under it, the raw capture against
+ * the framed image of the same view. Only the landing has a `hero`, so this
+ * override renders nowhere else. Title, lead and actions come from the
+ * page's frontmatter.
+ */
+import '../../styles/landing.css';
+
+import diagramDark from '../../assets/brand/diagram-dark.svg';
+import diagramLight from '../../assets/brand/diagram-light.svg';
+import Compare from './Compare.astro';
+import InstallChip from './InstallChip.astro';
+
+const { hero } = Astro.locals.starlightRoute.entry.data;
+const actions = hero?.actions ?? [];
+// One of the two drawings is display: none for the theme, so both carry the text.
+const diagramAlt =
+  'The route from a config to README images: capture, frame and export. Running animations and half-drawn screens stop at capture.';
+---
+
+<div class="nc-hero nc-band not-content">
+  <div class="nc-hero-copy">
+    <p class="nc-eyebrow">Playwright / TypeScript / MIT</p>
+    <h1 id="_top" set:html={hero?.title} />
+    {hero?.tagline && <p class="nc-hero-lead" set:html={hero.tagline} />}
+    <div class="nc-actions">
+      {
+        actions.map((action) => (
+          <a class:list={['nc-btn', action.variant === 'primary' ? 'nc-btn--primary' : 'nc-btn--ghost']} href={action.link}>
+            {action.text}
+          </a>
+        ))
+      }
+    </div>
+    <InstallChip />
+  </div>
+  <div class="nc-hero-art">
+    <img class="nc-art-dark" src={diagramDark.src} width="600" height="360" alt={diagramAlt} />
+    <img class="nc-art-light" src={diagramLight.src} width="600" height="360" alt={diagramAlt} />
+  </div>
+</div>
+
+<Compare />

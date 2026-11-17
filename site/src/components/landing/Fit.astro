@@ -1,0 +1,47 @@
+---
+/**
+ * Who the kit is for, and who it is not for, side by side. The "yes" list
+ * carries the accent mark, the "probably not" list a dashed muted one, so the
+ * two read apart without colour.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<section class="nc-section not-content" aria-labelledby="is-this-for-you">
+  <h2 class="nc-h2" id="is-this-for-you">Is this for you?</h2>
+  <div class="nc-fit2">
+    <div class="nc-fit-yes">
+      <h3>Yes, if</h3>
+      <ul>
+        <li>
+          You keep screenshots of an app in a README or a portfolio and retake them by hand every time the UI changes.
+        </li>
+        <li>
+          Your app runs in a browser, in Electron or in a terminal. The kit drives it with <a href="https://playwright.dev"
+            >Playwright</a
+          >: a web app in headless Chromium (a dev server it starts for you, or a URL that is already up), an Electron app
+          over the Chrome DevTools Protocol, or a terminal app (a TUI or a CLI) in a pseudo terminal.
+        </li>
+        <li>You have Node 22 or newer and Playwright's Chromium.</li>
+      </ul>
+    </div>
+    <div class="nc-fit-no">
+      <h3>Probably not, if</h3>
+      <ul>
+        <li>
+          Your app is a native desktop app that is neither a web view nor a terminal (Qt, SwiftUI, WinForms): there is
+          nothing for the kit to attach to.
+        </li>
+        <li>
+          It is Tauri on macOS or Linux and you need the real window: neither has the DevTools Protocol, so there you
+          capture the app's web build instead (<a href={`${base}/guides/tauri/`}>Tauri</a> explains the trade-off).
+        </li>
+        <li>
+          Every run shows new data. The kit cannot make a changing app look the same twice on its own: the images change
+          with it until you give the app a fixture mode.
+        </li>
+        <li>You want animated recordings of a web app: clips are for terminal apps only, so far.</li>
+      </ul>
+    </div>
+  </div>
+</section>

@@ -37,6 +37,7 @@ export default defineConfig({
       ],
       components: {
         Head: './src/components/Head.astro',
+        Hero: './src/components/landing/Hero.astro',
         PageTitle: './src/components/PageTitle.astro',
         Footer: './src/components/Footer.astro',
         SiteTitle: './src/components/SiteTitle.astro',

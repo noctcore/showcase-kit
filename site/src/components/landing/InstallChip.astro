@@ -1,0 +1,33 @@
+---
+/**
+ * The install command with a copy button. Without script the command is
+ * still there to select by hand; the button only appears once it can work.
+ */
+interface Props {
+  command?: string;
+}
+
+const { command = 'pnpm add -D @noctcore/showcase-kit playwright' } = Astro.props;
+---
+
+<div class="nc-install">
+  <code><span class="nc-install-prompt" aria-hidden="true">$ </span><span class="nc-install-cmd">{command}</span></code>
+  <button type="button" class="nc-copy" data-copy={command} hidden>copy</button>
+</div>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('.nc-copy')) {
+    if (!navigator.clipboard) continue;
+    button.hidden = false;
+    button.setAttribute('aria-label', `Copy the command: ${button.dataset.copy ?? ''}`);
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy ?? '');
+        button.textContent = 'copied';
+      } catch {
+        button.textContent = 'press Ctrl+C';
+      }
+      setTimeout(() => (button.textContent = 'copy'), 1600);
+    });
+  }
+</script>
