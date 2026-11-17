@@ -6,7 +6,7 @@
 
    Load order in customCss: base.css, components.css, presets/<name>.css,
    then the site's own CSS. A preset comes after this file so it can tune a
-   component (Observatory draws link cards as ruled rows).
+   component.
    Markup for each piece is in COMPONENTS.md. */
 
 /* ---------------------------------------------------------------------------
@@ -45,18 +45,18 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Site title: the wordmark (its crescent rule is in base.css), then the
-   product. Markup in COMPONENTS.md (a SiteTitle override).
+   Site title: the lockup "noctcore/<repo>", the org quiet before the repo,
+   after the repo's mark. Markup in COMPONENTS.md (a SiteTitle override).
 --------------------------------------------------------------------------- */
-.site-title .nc-sep {
-  color: var(--sl-color-gray-4);
-  font-weight: 400;
+.site-title .nc-org {
+  color: var(--sl-color-gray-3);
+  font-weight: 500;
 }
 
 .site-title .nc-product {
   overflow: hidden;
-  color: var(--sl-color-gray-2);
-  font-weight: 500;
+  color: var(--sl-color-white);
+  font-weight: 600;
   text-overflow: ellipsis;
 }
 
@@ -244,8 +244,8 @@
   content: '';
   position: absolute;
   inset: 0 0 auto;
-  height: 2px;
-  background: var(--nc-gradient);
+  height: 1px;
+  background: var(--sl-color-accent);
   opacity: 0;
 }
 
@@ -510,10 +510,6 @@
   font-weight: 800;
 }
 
-.expressive-code :is(.verdict-bad, .verdict-good) pre {
-  box-shadow: inset 3px 0 0 var(--nc-verdict);
-}
-
 .expressive-code :is(.verdict-bad, .verdict-good) + * {
   margin-top: 0.75rem;
 }
@@ -746,14 +742,9 @@ starlight-tabs:has(.tab:nth-child(6)) .tab > [role='tab'][aria-selected='true'] 
 .nc-fit > div {
   padding: 1rem 1.1rem;
   border: 1px solid var(--nc-card-border);
-  border-top: 2px solid var(--sl-color-green);
   border-radius: var(--nc-radius);
   background: var(--nc-card-bg);
   font-size: var(--sl-text-sm);
-}
-
-.nc-fit > div + div {
-  border-top-color: var(--sl-color-orange);
 }
 
 .nc-fit > div > p + p {

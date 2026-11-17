@@ -26,17 +26,18 @@ export default defineConfig({
       description:
         'Capture, frame and export showcase images of desktop and web apps for READMEs and portfolios.',
       favicon: '/favicon.svg',
-      logo: { src: './src/assets/mark.svg', alt: '' },
+      logo: { src: './src/assets/showcase-mark.svg', alt: '' },
       // The noctcore theme in its load order: the token contract, the shared
-      // pieces, the Observatory preset (it may tune a piece), then this site's own rules.
+      // pieces, the Blueprint preset (it may tune a piece), then this site's own rules.
       customCss: [
         './src/styles/noctcore/base.css',
         './src/styles/noctcore/components.css',
-        './src/styles/noctcore/presets/observatory.css',
+        './src/styles/noctcore/presets/blueprint.css',
         './src/styles/site.css',
       ],
       components: {
         Head: './src/components/Head.astro',
+        PageTitle: './src/components/PageTitle.astro',
         Footer: './src/components/Footer.astro',
         SiteTitle: './src/components/SiteTitle.astro',
         SocialIcons: './src/components/SocialIcons.astro',
@@ -85,7 +86,10 @@ export default defineConfig({
             { label: 'Programmatic API', link: '/reference/api/' },
           ],
         },
-        { label: 'Changelog', link: '/changelog/' },
+        {
+          label: 'Project',
+          items: [{ label: 'Changelog', link: '/changelog/' }],
+        },
       ],
     }),
   ],

@@ -11,7 +11,7 @@ import { SITE_DIR } from './site';
 export const THEME_DIR = join(SITE_DIR, 'src', 'styles', 'noctcore');
 
 /** The preset this site ships, as in astro.config.mjs `customCss`. */
-export const PRESET_FILE = join(THEME_DIR, 'presets', 'observatory.css');
+export const PRESET_FILE = join(THEME_DIR, 'presets', 'blueprint.css');
 
 /** The selectors that open a preset's dark block (Starlight's default) and its light block. */
 export const DARK_SELECTOR = ':root,\n::backdrop';

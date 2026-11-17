@@ -1,0 +1,430 @@
+/* noctcore docs preset: Blueprint
+   The noctcore brand on a docs page: a deep night field, steel-blue ink for
+   the mark, links and the current place, hairline construction lines, and a
+   quiet 40px grid kept for banded sections, never behind reading text.
+   Type: Manrope for headings and text, DM Mono for labels, JetBrains Mono for
+   code (DM Mono's script f misreads in code a reader copies).
+   Needs: @fontsource-variable/manrope, @fontsource/dm-mono,
+   @fontsource-variable/jetbrains-mono.
+   Night is the default, as in Starlight: :root holds the dark values and
+   :root[data-theme='light'] overrides them with paper. Load after base.css and
+   components.css. Contrast: every text pair passes WCAG AA, faint text
+   included (night 5.05:1 on the raised surface, paper 4.56:1 on the deep one).
+   Copper (--nc-stop) marks only what a product stops: never headings, links,
+   labels or code. */
+@import '@fontsource-variable/manrope/wght.css';
+@import '@fontsource/dm-mono/400.css';
+@import '@fontsource-variable/jetbrains-mono';
+
+:root,
+::backdrop {
+  /* Type, shape and labels */
+  --nc-font-display: 'Manrope Variable', 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --nc-font-body: 'Manrope Variable', 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --nc-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --nc-font-label: 'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --nc-label-font: var(--nc-font-label);
+  --nc-label-case: uppercase;
+  --nc-label-tracking: 1.1px;
+  --nc-label-size: 0.75rem;
+  --nc-label-weight: 400;
+  --nc-radius: 4px;
+  --nc-measure: 46rem;
+  --sl-text-body: 1rem;
+  --sl-line-height: 1.75;
+  --sl-line-height-headings: 1.15;
+  --sl-text-h1: clamp(2.25rem, 1.8rem + 1.6vw, 2.75rem);
+  --sl-text-h2: 1.625rem;
+  --sl-text-h3: 1.1875rem;
+  --sl-text-h4: 1.0625rem;
+  --sl-nav-height: 4rem;
+
+  /* Surfaces */
+  --nc-bg: #17212d;
+  --nc-surface: #17212d;
+  --nc-raised: #1d2a39;
+  --nc-deep: #101924;
+  --nc-line: #405367;
+  --nc-line-soft: #233243;
+  --nc-grid: rgb(37 51 68 / 0.48);
+
+  /* Ink */
+  --nc-ink: #f0f3f6;
+  --nc-ink-2: #e2e8ee;
+  --nc-text: #d6dee7;
+  --nc-muted: #b3bec9;
+  --nc-faint: #8a9aab;
+
+  /* Accent: steel blue */
+  --nc-link: #aac8e2;
+  --nc-on-link: #17212d;
+  --nc-accent: #aac8e2;
+  --nc-accent-soft: #22374b;
+  --nc-accent-strong: #d3e3f1;
+  --nc-stop: #d9a08e;
+
+  /* Signals: Starlight asides and badges. Asides draw a neutral box; the hue is in the icon and title only */
+  --nc-note-bg: #1d2a39;
+  --nc-note-edge: #aac8e2;
+  --nc-note-ink: #c9dcee;
+  --nc-tip-bg: #1d2a39;
+  --nc-tip-edge: #aac8e2;
+  --nc-tip-ink: #c9dcee;
+  --nc-caution-bg: #262a2a;
+  --nc-caution-edge: #e0c27a;
+  --nc-caution-ink: #ecd8a8;
+  --nc-danger-bg: #2a2229;
+  --nc-danger-edge: #ee9d9d;
+  --nc-danger-ink: #f5c4c4;
+  --nc-success-bg: #1a2a2b;
+  --nc-success-edge: #9fd4b0;
+  --nc-success-ink: #c4e6cf;
+
+  /* Components: cards */
+  --nc-card-bg: #1d2a39;
+  --nc-card-border: #405367;
+
+  /* Code: frames read these; the Expressive Code theme carries the syn-* values */
+  --nc-code-inline: #1d2a39;
+  --nc-code-bg: #101924;
+  --nc-code-ink: #c4cfda;
+  --nc-syn-keyword: #aac8e2;
+  --nc-syn-string: #f0f3f6;
+  --nc-syn-number: #e3ecf5;
+  --nc-syn-function: #d3e3f1;
+  --nc-syn-property: #c4cfda;
+  --nc-syn-comment: #8a9aab;
+  --nc-syn-punct: #95a5b5;
+
+  /* Motif: the grid field, for a window-frame backdrop or a banded section */
+  --nc-motif:
+    linear-gradient(var(--nc-grid) 1px, transparent 1px) -1px -1px / 40px 40px,
+    linear-gradient(90deg, var(--nc-grid) 1px, transparent 1px) -1px -1px / 40px 40px,
+    var(--nc-bg);
+}
+
+:root[data-theme='light'],
+[data-theme='light'] ::backdrop {
+  /* Surfaces */
+  --nc-bg: #f6f5f1;
+  --nc-surface: #f6f5f1;
+  --nc-raised: #ffffff;
+  --nc-deep: #ecebe6;
+  --nc-line: #b9c6d0;
+  --nc-line-soft: #e2e5e4;
+  --nc-grid: rgb(227 230 230 / 0.48);
+
+  /* Ink */
+  --nc-ink: #202b39;
+  --nc-ink-2: #263241;
+  --nc-text: #2c3846;
+  --nc-muted: #596773;
+  --nc-faint: #5f6b77;
+
+  /* Accent: steel blue */
+  --nc-link: #355e87;
+  --nc-on-link: #f6f5f1;
+  --nc-accent: #355e87;
+  --nc-accent-soft: #dfe8f0;
+  --nc-accent-strong: #234567;
+  --nc-stop: #92513e;
+
+  /* Signals */
+  --nc-note-bg: #ffffff;
+  --nc-note-edge: #355e87;
+  --nc-note-ink: #234567;
+  --nc-tip-bg: #ffffff;
+  --nc-tip-edge: #355e87;
+  --nc-tip-ink: #234567;
+  --nc-caution-bg: #fbf6ea;
+  --nc-caution-edge: #8a6412;
+  --nc-caution-ink: #5e4409;
+  --nc-danger-bg: #fbefee;
+  --nc-danger-edge: #a3302a;
+  --nc-danger-ink: #74201b;
+  --nc-success-bg: #eef6f0;
+  --nc-success-edge: #2f6b46;
+  --nc-success-ink: #1f4a30;
+
+  /* Components: cards */
+  --nc-card-bg: #ffffff;
+  --nc-card-border: #b9c6d0;
+
+  /* Code */
+  --nc-code-inline: #ecebe6;
+  --nc-code-bg: #ecebe6;
+  --nc-code-ink: #3d4a58;
+  --nc-syn-keyword: #355e87;
+  --nc-syn-string: #17212d;
+  --nc-syn-number: #202b39;
+  --nc-syn-function: #234567;
+  --nc-syn-property: #3d4a58;
+  --nc-syn-comment: #5f6b77;
+  --nc-syn-punct: #596773;
+
+  /* Motif */
+  --nc-motif:
+    linear-gradient(var(--nc-grid) 1px, transparent 1px) -1px -1px / 40px 40px,
+    linear-gradient(90deg, var(--nc-grid) 1px, transparent 1px) -1px -1px / 40px 40px,
+    var(--nc-bg);
+}
+
+/* ---------------------------------------------------------------------------
+   Page chrome
+--------------------------------------------------------------------------- */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.page > .header {
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+.sidebar-pane {
+  border-inline-end: 1px solid var(--sl-color-hairline);
+}
+
+/* Search: a quiet field on the deep surface, the shortcut in a mono key. */
+site-search > button[data-open-modal] {
+  border: 1px solid var(--nc-line);
+  border-radius: var(--nc-radius);
+  background: var(--nc-deep);
+  color: var(--sl-color-gray-3);
+}
+
+site-search > button[data-open-modal]:hover {
+  border-color: var(--sl-color-gray-3);
+  color: var(--sl-color-white);
+}
+
+site-search > button[data-open-modal] > kbd {
+  gap: 0.125rem;
+  padding: 0.0625rem 0.3125rem;
+  border: 1px solid var(--nc-line);
+  border-radius: 3px;
+  background: transparent;
+  font-family: var(--nc-font-label);
+  font-size: 0.6875rem;
+  color: var(--sl-color-gray-3);
+}
+
+site-search > button[data-open-modal] > kbd kbd {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+}
+
+site-search dialog {
+  border-radius: var(--nc-radius);
+}
+
+starlight-theme-select select,
+starlight-lang-select select {
+  font-family: var(--nc-font-label);
+  font-size: 0.8125rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Sidebar and table of contents: labels in muted mono capitals.
+--------------------------------------------------------------------------- */
+.sidebar-content .group-label .large,
+starlight-toc h2,
+mobile-starlight-toc h2,
+.sl-markdown-content th {
+  font-family: var(--nc-label-font);
+  font-size: var(--nc-label-size);
+  font-weight: var(--nc-label-weight);
+  letter-spacing: var(--nc-label-tracking);
+  text-transform: var(--nc-label-case);
+  color: var(--sl-color-gray-3);
+}
+
+.sidebar-content a {
+  border-radius: 3px;
+  color: var(--sl-color-gray-3);
+}
+
+.sidebar-content a:hover,
+.sidebar-content a:focus-visible {
+  color: var(--sl-color-white);
+}
+
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover,
+.sidebar-content a[aria-current='page']:focus {
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+/* A top-level link such as Changelog reads as an entry, not a group title. */
+.sidebar-content .top-level > li > a.large {
+  font-size: var(--sl-text-sm);
+}
+
+starlight-toc a,
+mobile-starlight-toc a {
+  color: var(--sl-color-gray-3);
+}
+
+starlight-toc ul ul,
+starlight-toc nav > ul {
+  border-inline-start: 1px solid var(--sl-color-hairline);
+}
+
+starlight-toc a {
+  margin-inline-start: -1px;
+  border-inline-start: 1px solid transparent;
+}
+
+starlight-toc a:hover {
+  color: var(--sl-color-white);
+}
+
+starlight-toc a[aria-current='true'],
+mobile-starlight-toc a[aria-current='true'] {
+  color: var(--sl-color-white);
+  border-inline-start-color: var(--sl-color-accent);
+}
+
+/* ---------------------------------------------------------------------------
+   Page title and headings
+--------------------------------------------------------------------------- */
+h1#_top {
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.sl-markdown-content :is(h2, h3, h4):not(:where(.not-content *)) {
+  font-weight: 600;
+  color: var(--sl-color-white);
+}
+
+.sl-markdown-content h2:not(:where(.not-content *)) {
+  letter-spacing: -0.022em;
+}
+
+.sl-markdown-content h3:not(:where(.not-content *)) {
+  letter-spacing: -0.012em;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--sl-color-text-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)):hover {
+  color: var(--sl-color-white);
+}
+
+/* Inline code: a hairline chip in the code face. */
+.sl-markdown-content :not(pre) > code:not(:where(.not-content *)) {
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 3px;
+  color: var(--sl-color-white);
+  font-size: 0.86em;
+}
+
+.sl-markdown-content kbd {
+  padding: 0.0625rem 0.375rem;
+  border: 1px solid var(--nc-line);
+  border-radius: 3px;
+  font-family: var(--nc-font-mono);
+  font-size: 0.8125em;
+}
+
+/* ---------------------------------------------------------------------------
+   Tables: mono heads over a hairline, rows on soft rules.
+--------------------------------------------------------------------------- */
+.sl-markdown-content table:not(:where(.not-content *)) {
+  font-size: var(--sl-text-sm);
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  border: 0;
+  border-bottom: 1px solid var(--sl-color-hairline);
+  background: transparent;
+  padding: 0.65rem 1rem 0.65rem 0;
+}
+
+.sl-markdown-content th:not(:where(.not-content *)) {
+  border-bottom-color: var(--nc-line);
+  padding-block: 0.5rem;
+  text-align: start;
+}
+
+.sl-markdown-content tr:nth-child(2n):not(:where(.not-content *)) {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Asides: a neutral box with a hairline; the type shows in the icon and title.
+--------------------------------------------------------------------------- */
+.starlight-aside {
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--nc-line);
+  background: var(--nc-raised);
+  color: var(--sl-color-gray-2);
+}
+
+.starlight-aside__title {
+  font-family: var(--nc-font-display);
+  font-size: var(--sl-text-base);
+  font-weight: 650;
+  color: var(--sl-color-white);
+}
+
+.starlight-aside__icon {
+  color: var(--sl-color-asides-text-accent);
+}
+
+/* ---------------------------------------------------------------------------
+   Pagination: two hairline boxes, a mono direction over the page name.
+--------------------------------------------------------------------------- */
+.pagination-links a {
+  border-color: var(--nc-line);
+  box-shadow: none;
+  padding: 0.875rem 1.125rem;
+  font-family: var(--nc-label-font);
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-3);
+}
+
+.pagination-links a:hover {
+  border-color: var(--sl-color-accent);
+}
+
+.pagination-links .link-title {
+  font-family: var(--nc-font-display);
+  font-size: var(--sl-text-lg);
+  font-weight: 650;
+  color: var(--sl-color-white);
+}
+
+.pagination-links svg {
+  color: var(--sl-color-gray-3);
+}
+
+/* Cards and link cards on the raised surface with a hairline. */
+.sl-link-card {
+  box-shadow: none;
+}
+
+.sl-link-card:hover {
+  border-color: var(--sl-color-accent);
+}
+
+.sl-badge {
+  font-family: var(--nc-font-label);
+  border-radius: 3px;
+}
+
+/* Code frames with a title: the soft rule runs under the whole tab bar, not only beside the tab. */
+.expressive-code .frame.has-title:not(.is-terminal) .header {
+  border-bottom: 1px solid var(--nc-line-soft);
+}

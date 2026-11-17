@@ -1,17 +1,17 @@
 ---
 /**
- * The site title as the noctcore wordmark, then the product: "noctcore /
- * showcase-kit". base.css draws the crescent rule under the wordmark and
- * components.css colours the separator and the product.
+ * The site title as the noctcore lockup: the repo's mark (the four-corner
+ * viewfinder), then "noctcore/showcase-kit", the org quiet before the repo.
+ * The mark is inline so it takes the accent colour in both themes.
  */
-import mark from '../assets/mark.svg';
-
 const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
 ---
 
 <a href={siteTitleHref} class="site-title sl-flex">
-  <img src={mark.src} width="32" height="32" alt="" />
-  <span class="nc-wordmark" translate="no">noctcore</span>
-  <span class="nc-sep" aria-hidden="true">/</span>
-  <span class="nc-product" translate="no">{siteTitle}</span>
+  <svg class="nc-mark" viewBox="12 12 40 40" fill="currentColor" aria-hidden="true">
+    <path
+      d="M12 12h16v8H12zM12 20h8v8h-8zM36 12h16v8H36zM44 20h8v8h-8zM12 44h16v8H12zM12 36h8v8h-8zM36 44h16v8H36zM44 36h8v8h-8zM28 28h8v8h-8z"
+    ></path>
+  </svg>
+  <span translate="no"><span class="nc-org">noctcore/</span><span class="nc-product">{siteTitle}</span></span>
 </a>
