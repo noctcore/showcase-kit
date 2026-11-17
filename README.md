@@ -1,22 +1,42 @@
-<p align="center">
-  <img src="https://noctcore.github.io/showcase-kit/gallery/hero.webp" width="100%" alt="A banner showcase-kit rendered for Nightjar, the made-up observing planner in its docs gallery: the crescent logo, the name and the tagline on the left, and the Gear, Log and Tonight windows stacked and tilted on the right." />
-  <br /><sub>A banner the kit rendered for Nightjar, the fixture app of the <a href="https://noctcore.github.io/showcase-kit/gallery/">docs gallery</a>.</sub>
-</p>
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/readme-header-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/brand/readme-header-light.svg">
+    <img src="assets/brand/readme-header-light.svg" width="100%" alt="noctcore/showcase-kit. Same pixels, every run. Capture, frame and export from one config file.">
+  </picture>
 
-# @noctcore/showcase-kit
+  <p><strong>Capture, frame and export showcase images of web, Electron and terminal apps for READMEs and portfolios, from one config file.</strong></p>
 
-[![CI](https://github.com/noctcore/showcase-kit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/noctcore/showcase-kit/actions/workflows/ci.yml)
-[![Docs](https://github.com/noctcore/showcase-kit/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/noctcore/showcase-kit/actions/workflows/docs.yml)
-[![npm](https://img.shields.io/npm/v/@noctcore/showcase-kit)](https://www.npmjs.com/package/@noctcore/showcase-kit)
-[![MIT license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+  <p>
+    <a href="https://github.com/noctcore/showcase-kit/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/noctcore/showcase-kit/ci.yml?branch=main&style=flat&label=ci" alt="CI status"></a>
+    <a href="https://github.com/noctcore/showcase-kit/actions/workflows/docs.yml"><img src="https://img.shields.io/github/actions/workflow/status/noctcore/showcase-kit/docs.yml?branch=main&style=flat&label=docs" alt="Docs build status"></a>
+    <a href="https://www.npmjs.com/package/@noctcore/showcase-kit"><img src="https://img.shields.io/npm/v/@noctcore/showcase-kit?style=flat&color=355e87" alt="npm version"></a>
+    <img src="https://img.shields.io/badge/node-%3E%3D22-355e87?style=flat" alt="Node 22 or later">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-355e87?style=flat" alt="MIT license"></a>
+  </p>
 
-Capture, frame and export showcase images of desktop and web apps for READMEs and portfolios.
+  <p>
+    <a href="https://noctcore.github.io/showcase-kit/"><strong>Docs</strong></a>
+    &nbsp;·&nbsp;
+    <a href="https://noctcore.github.io/showcase-kit/gallery/"><strong>Gallery</strong></a>
+    &nbsp;·&nbsp;
+    <a href="https://noctcore.github.io/showcase-kit/reference/config/"><strong>Config reference</strong></a>
+    &nbsp;·&nbsp;
+    <a href="CONTRIBUTING.md"><strong>Contributing</strong></a>
+    &nbsp;·&nbsp;
+    <a href="SECURITY.md"><strong>Security</strong></a>
+  </p>
+</div>
 
-One config file describes your app and the views worth showing. The `showcase` CLI drives the app with
-[Playwright](https://playwright.dev) (a web app in headless Chromium, an Electron app over the Chrome DevTools
-Protocol, or a terminal app in a pseudo terminal) and captures the same pixels on every run.
+## What it does
 
-**Documentation: [noctcore.github.io/showcase-kit](https://noctcore.github.io/showcase-kit/)**
+Screenshots in a README go stale every time the UI changes, and retaking them by hand never gives the
+same crop twice. One config file describes your app and the views worth showing. The `showcase` CLI
+drives the app with [Playwright](https://playwright.dev) (a web app in headless Chromium, an Electron
+app over the Chrome DevTools Protocol, or a terminal app in a pseudo terminal), settles each view and
+captures the same pixels on every run. Before the shutter it turns off motion, zeroes transitions,
+finishes or resets animations, hides the caret and waits for fonts; a terminal app gets a fixed size, `TZ=UTC`,
+a fixed locale and a bundled font.
 
 From one config it produces:
 
@@ -31,11 +51,11 @@ From one config it produces:
 - **terminal clips**: animated WebP and GIF recordings of a terminal app (MP4 opt-in);
 - **app icons**: web, Electron or Tauri icon sets from one square image.
 
-## Layouts
+## Gallery
 
-The [gallery](https://noctcore.github.io/showcase-kit/gallery/) shows every hero layout, frame style, background and
-README layout, each with the config that made it. Below are four of them, rendered for Nightjar, a made-up app the
-gallery captures (not the kit's own UI). `showcase readme` printed the table itself.
+Four of the outputs, rendered for Nightjar, a made-up app the [docs gallery](https://noctcore.github.io/showcase-kit/gallery/)
+captures (not the kit's own UI). `showcase readme` printed this table; the gallery has every layout, frame style and
+background with the config that made it.
 
 <table>
   <tr>
@@ -70,12 +90,13 @@ apps also need `@lydell/node-pty`.
 
 ```sh
 npx showcase init     # writes showcase.config.mjs (--ts for TypeScript, --tty for a terminal app)
-# edit the target and the shots
-npx showcase all      # capture, frame, and export the portfolio images
+# set target.url (and target.start, if the kit should start your dev server), then the shots
+npx showcase all      # capture, frame, and export the portfolio images when configured
 npx showcase readme   # print the README snippet (--layout for the others)
 ```
 
-A minimal config for a web app:
+`showcase all` writes the raw captures to `showcase-out/raw/en/` and the framed images to
+`assets/showcase/en/`; `showcase readme` prints the HTML table that shows them. A minimal config for a web app:
 
 ```js
 // showcase.config.mjs
@@ -115,9 +136,15 @@ export default defineConfig({
 
 ## Changelog
 
-Release notes for every version are in [CHANGELOG.md](https://github.com/noctcore/showcase-kit/blob/main/CHANGELOG.md) and on the
+Release notes for every version are in [CHANGELOG.md](CHANGELOG.md) and on the
 [changelog page](https://noctcore.github.io/showcase-kit/changelog/).
+
+## Contributing
+
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the toolchain, the commands and the
+rules that keep the tests deterministic; everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+Report a vulnerability privately, as [SECURITY.md](SECURITY.md) describes, never in a public issue.
 
 ## License
 
-MIT
+[MIT](LICENSE)
