@@ -1,0 +1,82 @@
+---
+/**
+ * What each command writes, on one numbered ledger: the command, what it
+ * does, and the file it writes with the default paths. Each row links to
+ * the guide that explains it. On the grid field.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const rows = [
+  {
+    command: 'showcase capture',
+    text: 'Drives the app with Playwright and screenshots every shot in every UI language, pixel exact at a fixed viewport and device scale factor.',
+    writes: 'showcase-out/raw/en/tonight.png',
+    guide: 'guides/web-apps/',
+    label: 'Raw captures',
+  },
+  {
+    command: 'showcase frame',
+    text: 'Puts each capture in a window, browser or terminal frame on a solid, gradient, mesh, dotted, grainy or transparent background, as WebP or PNG.',
+    writes: 'assets/showcase/en/tonight.webp',
+    guide: 'guides/frames/',
+    label: 'Frames',
+  },
+  {
+    command: 'showcase readme',
+    text: 'Prints the framed images with captions as HTML to paste into a README: a table, rows, a featured image, collapsible details or a list.',
+    writes: 'stdout',
+    guide: 'guides/readme-table/',
+    label: 'README table',
+  },
+  {
+    command: 'showcase portfolio',
+    text: 'Exact-size 16:9 images with the framed window contained, never cropped, plus a thumbnail and a gallery JSON for your site.',
+    writes: '<dir>/tonight.webp',
+    guide: 'guides/portfolio/',
+    label: 'Portfolio',
+  },
+  {
+    command: 'showcase hero',
+    text: 'A banner with your logo, name, tagline and framed shots in one of six layouts, 1280x640 by default.',
+    writes: 'assets/showcase/hero.webp',
+    guide: 'guides/hero/',
+    label: 'Hero banner',
+  },
+  {
+    command: 'showcase record',
+    text: 'Short animated WebP and GIF recordings of a terminal app (MP4 opt-in), framed like the stills.',
+    writes: 'assets/showcase/en/tour.webp',
+    guide: 'guides/clips/',
+    label: 'Clips',
+  },
+  {
+    command: 'showcase icons',
+    text: 'Web, Electron or Tauri icon sets (PNG, .ico, .icns) from one square image. Needs no config.',
+    writes: 'icons/favicon.ico',
+    guide: 'guides/icons/',
+    label: 'Icons',
+  },
+];
+---
+
+<section class="nc-section nc-band not-content" aria-labelledby="every-command">
+  <h2 class="nc-h2" id="every-command">Every command writes files you can check in.</h2>
+  <p class="nc-sub">
+    <code>showcase all</code> runs capture, frame, then the portfolio export when it is configured, then the clips when
+    there are any. The README snippet, the hero banner and the icons are their own commands.
+  </p>
+  <ol class="nc-ledger">
+    {
+      rows.map((row) => (
+        <li class="nc-ledger-row">
+          <a class="nc-ledger-cmd" href={`${base}/${row.guide}`}>
+            {row.command}
+            <span class="sr-only">, see the {row.label} guide</span>
+          </a>
+          <p>{row.text}</p>
+          <code class="nc-ledger-writes">{row.writes}</code>
+        </li>
+      ))
+    }
+  </ol>
+</section>

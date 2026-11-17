@@ -56,6 +56,6 @@ describe('theme contract', () => {
   test('astro.config.mjs loads the theme in its order: base, components, the preset, then the site', () => {
     const config = readFileSync(join(SITE_DIR, 'astro.config.mjs'), 'utf8');
     const files = [...config.matchAll(/'\.\/src\/styles\/([^']+\.css)'/g)].map((m) => m[1]);
-    expect(files).toEqual(['noctcore/base.css', 'noctcore/components.css', 'noctcore/presets/observatory.css', 'site.css']);
+    expect(files).toEqual(['noctcore/base.css', 'noctcore/components.css', 'noctcore/presets/blueprint.css', 'site.css']);
   });
 });

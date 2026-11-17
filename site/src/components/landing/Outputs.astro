@@ -1,0 +1,65 @@
+---
+/**
+ * One capture in the sizes it ships in, from the gallery's real files, then
+ * four of the six hero layouts. Every size comes from the gallery manifest.
+ */
+import { galleryFile } from '../GalleryData';
+import GalleryThumbs from '../GalleryThumbs.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const readme = galleryFile('readme/en/tonight.webp');
+const portfolio = galleryFile('portfolio/log.webp');
+const clip = galleryFile('terminal/tour.webp');
+
+const strip = [
+  {
+    image: readme,
+    name: 'README image',
+    note: `${readme.width} x ${readme.height} WebP`,
+    alt: "Nightjar's Tonight view in the window frame on the default gradient.",
+  },
+  {
+    image: portfolio,
+    name: 'Portfolio image',
+    note: `${portfolio.width} x ${portfolio.height}, plus a thumbnail and a gallery JSON`,
+    alt: "Nightjar's Log view as a 16:9 portfolio image, the window contained in the frame.",
+  },
+  {
+    image: clip,
+    name: 'Terminal clip',
+    note: 'Animated WebP and GIF',
+    alt: 'An animated recording of the nightjar queue: the selection moves down the list, then the log opens.',
+  },
+];
+---
+
+<section class="nc-section not-content" aria-labelledby="every-size">
+  <h2 class="nc-h2" id="every-size">One capture, every size it ships in.</h2>
+  <div class="nc-strip">
+    {
+      strip.map((item) => (
+        <figure>
+          <img src={item.image.src} width={item.image.width} height={item.image.height} alt={item.alt} loading="lazy" decoding="async" />
+          <figcaption>
+            <b>{item.name}</b>
+            {item.note}
+          </figcaption>
+        </figure>
+      ))
+    }
+  </div>
+  <p class="nc-sub nc-strip-more">
+    Six hero layouts, six frame styles, six kinds of background and five README layouts, all shown in the <a
+      href={`${base}/gallery/#hero-layouts`}>gallery</a
+    > with the config that made each. Four of the hero layouts, for Nightjar, the fixture app behind it:
+  </p>
+  <GalleryThumbs
+    cols={4}
+    items={[
+      { file: 'layouts/hero-spotlight.webp', label: 'hero: spotlight', href: `${base}/gallery/#hero-layouts`, alt: 'A banner for Nightjar, the gallery fixture app, in the spotlight layout.' },
+      { file: 'layouts/hero-row.webp', label: 'hero: row', href: `${base}/gallery/#hero-layouts`, alt: 'The Nightjar banner in the row layout.' },
+      { file: 'layouts/hero-mosaic.webp', label: 'hero: mosaic', href: `${base}/gallery/#hero-layouts`, alt: 'The Nightjar banner in the mosaic layout.' },
+      { file: 'layouts/hero-centered.webp', label: 'hero: centered', href: `${base}/gallery/#hero-layouts`, alt: 'The Nightjar banner in the centered layout.' },
+    ]}
+  />
+</section>

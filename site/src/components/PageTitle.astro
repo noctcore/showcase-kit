@@ -1,0 +1,29 @@
+---
+/**
+ * Starlight's page title with a trail over it: the sidebar group the page
+ * sits in, then the page, in mono ("output / frames"). Pages outside a group
+ * get the title alone.
+ */
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+
+type Entry = (typeof Astro.locals.starlightRoute.sidebar)[number];
+
+const hasCurrent = (entry: Entry): boolean =>
+  entry.type === 'link' ? entry.isCurrent : entry.entries.some(hasCurrent);
+
+const group = Astro.locals.starlightRoute.sidebar.find(
+  (entry) => entry.type === 'group' && hasCurrent(entry),
+);
+const title = Astro.locals.starlightRoute.entry.data.title;
+---
+
+{
+  group && (
+    <p class="nc-trail">
+      <span>{group.label.toLowerCase()}</span>
+      <span aria-hidden="true">/</span>
+      <span>{title.toLowerCase()}</span>
+    </p>
+  )
+}
+<Default />

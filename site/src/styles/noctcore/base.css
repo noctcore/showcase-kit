@@ -3,16 +3,14 @@
    maps them onto Starlight 0.42's --sl-* variables once, so a preset never
    names a Starlight variable for colour. Starlight's own CSS sits in cascade
    layers and customCss is unlayered, so these rules win without !important.
-   The brand constants are decorative only (the crescent rule, the hero
-   button, the wordmark): never body text. Load first in customCss. */
+   The brand constants are the blueprint night and paper, for art that keeps
+   one colour in both modes: never body text. Load first in customCss. */
 
 :root,
 ::backdrop {
   /* Brand constants */
-  --nc-violet: #8b7cff;
-  --nc-cyan: #4dd0e1;
-  --nc-night: #0b1020;
-  --nc-gradient: linear-gradient(90deg, var(--nc-violet), var(--nc-cyan));
+  --nc-night: #17212d;
+  --nc-paper: #f6f5f1;
 
   /* Type and measure */
   --sl-font: var(--nc-font-body);
@@ -66,56 +64,17 @@
   --sl-color-green-high: var(--nc-success-ink);
 }
 
-/* Shared structure: the wordmark, the crescent rule, the hero button, radius, focus. */
+/* Shared structure: the wordmark, radius, focus, code. */
 .site-title {
-  font-family: var(--sl-font-mono);
+  font-family: var(--sl-font);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--sl-color-white);
 }
 
-.nc-wordmark {
-  position: relative;
-}
-
-.nc-wordmark::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: -0.3rem;
-  width: 1.75rem;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--nc-gradient);
-}
-
 h1#_top,
-.hero h1,
-.sl-markdown-content h2,
-.sl-markdown-content h3 {
+.sl-markdown-content :is(h2, h3, h4):not(:where(.not-content *)) {
   font-family: var(--nc-font-display);
-}
-
-.hero h1::after {
-  content: '';
-  display: block;
-  width: 6rem;
-  height: 0.25rem;
-  margin-top: 1rem;
-  border-radius: 999px;
-  background: var(--nc-gradient);
-}
-
-@media (max-width: 49.99rem) {
-  .hero h1::after {
-    margin-inline: auto;
-  }
-}
-
-.hero .sl-link-button.primary {
-  background: var(--nc-gradient);
-  border-color: transparent;
-  color: var(--nc-night);
 }
 
 .starlight-aside,
@@ -135,6 +94,7 @@ h1#_top,
 }
 
 .expressive-code pre,
-code {
+code,
+kbd {
   font-variant-ligatures: none;
 }

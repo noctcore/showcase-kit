@@ -1,0 +1,65 @@
+---
+/**
+ * What the kit settles before every shutter, as the ledger's stopped tracks:
+ * a dashed copper line ending in a cap. Each line names a cause of changing
+ * pixels and what the code does about it (src/capture.ts for web and
+ * Electron, src/tty/ for terminal apps). Copper marks only these.
+ */
+const stops = [
+  {
+    what: 'motion',
+    how: 'prefers-reduced-motion is set to reduce for every capture',
+    where: 'web',
+  },
+  {
+    what: 'running animations',
+    how: 'finite ones finished, infinite ones reset at the shutter',
+    where: 'web',
+  },
+  {
+    what: 'transitions and the caret',
+    how: 'transitions set to zero, the caret hidden',
+    where: 'web',
+  },
+  {
+    what: 'fonts still loading',
+    how: 'waits for document.fonts.ready and two painted frames',
+    where: 'web',
+  },
+  {
+    what: 'half-drawn screen',
+    how: 'waits until the screen is unchanged for 100 ms',
+    where: 'tty',
+  },
+  {
+    what: 'machine differences',
+    how: 'a fixed size and a bundled font, TZ=UTC, and an en_US.UTF-8 locale on macOS and Linux',
+    where: 'tty',
+  },
+];
+---
+
+<section class="nc-section nc-stops-wrap not-content" aria-labelledby="what-stops">
+  <div>
+    <h2 class="nc-h2" id="what-stops">What stops at capture.</h2>
+    <p class="nc-sub">
+      Before every shutter the kit settles the page, so two runs of the same app state write the same file. Your part is
+      stable data: a fixture mode, so dates and counters stay put, and a <code>ready</code> selector that only matches
+      once the app has rendered.
+    </p>
+  </div>
+  <ul class="nc-stops">
+    {
+      stops.map((stop) => (
+        <li class="nc-stop">
+          <div>
+            <b>{stop.what}</b>
+            <span>{stop.how}</span>
+          </div>
+          <i aria-hidden="true" />
+          <em>{stop.where}</em>
+        </li>
+      ))
+    }
+  </ul>
+</section>
