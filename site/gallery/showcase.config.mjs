@@ -45,7 +45,6 @@ export default {
     style: 'window',
     theme: 'dark',
     title: '{name}: {title}',
-    background: { type: 'gradient', from: '#2a1f6b', to: '#0b3b4c', angle: 135 },
     padding: 64,
     maxWidth: 1600,
     quality: 85,
